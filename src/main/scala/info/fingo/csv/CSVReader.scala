@@ -24,7 +24,7 @@ class CSVReader(source: Source, separator: Char) {
   }
 
   private def parseRow(row: String) = {
-    val fields = row.split(separator)
+    val fields = CSVLineParser.parse(row,separator)
     new CSVRow(fields)
   }
 }

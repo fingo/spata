@@ -34,7 +34,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("mixed","Fanky Koval","100.00","Solo, Han","999.99"),
     ("spaces"," Fanky Koval "," "," "," 999.99 "),
     ("empty values","","","",""),
-    ("double quotes","\"Fanky\" Koval","\"100.00\"","Solo, \"Han\"","999\".\"99")
+    ("double quotes","\"Fanky\" Koval","\"100.00\"","Solo, \"Han\"","999\".\"99"),
+    ("line breaks","Fanky\nKoval","100.00","\nHan Solo","999.99\n")
   )
 
   def generateBasicCSV(testCase: String, separator: Char): Source = {
@@ -70,6 +71,11 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |"1"$s"^Fanky^ Koval"$s"01.01.2001"$s"^100.00^"
             |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
             |"3"$s"Solo, ^Han^"$s"09.09.1999"$s"999^.^99"""".stripMargin.replace("^","\"\"")
+      case "line breaks" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+            |1$s"Fanky\nKoval"${s}01.01.2001${s}100.00
+            |2${s}Eva Solo${s}31.12.2012${s}123.45
+            |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
       case _ => throw new RuntimeException("Unknown test case")
     }
     Source.fromString(csv)

@@ -19,12 +19,17 @@ class CSVReader(source: Source, separator: Char) {
       lines.hasNext
     }
     def next = {
-      parseRow(lines.next)
+      parseRow()
     }
   }
 
-  private def parseRow(row: String) = {
-    val fields = CSVLineParser.parse(row,separator)
-    new CSVRow(fields)
+  private def parseRow() = {
+    var values = CSVLineParser.parse(lines.next,separator)
+    while (!values.isComplete) {
+      if(!lines.hasNext)
+        throw new CSVException("Unclosed quotation")
+      values = CSVLineParser.parse(lines.next, separator, values)
+    }
+    new CSVRow(values.data)
   }
 }

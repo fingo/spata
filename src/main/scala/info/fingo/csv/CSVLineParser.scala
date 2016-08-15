@@ -2,60 +2,75 @@ package info.fingo.csv
 
 import scala.collection.immutable.VectorBuilder
 
-object CSVLineParser {
+private[csv] class CSVLineParser(val separator: Char) {
   val CSVEscapeChar = '"'
 
-  class CSVLineParseResult() {
-    var isInQuotes = false
-    var wasQuote = false
-    var field = ""
-    val values = new VectorBuilder[String]()
+  private var isInQuotes = false
+  private var wasQuote = false
+  private var value = ""
+  private val values = new VectorBuilder[String]()
+  private var fieldsNumber = 0
 
-    def isComplete = !isInQuotes
-    def data = values.result()
-  }
+  def data = values.result()
+  def finished = fieldsNumber > 0 && !isInQuotes
 
-  def parse(line: String, separator: Char, result: CSVLineParseResult = new CSVLineParseResult): CSVLineParseResult = {
+  def parse(line: String): Boolean = {
     for(char <- line) {
       char match {
-        case `separator` =>
-          if(!result.isInQuotes || result.wasQuote) {
-            result.values += result.field
-            result.field = ""
-            result.isInQuotes = false
-            result.wasQuote = false
-          }
-          else {
-            result.field += char
-            result.wasQuote = false
-          }
-        case CSVEscapeChar =>
-          if(!result.isInQuotes && result.field == "") {
-            result.isInQuotes = true
-          }
-          else if(result.isInQuotes) {
-            if(result.wasQuote) {
-              result.field += char
-              result.wasQuote = false
-            }
-            else
-              result.wasQuote = true
-          }
-          else
-            throw new RuntimeException("bad format")
-        case _ =>
-          result.field += char
-          result.wasQuote = false
+        case `separator` => handleSeparator()
+        case CSVEscapeChar => handleEscapeChar()
+        case _ => handleOrdinaryChar(char)
       }
     }
-    if(result.wasQuote)
-      result.isInQuotes = false
-    if(result.isInQuotes)
-      result.field += "\n"
-    else {
-      result.values += result.field
-      result.field = ""
+    handleEndOfLine()
+    finished
+  }
+
+  private def handleSeparator(): Unit = {
+    if(!isInQuotes || wasQuote) {
+      collectValue()
+      isInQuotes = false
+      wasQuote = false
     }
-    result
+    else {
+      value += separator
+      wasQuote = false
+    }
+  }
+
+  private def handleEscapeChar(): Unit = {
+    if(!isInQuotes && value.isEmpty) {
+      isInQuotes = true
+    }
+    else if(isInQuotes) {
+      if(wasQuote) {
+        value += CSVEscapeChar
+        wasQuote = false
+      }
+      else
+        wasQuote = true
+    }
+    else
+      throw new CSVException("Bad format: not enclosed or not escaped quotation")
+  }
+
+  private def handleOrdinaryChar(char: Char): Unit = {
+    value += char
+    wasQuote = false
+  }
+
+  private def handleEndOfLine(): Unit = {
+    if(wasQuote)
+      isInQuotes = false
+    if(isInQuotes)
+      value += "\n"
+    else
+      collectValue()
+  }
+
+  private def collectValue(): Unit = {
+    values += value
+    fieldsNumber += 1
+    value = ""
   }
 }

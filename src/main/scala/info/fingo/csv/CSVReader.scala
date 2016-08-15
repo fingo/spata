@@ -24,12 +24,12 @@ class CSVReader(source: Source, separator: Char) {
   }
 
   private def parseRow() = {
-    var values = CSVLineParser.parse(lines.next,separator)
-    while (!values.isComplete) {
+    val parser = new CSVLineParser(separator)
+    do {
       if(!lines.hasNext)
-        throw new CSVException("Unclosed quotation")
-      values = CSVLineParser.parse(lines.next, separator, values)
-    }
-    new CSVRow(values.data)
+        throw new CSVException("Bad format: premature end of file (unclosed quotation?)")
+      parser.parse(lines.next)
+    } while(!parser.finished)
+    new CSVRow(parser.data)
   }
 }

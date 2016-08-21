@@ -2,7 +2,7 @@ package info.fingo.csv
 
 import scala.collection.immutable.VectorBuilder
 
-private[csv] class CSVLineParser(val separator: Char) {
+private[csv] class CSVLineParser(val separator: Char, val rowNum: Int) {
   val CSVEscapeChar = '"'
 
   private var isInQuotes = false
@@ -14,12 +14,12 @@ private[csv] class CSVLineParser(val separator: Char) {
   def data = values.result()
   def finished = fieldsNumber > 0 && !isInQuotes
 
-  def parse(line: String): Boolean = {
+  def parse(line: String, lineNum: Int): Boolean = {
     for(char <- line) {
       char match {
         case `separator` => handleSeparator()
-        case CSVEscapeChar => handleEscapeChar()
-        case _ => handleOrdinaryChar(char)
+        case CSVEscapeChar => handleEscapeChar(lineNum)
+        case _ => handleOrdinaryChar(char,lineNum)
       }
     }
     handleEndOfLine()
@@ -38,7 +38,7 @@ private[csv] class CSVLineParser(val separator: Char) {
     }
   }
 
-  private def handleEscapeChar(): Unit = {
+  private def handleEscapeChar(lineNum: Int): Unit = {
     if(!isInQuotes && value.isEmpty) {
       isInQuotes = true
     }
@@ -51,10 +51,12 @@ private[csv] class CSVLineParser(val separator: Char) {
         wasQuote = true
     }
     else
-      throw new CSVException("Bad format: not enclosed or not escaped quotation")
+      throw new CSVException("Bad format: not enclosed or not escaped quotation","wrongQuotation",lineNum,rowNum)
   }
 
-  private def handleOrdinaryChar(char: Char): Unit = {
+  private def handleOrdinaryChar(char: Char, lineNum: Int): Unit = {
+    if(wasQuote)
+      throw new CSVException("Bad format: not enclosed or not escaped quotation","wrongQuotation",lineNum,rowNum)
     value += char
     wasQuote = false
   }

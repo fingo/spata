@@ -13,6 +13,8 @@ class CSVReader(source: Source, separator: Char) {
     val captions = headerLine.split(separator)
     captions.zipWithIndex.toMap
   }
+  var lineNum = 1
+  var rowNum = 0
 
   val iterator: Iterator[CSVRow] = new Iterator[CSVRow] {
     def hasNext = {
@@ -24,12 +26,14 @@ class CSVReader(source: Source, separator: Char) {
   }
 
   private def parseRow() = {
-    val parser = new CSVLineParser(separator)
+    rowNum += 1
+    val parser = new CSVLineParser(separator,rowNum)
     do {
       if(!lines.hasNext)
-        throw new CSVException("Bad format: premature end of file (unclosed quotation?)")
-      parser.parse(lines.next)
+        throw new CSVException("Bad format: premature end of file (unmatched quotation?)","prematureEOF",lineNum,rowNum)
+      lineNum += 1
+      parser.parse(lines.next,lineNum)
     } while(!parser.finished)
-    new CSVRow(parser.data)
+    new CSVRow(parser.data,lineNum,rowNum)
   }
 }

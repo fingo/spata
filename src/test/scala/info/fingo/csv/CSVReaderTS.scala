@@ -90,8 +90,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         val it = reader.iterator
         assert(it.hasNext)
         val ex = intercept[CSVException] {
-          val row = it.next
-          println(row.toString)
+          it.next
         }
         assert(ex.messageCode == errorCode)
         assert(ex.line == line)

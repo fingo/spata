@@ -1,4 +1,4 @@
-ScalaCVS
+ScalaCSV
 ========
 
 CSV handling library for Scala

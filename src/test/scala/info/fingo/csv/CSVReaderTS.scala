@@ -36,7 +36,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("spaces"," Fanky Koval "," "," "," 999.99 "),
     ("empty values","","","",""),
     ("double quotes","\"Fanky\" Koval","\"100.00\"","Solo, \"Han\"","999\".\"99"),
-    ("line breaks","Fanky\nKoval","100.00","\nHan Solo","999.99\n")
+    ("line breaks","Fanky\nKoval","100.00","\nHan Solo","999.99\n"),
+    ("empty lines","Fanky Koval","100.00","Han Solo","999.99")
   )
 
   def generateBasicCSV(testCase: String, separator: Char): Source = {
@@ -59,8 +60,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |"3"$s"Solo, Han"${s}09.09.1999${s}999.99""".stripMargin
       case "spaces" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-            |"1"$s Fanky Koval ${s}01.01.2001$s" "
-            |"2"${s}Eva Solo${s}31.12.2012${s}123.45
+            |"1"$s" Fanky Koval "${s}01.01.2001$s" "
+            |"2"$s Eva Solo ${s}31.12.2012${s}123.45
             |"3"$s" "${s}09.09.1999$s" 999.99 """".stripMargin
       case "empty values" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
@@ -77,6 +78,13 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |1$s"Fanky\nKoval"${s}01.01.2001${s}100.00
             |2${s}Eva Solo${s}31.12.2012${s}123.45
             |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
+      case "empty lines" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |
+           |1${s}Fanky Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99
+           |""".stripMargin
       case _ => throw new RuntimeException("Unknown test case")
     }
     Source.fromString(csv)
@@ -88,7 +96,6 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         val source = generateErroneousCSV(testCase,separator)
         val reader = new CSVReader(source, separator)
         val it = reader.iterator
-        assert(it.hasNext)
         val ex = intercept[CSVException] {
           it.next
         }

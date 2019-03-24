@@ -5,35 +5,37 @@ import scala.io.Source
 
 class CSVReader(source: Source, separator: Char) {
 
-  private val lines = source.getLines
+  private val parser = Parser.builder(source).fieldDelimiter(separator).build()
 
   // caption -> position
   implicit private val headerIndex: Map[String,Int] = {
-    val headerLine = lines.next
-    val captions = headerLine.split(separator)
+    val captions = parser.next().fields
     captions.zipWithIndex.toMap
   }
   var lineNum = 1
   var rowNum = 0
 
   val iterator: Iterator[CSVRow] = new Iterator[CSVRow] {
-    def hasNext = {
-      lines.hasNext
-    }
-    def next = {
-      parseRow()
+    def hasNext: Boolean = interceptParserException(parser.hasNext)
+    def next: CSVRow = {
+      wrapRow()
     }
   }
 
-  private def parseRow() = {
+  private def wrapRow() = {
+    val rawRow = interceptParserException(parser.next())
     rowNum += 1
-    val parser = new CSVLineParser(separator,rowNum)
-    do {
-      if(!lines.hasNext)
-        throw new CSVException("Bad format: premature end of file (unmatched quotation?)","prematureEOF",lineNum,rowNum)
-      lineNum += 1
-      parser.parse(lines.next,lineNum)
-    } while(!parser.finished)
-    new CSVRow(parser.data,lineNum,rowNum)
+    lineNum += rawRow.numOfLines
+    val row = new CSVRow(rawRow.fields, lineNum, rowNum)
+    row
+  }
+
+  private def interceptParserException[A](f: => A): A = {
+    try {
+      f
+    }
+    catch {
+      case ex: CSVException => throw new CSVException(ex.message, ex.messageCode, lineNum + ex.line.getOrElse(1), rowNum + 1)
+    }
   }
 }

@@ -13,14 +13,15 @@ class Parser(
   private var nextRow: Option[RawRow] = None
 
   import Parser._
-  import Parser.Position._
+  import Parser.CharPosition._
 
   override def hasNext: Boolean = {
     nextRow match {
       case Some(row) if !row.isEmpty => true
       case _ if !chars.hasNext => false
       case _ =>
-        nextRow = Some(readRow())
+        val numOfLinesAbove = nextRow.map(_.numOfLines).getOrElse(0)
+        nextRow = Some(readRow(numOfLinesAbove))
         hasNext
     }
   }
@@ -33,69 +34,80 @@ class Parser(
     row
   }
 
-  private def readRow(): RawRow = {
+  private def readRow(numOfNewLinesAbove: Int = 0): RawRow = {
     @tailrec
     def loop(fields: VectorBuilder[String], numOfLines: Int): Int = {
-      val rawField = parseField(numOfLines)
-      fields += rawField.value
-      val numOfNewLines = rawField.numOfLines - 1
-      if(rawField.endOfRecord)
-        numOfLines + numOfNewLines
-      else
-        loop(fields, numOfLines + numOfNewLines)
+      parseField() match {
+        case field: RawField =>
+          fields += field.value
+          if(field.endOfRecord)
+            numOfLines + field.numOfNewLines
+          else
+            loop(fields, numOfLines + field.numOfNewLines)
+        case failure: FieldFailure =>
+          throw new CSVException(failure.message, failure.code, numOfLines + failure.numOfNewLines, 1)
+      }
     }
 
     val fields = new VectorBuilder[String]
-    val numOfLines = loop(fields, 1)
+    val numOfLines = loop(fields, numOfNewLinesAbove + 1)
     RawRow(fields.result(), numOfLines)
   }
 
   @inline
   private def isDelimiter(c: Char): Boolean = c == fieldDelimiter || c == recordDelimiter
 
-  private def parseField(lineNumber: Int): RawField = {
+  private def parseField(): FieldResult = {
     @tailrec
-    def loop(sb: StringBuilder, state: State, numOfLines: Int): (State, Int) = {
+    def loop(sb: StringBuilder, state: CharState, numOfNewLines: Int = 0): (CharResult, Int) = {
       if(!chars.hasNext || state.finished)
-        finish(state, numOfLines)
+        (finish(state), numOfNewLines)
       else {
-        val nextState = parseChar(chars.next(), state, numOfLines)
-        nextState.char.map(sb.append)
-        val numOfNewLines = if(nextState.isNewLine) 1 else 0
-        loop(sb, nextState, numOfLines + numOfNewLines)
+        parseChar(chars.next(), state) match {
+          case newState: CharState =>
+            newState.char.map(sb.append)
+            val newLinesToAdd = if(newState.isNewLine) 1 else 0
+            loop(sb, newState, numOfNewLines + newLinesToAdd)
+          case failure => (failure, numOfNewLines)
+        }
       }
     }
 
-    def finish(state: State, numOfLines: Int): (State, Int) = {
+    def finish(state: CharState): CharResult = {
       if(state.position == Quoted)
-        throw new CSVException("Bad format: premature end of file (unmatched quotation?)", "prematureEOF", numOfLines, 1)
-      if(!chars.hasNext)
-        (State(None, FinishedRecord, state.toTrim), numOfLines)
+        CharFailure("prematureEOF", "Bad format: premature end of file (unmatched quotation?)")
+      else if(!chars.hasNext)
+        CharState(None, FinishedRecord, state.toTrim)
       else
-        (state, numOfLines)
+        state
     }
 
     val sb = StringBuilder.newBuilder
-    val (state, numOfLines) = loop(sb, State(None, Start), lineNumber)
-    RawField(sb.toString().dropRight(state.toTrim), state.position == FinishedRecord, numOfLines)
+    val (result, numOfNewLines) = loop(sb, CharState(None, Start))
+    result match {
+      case state: CharState =>
+        RawField(sb.toString().dropRight(state.toTrim), state.position == FinishedRecord, numOfNewLines)
+      case failure: CharFailure =>
+        FieldFailure(failure.code, failure.message, numOfNewLines)
+    }
   }
 
-  private def parseChar(char: Char, state: State, lineNumber: Int): State =
+  private def parseChar(char: Char, state: CharState): CharResult =
     char match {
-      case `quote` if state.position == Start => State(None, Quoted)
-      case `quote` if state.position == Quoted => State(None, Escape)
-      case `quote` if state.position == Escape => State(Some(quote), Quoted)
-      case `quote` => throw new CSVException("Bad format: not enclosed or not escaped quotation", "wrongQuotation", lineNumber, 1)
-      case CR if recordDelimiter == LF && state.position != Quoted => State(None, state.position)
-      case c if isDelimiter(c) && state.position == Quoted => State(Some(c), Quoted)
-      case `fieldDelimiter` => State(None, FinishedField, state.toTrim)
-      case `recordDelimiter` => State(None, FinishedRecord, state.toTrim)
-      case c if c.isWhitespace && state.atBoundary => State(None, state.position)
-      case c if c.isWhitespace && state.position == Escape => State(None, End)
-      case c if c.isWhitespace && state.position == Regular => State(Some(c), Regular, state.toTrim + 1)
-      case _ if state.position == Escape || state.position == End => throw new CSVException("Bad format: not enclosed or not escaped quotation", "wrongQuotation", lineNumber, 1)
-      case c if state.position == Start => State(Some(c), Regular)
-      case c => State(Some(c), state.position)
+      case `quote` if state.position == Start => CharState(None, Quoted)
+      case `quote` if state.position == Quoted => CharState(None, Escape)
+      case `quote` if state.position == Escape => CharState(Some(quote), Quoted)
+      case `quote` => CharFailure( "wrongQuotation", "Bad format: not enclosed or not escaped quotation")
+      case CR if recordDelimiter == LF && state.position != Quoted => CharState(None, state.position)
+      case c if isDelimiter(c) && state.position == Quoted => CharState(Some(c), Quoted)
+      case `fieldDelimiter` => CharState(None, FinishedField, state.toTrim)
+      case `recordDelimiter` => CharState(None, FinishedRecord, state.toTrim)
+      case c if c.isWhitespace && state.atBoundary => CharState(None, state.position)
+      case c if c.isWhitespace && state.position == Escape => CharState(None, End)
+      case c if c.isWhitespace && state.position == Regular => CharState(Some(c), Regular, state.toTrim + 1)
+      case _ if state.position == Escape || state.position == End => CharFailure("wrongQuotation", "Bad format: not enclosed or not escaped quotation")
+      case c if state.position == Start => CharState(Some(c), Regular)
+      case c => CharState(Some(c), state.position)
     }
 }
 
@@ -104,19 +116,23 @@ object Parser {
   val LF: Char = 0x0A.toChar
   val CR: Char = 0x0D.toChar
 
-  private object Position extends Enumeration {
+  private object CharPosition extends Enumeration {
     type Position = Value
     val Start, Regular, Quoted, Escape, End, FinishedField, FinishedRecord = Value
   }
-  import Position._
+  import CharPosition._
 
-  private case class State(char: Option[Char], position: Position, toTrim: Int = 0) {
+  sealed private trait CharResult
+  private case class CharFailure(code: String, message: String) extends CharResult
+  private case class CharState(char: Option[Char], position: Position, toTrim: Int = 0) extends CharResult {
     def finished: Boolean = position == FinishedField || position == FinishedRecord
     def atBoundary: Boolean = position == Start || position == End
     def isNewLine: Boolean = char.contains(LF)
   }
 
-  private case class RawField(value: String, endOfRecord: Boolean = false, numOfLines: Int = 1)
+  sealed private trait FieldResult
+  private case class FieldFailure(code: String, message: String, numOfNewLines: Int) extends  FieldResult
+  private case class RawField(value: String, endOfRecord: Boolean = false, numOfNewLines: Int = 0) extends FieldResult
 
   def builder(chars: Iterator[Char]): Builder = new Builder(chars)
 

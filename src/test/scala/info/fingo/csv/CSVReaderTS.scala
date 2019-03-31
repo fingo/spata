@@ -111,8 +111,10 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
   val errorCases = Table(
     ("testCase","errorCode","lineNum","colNum","rowNum","field"),
     ("missing value","valuesNumber",Some(2),None,Some(1),None),
+    ("missing value with empty lines","valuesNumber",Some(3),None,Some(1),None),
     ("too many values","valuesNumber",Some(2),None,Some(1),None),
     ("unclosed quotation","wrongQuotation",Some(2),None,Some(1),None),
+    ("unclosed quotation with empty lines","wrongQuotation",Some(3),None,Some(1),None),
     ("unescaped quotation","wrongQuotation",Some(2),None,Some(1),None),
     ("unmatched quotation","prematureEOF",Some(4),None,Some(1),None)
   )
@@ -125,6 +127,12 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |1${s}Fanky Koval${s}100.00
             |2${s}Eva Solo${s}31.12.2012${s}123.45
             |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "missing value with empty lines" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |
+           |1${s}Fanky Koval${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "too many values" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
             |1${s}Fanky Koval${s}XYZ${s}01.01.2001${s}100.00
@@ -135,6 +143,12 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |1${s}Fanky" Koval${s}01.01.2001${s}100.00
             |2${s}Eva Solo${s}31.12.2012${s}123.45
             |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "unclosed quotation with empty lines" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |
+           |1${s}Fanky" Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unescaped quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
             |1$s"Fanky" Koval"${s}01.01.2001${s}100.00

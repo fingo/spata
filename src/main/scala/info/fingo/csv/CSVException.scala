@@ -11,5 +11,6 @@ class CSVException(val message: String,
 
   def this(message: String, messageCode: String, cause: Throwable) = this(message,messageCode,None,None,None,None,cause)
   def this(message: String, messageCode: String, line: Int, row: Int) = this(message,messageCode,Some(line),None,Some(row),None,null)
+  def this(message: String, messageCode: String, line: Int, col: Int, row: Int) = this(message,messageCode,Some(line),Some(col),Some(row),None,null)
   def this(message: String, messageCode: String) = this(message,messageCode,None,None,None,None,null)
 }

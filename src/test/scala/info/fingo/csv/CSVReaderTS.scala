@@ -113,10 +113,10 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("missing value","valuesNumber",Some(2),None,Some(1),None),
     ("missing value with empty lines","valuesNumber",Some(3),None,Some(1),None),
     ("too many values","valuesNumber",Some(2),None,Some(1),None),
-    ("unclosed quotation","wrongQuotation",Some(2),None,Some(1),None),
-    ("unclosed quotation with empty lines","wrongQuotation",Some(3),None,Some(1),None),
-    ("unescaped quotation","wrongQuotation",Some(2),None,Some(1),None),
-    ("unmatched quotation","prematureEOF",Some(4),None,Some(1),None)
+    ("unclosed quotation","wrongQuotation",Some(2),Some(8),Some(1),None),
+    ("unclosed quotation with empty lines","wrongQuotation",Some(3),Some(8),Some(1),None),
+    ("unescaped quotation","wrongQuotation",Some(2),Some(11),Some(1),None),
+    ("unmatched quotation","prematureEOF",Some(4),Some(28),Some(1),None)
   )
 
   def generateErroneousCSV(testCase: String, separator: Char): Source = {

@@ -35,7 +35,8 @@ class CSVReader(source: Source, separator: Char) {
       f
     }
     catch {
-      case ex: CSVException => throw new CSVException(ex.message, ex.messageCode, lineNum + ex.line.getOrElse(1), rowNum + 1)
+      case ex: CSVException =>
+        throw new CSVException(ex.message, ex.messageCode, ex.line.orElse(Some(1)).map(_ + lineNum), ex.col, Some(rowNum + 1), None)
     }
   }
 }

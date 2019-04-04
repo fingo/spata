@@ -36,39 +36,42 @@ class Parser(
 
   private def readRow(numOfNewLinesAbove: Int = 0): RawRow = {
     @tailrec
-    def loop(fields: VectorBuilder[String], numOfLines: Int): Int = {
-      parseField() match {
+    def loop(fields: VectorBuilder[String], counters: Counters): Counters = {
+      parseField(counters) match {
         case field: RawField =>
           fields += field.value
           if(field.endOfRecord)
-            numOfLines + field.numOfNewLines
+            field.counters
           else
-            loop(fields, numOfLines + field.numOfNewLines)
+            loop(fields, field.counters)
         case failure: FieldFailure =>
-          throw new CSVException(failure.message, failure.code, numOfLines + failure.numOfNewLines, 1)
+          throw new CSVException(failure.message, failure.code, failure.counters.newLines, failure.counters.position,1)
       }
     }
 
     val fields = new VectorBuilder[String]
-    val numOfLines = loop(fields, numOfNewLinesAbove + 1)
-    RawRow(fields.result(), numOfLines)
+    val counters = loop(fields, Counters(0, 0, numOfNewLinesAbove + 1))
+    RawRow(fields.result(), counters.newLines)
   }
 
   @inline
   private def isDelimiter(c: Char): Boolean = c == fieldDelimiter || c == recordDelimiter
 
-  private def parseField(): FieldResult = {
+  private def parseField(counters: Counters): FieldResult = {
     @tailrec
-    def loop(sb: StringBuilder, state: CharState, numOfNewLines: Int = 0): (CharResult, Int) = {
+    def loop(sb: StringBuilder, state: CharState, counters: Counters): (CharResult, Counters) = {
       if(!chars.hasNext || state.finished)
-        (finish(state), numOfNewLines)
+        (finish(state), counters)
       else {
         parseChar(chars.next(), state) match {
           case newState: CharState =>
             newState.char.map(sb.append)
+            val charsToAdd = if(newState.char.isDefined) 1 else 0
             val newLinesToAdd = if(newState.isNewLine) 1 else 0
-            loop(sb, newState, numOfNewLines + newLinesToAdd)
-          case failure => (failure, numOfNewLines)
+            val newPosition = if(newState.isNewLine) 0 else counters.position + 1
+            val newCounters = Counters(newPosition, counters.characters + charsToAdd, counters.newLines + newLinesToAdd)
+            loop(sb, newState, newCounters)
+          case failure => (failure, counters.copy(position = counters.position + 1))
         }
       }
     }
@@ -83,12 +86,12 @@ class Parser(
     }
 
     val sb = StringBuilder.newBuilder
-    val (result, numOfNewLines) = loop(sb, CharState(None, Start))
+    val (result, updatedCounters) = loop(sb, CharState(None, Start), counters)
     result match {
       case state: CharState =>
-        RawField(sb.toString().dropRight(state.toTrim), state.position == FinishedRecord, numOfNewLines)
+        RawField(sb.toString().dropRight(state.toTrim), updatedCounters, state.position == FinishedRecord)
       case failure: CharFailure =>
-        FieldFailure(failure.code, failure.message, numOfNewLines)
+        FieldFailure(failure.code, failure.message, updatedCounters)
     }
   }
 
@@ -130,9 +133,11 @@ object Parser {
     def isNewLine: Boolean = char.contains(LF)
   }
 
+  private case class Counters(position: Int = 0, characters: Int = 0, newLines: Int = 0)
+
   sealed private trait FieldResult
-  private case class FieldFailure(code: String, message: String, numOfNewLines: Int) extends  FieldResult
-  private case class RawField(value: String, endOfRecord: Boolean = false, numOfNewLines: Int = 0) extends FieldResult
+  private case class FieldFailure(code: String, message: String, counters: Counters) extends  FieldResult
+  private case class RawField(value: String, counters: Counters, endOfRecord: Boolean = false) extends FieldResult
 
   def builder(chars: Iterator[Char]): Builder = new Builder(chars)
 

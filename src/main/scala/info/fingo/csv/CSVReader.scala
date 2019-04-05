@@ -1,42 +1,35 @@
 package info.fingo.csv
 
+import info.fingo.csv.parser.{ParsingFailure, RawRow, RowParser}
+
 import scala.collection.Iterator
 import scala.io.Source
 
 class CSVReader(source: Source, separator: Char) {
 
-  private val parser = Parser.builder(source).fieldDelimiter(separator).build()
+  private val parser = RowParser.builder(source).fieldDelimiter(separator).build()
+  private var lineNum = 1
+  private var rowNum = 0
 
   // caption -> position
-  implicit private val headerIndex: Map[String,Int] = {
-    val captions = parser.next().fields
-    captions.zipWithIndex.toMap
+  implicit private val headerIndex: Map[String,Int] = parser.next() match {
+    case RawRow(captions, _) => captions.zipWithIndex.toMap
+    case ParsingFailure(code, message, _) => throw new CSVException(message, code) // TODO: add better info
   }
-  var lineNum = 1
-  var rowNum = 0
 
   val iterator: Iterator[CSVRow] = new Iterator[CSVRow] {
-    def hasNext: Boolean = interceptParserException(parser.hasNext)
+    def hasNext: Boolean = parser.hasNext
     def next: CSVRow = {
       wrapRow()
     }
   }
 
-  private def wrapRow() = {
-    val rawRow = interceptParserException(parser.next())
-    rowNum += 1
-    lineNum += rawRow.numOfLines
-    val row = new CSVRow(rawRow.fields, lineNum, rowNum)
-    row
-  }
-
-  private def interceptParserException[A](f: => A): A = {
-    try {
-      f
-    }
-    catch {
-      case ex: CSVException =>
-        throw new CSVException(ex.message, ex.messageCode, ex.line.orElse(Some(1)).map(_ + lineNum), ex.col, Some(rowNum + 1), None)
-    }
+  private def wrapRow() = parser.next() match {
+    case RawRow(fields, counters) =>
+      rowNum += 1
+      lineNum += counters.newLines
+      new CSVRow(fields, lineNum, rowNum)
+    case ParsingFailure(code, message, counters) =>
+      throw new CSVException(message, code, Some(lineNum + counters.newLines), Some(counters.position), Some(rowNum + 1), None)
   }
 }

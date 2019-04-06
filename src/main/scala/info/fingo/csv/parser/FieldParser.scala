@@ -18,11 +18,10 @@ private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDel
         charParser.parseChar(chars.next(), state) match {
           case newState: CharState =>
             newState.char.map(sb.append)
-            val newPosition = if(newState.isNewLine) 0 else counters.position + 1
-            val charsToAdd = if(newState.char.isDefined) 1 else 0
-            val newLinesToAdd = if(newState.isNewLine) 1 else 0
             val newCounters =
-              ParsingCounters(newPosition, counters.characters + charsToAdd, counters.fieldIndex, counters.newLines + newLinesToAdd)
+              if(newState.isNewLine) counters.nextLine()
+              else if(newState.hasChar) counters.nextChar()
+              else counters.nextPosition()
             loop(sb, newState, newCounters)
           case failure => (failure, counters.nextPosition())
         }

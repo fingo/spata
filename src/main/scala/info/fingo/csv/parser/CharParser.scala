@@ -42,6 +42,7 @@ private object CharParser {
     def finished: Boolean = position == FinishedField || position == FinishedRecord
     def atBoundary: Boolean = position == Start || position == End
     def isNewLine: Boolean = char.contains(LF)
+    def hasChar: Boolean = char.isDefined
   }
 
   def apply(fieldDelimiter: Char, recordDelimiter: Char, quote: Char): CharParser =

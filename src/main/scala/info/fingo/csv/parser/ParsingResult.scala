@@ -9,8 +9,10 @@ private[csv] case class RawRow(fields: IndexedSeq[String], counters: ParsingCoun
 }
 
 private[csv] case class ParsingCounters(position: Int = 0, characters: Int = 0, fieldIndex: Int = 0, newLines: Int = 0) {
-  def nextPosition(): ParsingCounters = this.copy(position = this.position + 1)
-  def nextChar(): ParsingCounters = ParsingCounters(this.position + 1, this.characters + 1, this.fieldIndex, this.newLines)
-  def nextField(): ParsingCounters = this.copy(fieldIndex = this.fieldIndex + 1)
+  def add(position: Int = 0, characters: Int = 0, fieldIndex: Int = 0, newLines: Int = 0) =
+    ParsingCounters(this.position + position, this.characters + characters, this.fieldIndex + fieldIndex, this.newLines + newLines)
+  def nextPosition(): ParsingCounters = add(1)
+  def nextChar(): ParsingCounters = add(1, 1)
+  def nextField(): ParsingCounters = add(fieldIndex = 1)
   def nextLine(): ParsingCounters = ParsingCounters(0, this.characters, this.fieldIndex, this.newLines + 1)
 }

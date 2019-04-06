@@ -22,7 +22,7 @@ private[csv] class RowParser(
       case Some(row: RawRow) if !row.isEmpty => true
       case _ if !chars.hasNext => false
       case _ =>
-        val counters = ParsingCounters(0, 0, nextRow.map(_.counters.newLines).getOrElse(0))
+        val counters = ParsingCounters(0, 0, 0, nextRow.map(_.counters.newLines).getOrElse(0))
         nextRow = Some(readRow(counters))
         hasNext
     }
@@ -45,14 +45,14 @@ private[csv] class RowParser(
           if(field.endOfRecord)
             RawRow(fields.result(), field.counters)
           else
-            loop(fields, field.counters)
+            loop(fields, field.counters.nextField())
         case failure: FieldFailure =>
           ParsingFailure(failure.code, failure.message, failure.counters)
       }
     }
 
     val fields = new VectorBuilder[String]
-    loop(fields, counters.copy(newLines = counters.newLines + 1))
+    loop(fields, counters.nextLine())
   }
 }
 

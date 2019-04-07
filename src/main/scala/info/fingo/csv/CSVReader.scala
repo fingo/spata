@@ -14,7 +14,7 @@ class CSVReader(source: Source, separator: Char) {
   // caption -> position
   implicit private val headerIndex: Map[String, Int] = parser.next() match {
     case RawRow(captions, _) => captions.zipWithIndex.toMap
-    case ParsingFailure(code, message, _) => throw new CSVException(message, code) // TODO: add better info
+    case ParsingFailure(code, _) => throw new CSVException(code.message, code.toString) // TODO: add better info
   }
 
   private val reverseIndex: Map[Int, String] = headerIndex.map(x => x._2 -> x._1)
@@ -31,10 +31,10 @@ class CSVReader(source: Source, separator: Char) {
       rowNum += 1
       lineNum += counters.newLines
       new CSVRow(fields, lineNum, rowNum)
-    case ParsingFailure(code, message, counters) =>
+    case ParsingFailure(code, counters) =>
       throw new CSVException(
-        message,
-        code,
+        code.message,
+        code.toString,
         Some(lineNum + counters.newLines),
         Some(counters.position),
         Some(rowNum + 1),

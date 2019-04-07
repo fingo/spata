@@ -2,6 +2,8 @@ package info.fingo.csv.parser
 
 import scala.annotation.tailrec
 
+import ParsingErrorCode._
+
 private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import FieldParser._
   import CharParser._
@@ -41,17 +43,17 @@ private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDel
         RawField(sb.toString().dropRight(state.toTrim), updatedCounters, state.position == FinishedRecord)
       case failure: CharFailure =>
         val reportedCounters = failure.code match {
-          case "unescapedQuotation" => updatedCounters.add(position = -spaces.trailing)
-          case "unmatchedQuotation" => counters.copy(counters.position + spaces.leading + 1, 0)
+          case UnescapedQuotation => updatedCounters.add(position = -spaces.trailing)
+          case UnmatchedQuotation => counters.copy(counters.position + spaces.leading + 1, 0)
           case _ => updatedCounters.nextPosition()
         }
-        FieldFailure(failure.code, failure.message, reportedCounters)
+        FieldFailure(failure.code, reportedCounters)
     }
   }
 
   private def finish(state: CharState): CharResult = {
     if(state.position == Quoted)
-      CharFailure("unmatchedQuotation", "Bad format: unmatched quotation (premature end of file)")
+      CharFailure(UnmatchedQuotation)
     else if(!chars.hasNext)
       CharState(None, FinishedRecord, state.toTrim)
     else
@@ -61,7 +63,7 @@ private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDel
 
 private object FieldParser {
   sealed trait FieldResult
-  case class FieldFailure(code: String, message: String, counters: ParsingCounters) extends  FieldResult
+  case class FieldFailure(code: ErrorCode, counters: ParsingCounters) extends  FieldResult
   case class RawField(value: String, counters: ParsingCounters, endOfRecord: Boolean = false) extends FieldResult
 
   case class SpaceCounts(leading: Int = 0, trailing: Int = 0) {

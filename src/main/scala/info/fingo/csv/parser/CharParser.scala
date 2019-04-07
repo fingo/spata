@@ -1,5 +1,7 @@
 package info.fingo.csv.parser
 
+import ParsingErrorCode._
+
 private class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import CharParser._
   import CharParser.CharPosition._
@@ -12,7 +14,7 @@ private class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Cha
       case `quote` if state.position == Start => CharState(None, Quoted)
       case `quote` if state.position == Quoted => CharState(None, Escape)
       case `quote` if state.position == Escape => CharState(Some(quote), Quoted)
-      case `quote` => CharFailure( "unclosedQuotation", "Bad format: not enclosed quotation")
+      case `quote` => CharFailure(UnclosedQuotation)
       case CR if recordDelimiter == LF && state.position != Quoted => CharState(None, state.position)
       case c if isDelimiter(c) && state.position == Quoted => CharState(Some(c), Quoted)
       case `fieldDelimiter` => CharState(None, FinishedField, state.toTrim)
@@ -20,7 +22,7 @@ private class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Cha
       case c if c.isWhitespace && state.atBoundary => CharState(None, state.position)
       case c if c.isWhitespace && state.position == Escape => CharState(None, End)
       case c if c.isWhitespace && state.position == Regular => CharState(Some(c), Regular, state.toTrim + 1)
-      case _ if state.position == Escape || state.position == End => CharFailure("unescapedQuotation", "Bad format: not escaped quotation")
+      case _ if state.position == Escape || state.position == End => CharFailure(UnescapedQuotation)
       case c if state.position == Start => CharState(Some(c), Regular)
       case c => CharState(Some(c), state.position)
     }
@@ -31,14 +33,14 @@ private object CharParser {
   val CR: Char = 0x0D.toChar
 
   object CharPosition extends Enumeration {
-    type Position = Value
+    type CharPosition = Value
     val Start, Regular, Quoted, Escape, End, FinishedField, FinishedRecord = Value
   }
   import CharPosition._
 
   sealed trait CharResult
-  case class CharFailure(code: String, message: String) extends CharResult
-  case class CharState(char: Option[Char], position: Position, toTrim: Int = 0) extends CharResult {
+  case class CharFailure(code: ErrorCode) extends CharResult
+  case class CharState(char: Option[Char], position: CharPosition, toTrim: Int = 0) extends CharResult {
     def finished: Boolean = position == FinishedField || position == FinishedRecord
     def atBoundary: Boolean = position == Start || position == End
     def isNewLine: Boolean = char.contains(LF)

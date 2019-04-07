@@ -47,7 +47,7 @@ private[csv] class RowParser(
           else
             loop(fields, field.counters.nextField())
         case failure: FieldFailure =>
-          ParsingFailure(failure.code, failure.message, failure.counters)
+          ParsingFailure(failure.code, failure.counters)
       }
     }
 

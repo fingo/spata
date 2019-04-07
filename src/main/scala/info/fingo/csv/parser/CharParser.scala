@@ -12,7 +12,7 @@ private class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Cha
       case `quote` if state.position == Start => CharState(None, Quoted)
       case `quote` if state.position == Quoted => CharState(None, Escape)
       case `quote` if state.position == Escape => CharState(Some(quote), Quoted)
-      case `quote` => CharFailure( "wrongQuotation", "Bad format: not enclosed or not escaped quotation")
+      case `quote` => CharFailure( "unclosedQuotation", "Bad format: not enclosed quotation")
       case CR if recordDelimiter == LF && state.position != Quoted => CharState(None, state.position)
       case c if isDelimiter(c) && state.position == Quoted => CharState(Some(c), Quoted)
       case `fieldDelimiter` => CharState(None, FinishedField, state.toTrim)
@@ -20,7 +20,7 @@ private class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Cha
       case c if c.isWhitespace && state.atBoundary => CharState(None, state.position)
       case c if c.isWhitespace && state.position == Escape => CharState(None, End)
       case c if c.isWhitespace && state.position == Regular => CharState(Some(c), Regular, state.toTrim + 1)
-      case _ if state.position == Escape || state.position == End => CharFailure("wrongQuotation", "Bad format: not enclosed or not escaped quotation")
+      case _ if state.position == Escape || state.position == End => CharFailure("unescapedQuotation", "Bad format: not escaped quotation")
       case c if state.position == Start => CharState(Some(c), Regular)
       case c => CharState(Some(c), state.position)
     }

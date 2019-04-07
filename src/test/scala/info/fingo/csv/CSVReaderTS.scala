@@ -33,7 +33,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("basic","Fanky Koval","100.00","Han Solo","999.99"),
     ("basic quoted","Koval, Fanky","100.00","Solo, Han","999.99"),
     ("mixed","Fanky Koval","100.00","Solo, Han","999.99"),
-    ("spaces"," Fanky Koval "," "," "," 999.99 "),
+    ("spaces"," Fanky Koval "," ","Han Solo"," 999.99 "),
     ("empty values","","","",""),
     ("double quotes","\"Fanky\" Koval","\"100.00\"","Solo, \"Han\"","999\".\"99"),
     ("line breaks","Fanky\nKoval","100.00","\nHan Solo","999.99\n"),
@@ -62,7 +62,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         s"""ID${s}NAME${s}DATE${s}VALUE
             |"1"$s" Fanky Koval "${s}01.01.2001$s" "
             |"2"$s Eva Solo ${s}31.12.2012${s}123.45
-            |"3"$s" "${s}09.09.1999$s" 999.99 """".stripMargin
+            |"3"$s  Han Solo  ${s}09.09.1999$s" 999.99 """".stripMargin
       case "empty values" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
             |"1"$s${s}01.01.2001$s
@@ -113,10 +113,12 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("missing value","valuesNumber",Some(2),None,Some(1),None),
     ("missing value with empty lines","valuesNumber",Some(3),None,Some(1),None),
     ("too many values","valuesNumber",Some(2),None,Some(1),None),
-    ("unclosed quotation","wrongQuotation",Some(2),Some(8),Some(1),Some("NAME")),
-    ("unclosed quotation with empty lines","wrongQuotation",Some(3),Some(8),Some(1),Some("NAME")),
-    ("unescaped quotation","wrongQuotation",Some(2),Some(11),Some(1),Some("NAME")),
-    ("unmatched quotation","prematureEOF",Some(4),Some(28),Some(1),Some("NAME"))
+    ("unclosed quotation","unclosedQuotation",Some(2),Some(8),Some(1),Some("NAME")),
+    ("unclosed quotation with empty lines","unclosedQuotation",Some(3),Some(8),Some(1),Some("NAME")),
+    ("unescaped quotation","unescapedQuotation",Some(2),Some(9),Some(1),Some("NAME")),
+    ("unmatched quotation","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME")),
+    ("unmatched quotation with trailing spaces","unmatchedQuotation",Some(2),Some(5),Some(1),Some("NAME")),
+    ("unmatched quotation with escaped one","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME"))
   )
 
   def generateErroneousCSV(testCase: String, separator: Char): Source = {
@@ -159,6 +161,16 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             |1$s"Fanky Koval${s}01.01.2001${s}100.00
             |2${s}Eva Solo${s}31.12.2012${s}123.45
             |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "unmatched quotation with trailing spaces" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |1$s  "Fanky Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "unmatched quotation with escaped one" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |1$s"Fanky Koval""${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
     }
     Source.fromString(csv)
   }

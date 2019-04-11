@@ -5,9 +5,9 @@ import info.fingo.csv.parser.{ParsingFailure, RawRow, RowParser}
 import scala.collection.Iterator
 import scala.io.Source
 
-class CSVReader(source: Source, separator: Char) {
+class CSVReader(source: Source, separator: Char, rowSizeLimit: Option[Int] = None) {
 
-  private val parser = RowParser.builder(source).fieldDelimiter(separator).build()
+  private val parser = RowParser.builder(source).fieldDelimiter(separator).rowSizeLimit(rowSizeLimit).build()
   private var lineNum = 1
   private var rowNum = 0
 

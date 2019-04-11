@@ -8,12 +8,13 @@ import scala.io.Source
 class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
 
   val separators = Table("separator",',',';','\t')
+  val maxRecordSize = Some(100)
 
   test("Reader should read basic csv data") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase,separator)
-        val reader = new CSVReader(source, separator)
+        val reader = new CSVReader(source, separator, maxRecordSize)
         val it = reader.iterator
         assert(it.hasNext)
         val firstRow = it.next
@@ -93,8 +94,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
   test("Reader should clearly report errors in source data") {
     forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
       forAll(separators) { separator =>
-        val source = generateErroneousCSV(testCase,separator)
-        val reader = new CSVReader(source, separator)
+        val source = generateErroneousCSV(testCase, separator)
+        val reader = new CSVReader(source, separator, maxRecordSize)
         val it = reader.iterator
         val ex = intercept[CSVException] {
           it.next
@@ -118,7 +119,9 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("unescaped quotation","unescapedQuotation",Some(2),Some(9),Some(1),Some("NAME")),
     ("unmatched quotation","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME")),
     ("unmatched quotation with trailing spaces","unmatchedQuotation",Some(2),Some(5),Some(1),Some("NAME")),
-    ("unmatched quotation with escaped one","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME"))
+    ("unmatched quotation with escaped one","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME")),
+    ("row too long","rowTooLong",Some(2),Some(103),Some(1),Some("DATE")),
+    ("row too long through unmatched quotation","rowTooLong",Some(3),Some(11),Some(1),Some("NAME"))
   )
 
   def generateErroneousCSV(testCase: String, separator: Char): Source = {
@@ -169,6 +172,16 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
       case "unmatched quotation with escaped one" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
            |1$s"Fanky Koval""${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "row too long" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |1${s}Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "row too long through unmatched quotation" =>
+        s"""ID${s}NAME${s}DATE${s}VALUE
+           |1$s"Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
     }

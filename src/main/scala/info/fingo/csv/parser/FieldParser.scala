@@ -4,7 +4,13 @@ import scala.annotation.tailrec
 
 import ParsingErrorCode._
 
-private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
+private class FieldParser(
+  chars: Iterator[Char],
+  fieldDelimiter: Char,
+  recordDelimiter: Char,
+  quote: Char,
+  rowSizeLimit: Option[Int]
+) {
   import FieldParser._
   import CharParser._
   import CharParser.CharPosition._
@@ -15,8 +21,9 @@ private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDel
     @tailrec
     def loop(sb: StringBuilder, state: CharState, counters: ParsingCounters, spaces: SpaceCounts)
     : (CharResult, ParsingCounters, SpaceCounts) = {
-      if(!chars.hasNext || state.finished)
-        (finish(state), counters, spaces)
+      val limitExceeded = rowTooLong(counters)
+      if(!chars.hasNext || state.finished || limitExceeded)
+        (finish(state, limitExceeded), counters, spaces)
       else {
         charParser.parseChar(chars.next(), state) match {
           case newState: CharState =>
@@ -43,22 +50,28 @@ private class FieldParser(chars: Iterator[Char], fieldDelimiter: Char, recordDel
         RawField(sb.toString().dropRight(state.toTrim), updatedCounters, state.position == FinishedRecord)
       case failure: CharFailure =>
         val reportedCounters = failure.code match {
+          case UnclosedQuotation => updatedCounters.nextPosition()
           case UnescapedQuotation => updatedCounters.add(position = -spaces.trailing)
           case UnmatchedQuotation => counters.copy(counters.position + spaces.leading + 1, 0)
-          case _ => updatedCounters.nextPosition()
+          case RowTooLong => updatedCounters
         }
         FieldFailure(failure.code, reportedCounters)
     }
   }
 
-  private def finish(state: CharState): CharResult = {
-    if(state.position == Quoted)
+  private def finish(state: CharState, rowTooLong: Boolean = false): CharResult = {
+    if(rowTooLong)
+      CharFailure(RowTooLong)
+    else if(state.position == Quoted)
       CharFailure(UnmatchedQuotation)
     else if(!chars.hasNext)
       CharState(None, FinishedRecord, state.toTrim)
     else
       state
   }
+
+  private def rowTooLong(counters: ParsingCounters): Boolean =
+    rowSizeLimit.exists(_ < counters.characters)
 }
 
 private object FieldParser {
@@ -71,6 +84,6 @@ private object FieldParser {
     def incTrailing(): SpaceCounts = copy(trailing = this.trailing + 1)
   }
 
-  def apply(chars: Iterator[Char], fieldDelimiter: Char, recordDelimiter: Char, quote: Char) =
-    new FieldParser(chars, fieldDelimiter, recordDelimiter, quote)
+  def apply(chars: Iterator[Char], fieldDelimiter: Char, recordDelimiter: Char, quote: Char, maxRecordSize: Option[Int]) =
+    new FieldParser(chars, fieldDelimiter, recordDelimiter, quote, maxRecordSize)
 }

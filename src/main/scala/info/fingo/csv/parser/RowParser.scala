@@ -7,12 +7,13 @@ private[csv] class RowParser(
   chars: Iterator[Char],
   fieldDelimiter: Char = ',',
   recordDelimiter: Char = '\n',
-  quote: Char = '"'
+  quote: Char = '"',
+  rowSizeLimit: Option[Int] = None
 ) extends Iterator[ParsingResult] {
 
   import FieldParser._
 
-  private val fieldParser = FieldParser(chars, fieldDelimiter, recordDelimiter, quote)
+  private val fieldParser = FieldParser(chars, fieldDelimiter, recordDelimiter, quote, rowSizeLimit)
 
   private var nextRow: Option[ParsingResult] = None
 
@@ -64,6 +65,7 @@ private[csv] object RowParser {
     private[this] var fieldDelimiter = ','
     private[this] var recordDelimiter = '\n'
     private[this] var quote = '"'
+    private[this] var rowSizeLimit = None: Option[Int]
 
     def fieldDelimiter(delimiter: Char): Builder = {
       fieldDelimiter = delimiter
@@ -80,6 +82,16 @@ private[csv] object RowParser {
       this
     }
 
-    def build(): RowParser = new RowParser(chars, fieldDelimiter, recordDelimiter, quote)
+    def rowSizeLimit(size: Option[Int]): Builder = {
+      this.rowSizeLimit = size
+      this
+    }
+
+    def rowSizeLimit(size: Int): Builder = {
+      this.rowSizeLimit = Some(size)
+      this
+    }
+
+    def build(): RowParser = new RowParser(chars, fieldDelimiter, recordDelimiter, quote, rowSizeLimit)
   }
 }

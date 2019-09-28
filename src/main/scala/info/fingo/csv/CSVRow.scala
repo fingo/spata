@@ -1,6 +1,6 @@
 package info.fingo.csv
 
-class CSVRow(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(implicit header: Map[String, Int]) {
+class CSVRow(val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
 
   if(row.length != header.size)
     throw new CSVException("Bad format: wrong number of values","valuesNumber", lineNum, rowNum)

@@ -12,24 +12,24 @@ private[csv] object ParsingErrorCode {
   case object UnclosedQuotation extends ErrorCode("Bad format: not enclosed quotation")
   case object UnescapedQuotation extends ErrorCode("Bad format: not escaped quotation")
   case object UnmatchedQuotation extends ErrorCode("Bad format: unmatched quotation (premature end of file)")
-  case object RowTooLong extends ErrorCode("Row is longer than provided maximum (unmatched quotation?)")
+  case object FieldTooLong extends ErrorCode("Field is longer than provided maximum (unmatched quotation?)")
 }
 
 import ParsingErrorCode._
 
 private[csv] sealed trait ParsingResult {
-  def counters: ParsingCounters
+  def location: Location
+  def recordNum: Int
+  def fieldNum: Int
 }
-private[csv] case class ParsingFailure(code: ErrorCode, counters: ParsingCounters) extends ParsingResult
-private[csv] case class RawRow(fields: IndexedSeq[String], counters: ParsingCounters) extends ParsingResult {
+private[csv] case class ParsingFailure(code: ErrorCode, location: Location, recordNum: Int, fieldNum: Int) extends ParsingResult
+private[csv] case class RawRecord(fields: IndexedSeq[String], location: Location, recordNum: Int) extends ParsingResult {
   def isEmpty: Boolean = fields.isEmpty || fields.size == 1 && fields.head.isEmpty
+  def fieldNum: Int = fields.size
 }
 
-private[csv] case class ParsingCounters(position: Int = 0, characters: Int = 0, fieldIndex: Int = 0, newLines: Int = 0) {
-  def add(position: Int = 0, characters: Int = 0, fieldIndex: Int = 0, newLines: Int = 0) =
-    ParsingCounters(this.position + position, this.characters + characters, this.fieldIndex + fieldIndex, this.newLines + newLines)
-  def nextPosition(): ParsingCounters = add(1)
-  def nextChar(): ParsingCounters = add(1, 1)
-  def nextField(): ParsingCounters = add(fieldIndex = 1)
-  def nextLine(): ParsingCounters = ParsingCounters(0, this.characters, this.fieldIndex, this.newLines + 1)
+private[csv] case class Location(position: Int, line: Int = 1) {
+  def add(position: Int, line: Int = 0) = Location(this.position + position, this.line + line)
+  def nextPosition: Location = add(1)
+  def nextLine: Location = Location(0, this.line + 1)
 }

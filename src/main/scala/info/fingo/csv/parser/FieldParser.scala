@@ -1,89 +1,81 @@
 package info.fingo.csv.parser
 
-import scala.annotation.tailrec
-
+import cats.effect.IO
+import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
-private class FieldParser(
-  chars: Iterator[Char],
-  fieldDelimiter: Char,
-  recordDelimiter: Char,
-  quote: Char,
-  rowSizeLimit: Option[Int]
+private[csv] class FieldParser(
+  fieldSizeLimit: Option[Int]
 ) {
   import FieldParser._
   import CharParser._
   import CharParser.CharPosition._
 
-  private val charParser = CharParser(fieldDelimiter, recordDelimiter, quote)
-
-  def parseField(counters: ParsingCounters): FieldResult = {
-    @tailrec
-    def loop(sb: StringBuilder, state: CharState, counters: ParsingCounters, spaces: SpaceCounts)
-    : (CharResult, ParsingCounters, SpaceCounts) = {
-      val limitExceeded = rowTooLong(counters)
-      if(!chars.hasNext || state.finished || limitExceeded)
-        (finish(state, limitExceeded), counters, spaces)
-      else {
-        charParser.parseChar(chars.next(), state) match {
-          case newState: CharState =>
-            newState.char.map(sb.append)
-            val newCounters =
-              if(newState.isNewLine) counters.nextLine()
-              else if(newState.hasChar) counters.nextChar()
-              else counters.nextPosition()
-            val newSpaceCounts = newState.position match {
-              case Start => spaces.incLeading()
-              case End => spaces.incTrailing()
-              case _ => spaces
+  def toFields(counters: Location = Location(0)): Pipe[IO,CharResult,FieldResult] = {
+    def loop(chars: Stream[IO, CharResult], sb: StringBuilder, counters: Location, lc: LocalCounts): Pull[IO,FieldResult,Unit] = {
+      if(fieldTooLong(lc))
+        Pull.output1(fail(FieldTooLong, counters, lc)) >> Pull.done
+      else
+        chars.pull.uncons1.flatMap {
+          case Some((h, t)) =>
+            h match {
+              case cs: CharState if cs.finished =>
+                val field = RawField(sb.toString().dropRight(lc.toTrim), counters, cs.position == FinishedRecord)
+                val newCounters = recalculateCounters(counters, cs)
+                Pull.output1(field) >> loop(t, new StringBuilder(), newCounters, LocalCounts(field.counters.nextPosition))
+              case cs: CharState =>
+                cs.char.map(sb.append)
+                val newCounters = recalculateCounters(counters, cs)
+                val newLC = recalculateLocalCounts(lc, cs)
+                loop(t, sb, newCounters, newLC)
+              case cf: CharFailure => Pull.output1(fail(cf.code, counters, lc)) >> Pull.done
             }
-            loop(sb, newState, newCounters, newSpaceCounts)
-          case failure => (failure, counters, spaces)
+          case None => Pull.done
         }
-      }
     }
-
-    val sb = StringBuilder.newBuilder
-    val (result, updatedCounters, spaces) = loop(sb, CharState(None, Start), counters, SpaceCounts())
-    result match {
-      case state: CharState =>
-        RawField(sb.toString().dropRight(state.toTrim), updatedCounters, state.position == FinishedRecord)
-      case failure: CharFailure =>
-        val reportedCounters = failure.code match {
-          case UnclosedQuotation => updatedCounters.nextPosition()
-          case UnescapedQuotation => updatedCounters.add(position = -spaces.trailing)
-          case UnmatchedQuotation => counters.copy(counters.position + spaces.leading + 1, 0)
-          case RowTooLong => updatedCounters
-        }
-        FieldFailure(failure.code, reportedCounters)
-    }
+    val sb = new StringBuilder()
+    chars => loop(chars, sb, counters, LocalCounts(Location(0))).stream
   }
 
-  private def finish(state: CharState, rowTooLong: Boolean = false): CharResult = {
-    if(rowTooLong)
-      CharFailure(RowTooLong)
-    else if(state.position == Quoted)
-      CharFailure(UnmatchedQuotation)
-    else if(!chars.hasNext)
-      CharState(None, FinishedRecord, state.toTrim)
-    else
-      state
+  private def fail(error: ErrorCode, counters: Location, lc: LocalCounts): FieldFailure = {
+    val rc = recalculateCountersAtFailure(error, counters, lc)
+    FieldFailure(error, rc)
   }
 
-  private def rowTooLong(counters: ParsingCounters): Boolean =
-    rowSizeLimit.exists(_ < counters.characters)
+  private def recalculateCounters(counters: Location, cs: CharState): Location =
+    if(cs.isNewLine) counters.nextLine
+    else counters.nextPosition
+
+  private def recalculateLocalCounts(lc: LocalCounts, cs: CharState): LocalCounts =
+    cs.position match {
+      case Start => lc.incLeading()
+      case End => lc.incTrailing()
+      case Trailing => lc.incTrimming()
+      case _ => if(cs.hasChar) lc.incCharacters() else lc.resetTrimming()
+    }
+
+  private def recalculateCountersAtFailure(error: ErrorCode, counters: Location, lc: LocalCounts): Location =
+    error match {
+      case UnclosedQuotation => counters.nextPosition
+      case UnescapedQuotation => counters.add(position = -lc.trailSpaces)
+      case UnmatchedQuotation => lc.origin.add(position = lc.leadSpaces + 1)
+      case FieldTooLong => counters
+    }
+
+  private def fieldTooLong(lc: LocalCounts): Boolean =
+    fieldSizeLimit.exists(_ < lc.characters)
 }
 
-private object FieldParser {
+private[csv] object FieldParser {
   sealed trait FieldResult
-  case class FieldFailure(code: ErrorCode, counters: ParsingCounters) extends  FieldResult
-  case class RawField(value: String, counters: ParsingCounters, endOfRecord: Boolean = false) extends FieldResult
+  case class FieldFailure(code: ErrorCode, counters: Location) extends  FieldResult
+  case class RawField(value: String, counters: Location, endOfRecord: Boolean = false) extends FieldResult
 
-  case class SpaceCounts(leading: Int = 0, trailing: Int = 0) {
-    def incLeading(): SpaceCounts = copy(leading = this.leading + 1)
-    def incTrailing(): SpaceCounts = copy(trailing = this.trailing + 1)
+  case class LocalCounts(origin: Location, characters: Int = 0, leadSpaces: Int = 0, trailSpaces: Int = 0, toTrim: Int = 0) {
+    def incCharacters(): LocalCounts = copy(characters = this.characters + 1, toTrim = 0)
+    def incLeading(): LocalCounts = copy(leadSpaces = this.leadSpaces + 1, toTrim = 0)
+    def incTrailing(): LocalCounts = copy(trailSpaces = this.trailSpaces + 1, toTrim = 0)
+    def incTrimming(): LocalCounts = copy(characters = this.characters + 1, toTrim = this.toTrim + 1)
+    def resetTrimming(): LocalCounts = copy(toTrim = 0)
   }
-
-  def apply(chars: Iterator[Char], fieldDelimiter: Char, recordDelimiter: Char, quote: Char, maxRecordSize: Option[Int]) =
-    new FieldParser(chars, fieldDelimiter, recordDelimiter, quote, maxRecordSize)
 }

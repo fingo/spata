@@ -1,13 +1,12 @@
 spata
 =====
 
-**spata** is a functional scala parser for tabular data (`CSV`).
+**spata** is a functional Scala parser for tabular data (`CSV`).
 
-Main goal of the library is providing precise information about errors in source data while keeping good performance.
-In real life importing `CSV` data is problematic mainly because the source may be malformed and the end users struggle to find the reason and fix it.
+Main goal of the library is to provide precise information about errors in source data (their location) while keeping good performance.
 
 The source data format is assumed to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt).
-It is possible however to configure the parser to accept other field and record separator characters as well as quote character.
+It is possible however to configure the parser to accept separator and quote symbols.
 Separators and quote tokens are required to be single characters.
 `CRLF` is treated as special case - setting record separator to `LF` automatically accepts `CRLF` too.  
 

@@ -15,6 +15,7 @@ Planned development includes:
 * Better error handling, probably using `handleErrorWith`.
 * Providing more comprehensive and clear API and documenting it.
 * Tidying / refactoring and documenting parsing code.
+* Parsing chunks instead of single elements
 * Using FS2 I/O library in addition to / in place of Scala's `Source` including safe resource acquisition and release.
 * Declaration of source data format (e.g. data types) and its validation.
 * Supporting asynchronous execution.

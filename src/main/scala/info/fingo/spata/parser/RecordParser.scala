@@ -1,10 +1,10 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
 import scala.collection.immutable.VectorBuilder
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 
-private[csv] class RecordParser {
+private[spata] class RecordParser {
 
   import FieldParser._
 

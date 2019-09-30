@@ -1,11 +1,11 @@
-package info.fingo.csv
+package info.fingo.spata
 
 import cats.effect.IO
-import info.fingo.csv.parser.{CharParser, FieldParser, ParsingResult, RecordParser}
+import info.fingo.spata.parser.{CharParser, FieldParser, ParsingResult, RecordParser}
 
 import scala.io.Source
 import fs2.{Pull, Stream}
-import info.fingo.csv.CSVReader.CSVCallback
+import info.fingo.spata.CSVReader.CSVCallback
 
 class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
 

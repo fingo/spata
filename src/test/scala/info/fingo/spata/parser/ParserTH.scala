@@ -1,4 +1,4 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
 import CharParser.{CharFailure, CharState}
 import CharParser.CharPosition._

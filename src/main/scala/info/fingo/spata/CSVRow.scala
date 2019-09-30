@@ -1,4 +1,4 @@
-package info.fingo.csv
+package info.fingo.spata
 
 class CSVRow(val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
 

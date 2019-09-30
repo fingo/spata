@@ -1,6 +1,6 @@
-package info.fingo.csv
+package info.fingo.spata
 
-import info.fingo.csv.CSVReader.CSVCallback
+import info.fingo.spata.CSVReader.CSVCallback
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 

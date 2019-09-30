@@ -1,4 +1,4 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks

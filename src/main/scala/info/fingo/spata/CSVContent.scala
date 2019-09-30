@@ -1,11 +1,11 @@
-package info.fingo.csv
+package info.fingo.spata
 
 import cats.effect.IO
 import fs2.Stream
-import info.fingo.csv.CSVReader.CSVCallback
-import info.fingo.csv.parser.{ParsingFailure, ParsingResult, RawRecord}
+import info.fingo.spata.CSVReader.CSVCallback
+import info.fingo.spata.parser.{ParsingFailure, ParsingResult, RawRecord}
 
-private[csv] case class CSVContent(header: ParsingResult, data: Stream[IO,ParsingResult]) {
+private[spata] case class CSVContent(header: ParsingResult, data: Stream[IO,ParsingResult]) {
 
   private val index = buildHeaderIndex(header)
   private val rIndex = buildReverseHeaderIndex(index)

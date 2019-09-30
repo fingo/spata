@@ -1,6 +1,6 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
-private[csv] object ParsingErrorCode {
+private[spata] object ParsingErrorCode {
   sealed abstract class ErrorCode(val message: String) {
     def code: String = {
       val name = this.getClass.getSimpleName.stripSuffix("$")
@@ -17,18 +17,18 @@ private[csv] object ParsingErrorCode {
 
 import ParsingErrorCode._
 
-private[csv] sealed trait ParsingResult {
+private[spata] sealed trait ParsingResult {
   def location: Location
   def recordNum: Int
   def fieldNum: Int
 }
-private[csv] case class ParsingFailure(code: ErrorCode, location: Location, recordNum: Int, fieldNum: Int) extends ParsingResult
-private[csv] case class RawRecord(fields: IndexedSeq[String], location: Location, recordNum: Int) extends ParsingResult {
+private[spata] case class ParsingFailure(code: ErrorCode, location: Location, recordNum: Int, fieldNum: Int) extends ParsingResult
+private[spata] case class RawRecord(fields: IndexedSeq[String], location: Location, recordNum: Int) extends ParsingResult {
   def isEmpty: Boolean = fields.isEmpty || fields.size == 1 && fields.head.isEmpty
   def fieldNum: Int = fields.size
 }
 
-private[csv] case class Location(position: Int, line: Int = 1) {
+private[spata] case class Location(position: Int, line: Int = 1) {
   def add(position: Int, line: Int = 0) = Location(this.position + position, this.line + line)
   def nextPosition: Location = add(1)
   def nextLine: Location = Location(0, this.line + 1)

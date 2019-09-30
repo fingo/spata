@@ -1,4 +1,4 @@
-package info.fingo.csv
+package info.fingo.spata
 
 class CSVException(val message: String,
                    val messageCode: String,

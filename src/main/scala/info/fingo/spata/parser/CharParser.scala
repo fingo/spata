@@ -1,10 +1,10 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
 import ParsingErrorCode._
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 
-private[csv] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
+private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import CharParser._
   import CharParser.CharPosition._
 
@@ -51,7 +51,7 @@ private[csv] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote
     }
 }
 
-private[csv] object CharParser {
+private[spata] object CharParser {
   val LF: Char = 0x0A.toChar
   val CR: Char = 0x0D.toChar
 

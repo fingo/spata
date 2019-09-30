@@ -1,10 +1,10 @@
-package info.fingo.csv.parser
+package info.fingo.spata.parser
 
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
-private[csv] class FieldParser(
+private[spata] class FieldParser(
   fieldSizeLimit: Option[Int]
 ) {
   import FieldParser._
@@ -66,7 +66,7 @@ private[csv] class FieldParser(
     fieldSizeLimit.exists(_ < lc.characters)
 }
 
-private[csv] object FieldParser {
+private[spata] object FieldParser {
   sealed trait FieldResult
   case class FieldFailure(code: ErrorCode, counters: Location) extends  FieldResult
   case class RawField(value: String, counters: Location, endOfRecord: Boolean = false) extends FieldResult

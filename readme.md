@@ -12,7 +12,6 @@ Separators and quote tokens are required to be single characters.
 
 The library provides already a practical solution although with minimalistic feature set.  
 Planned development includes:
-* Better error handling, probably using `handleErrorWith`.
 * Providing more comprehensive and clear API and documenting it.
 * Tidying / refactoring and documenting parsing code.
 * Parsing chunks instead of single elements

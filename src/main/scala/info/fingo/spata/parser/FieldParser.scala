@@ -59,7 +59,7 @@ private[spata] class FieldParser(
       case UnclosedQuotation => counters.nextPosition
       case UnescapedQuotation => counters.add(position = -lc.trailSpaces)
       case UnmatchedQuotation => lc.origin.add(position = lc.leadSpaces + 1)
-      case FieldTooLong => counters
+      case _ => counters
     }
 
   private def fieldTooLong(lc: LocalCounts): Boolean =

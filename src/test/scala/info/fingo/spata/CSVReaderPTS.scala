@@ -6,7 +6,7 @@ import org.scalatest.FunSuite
 import scala.io.Source
 
 class CSVReaderPTS extends FunSuite {
-  val amount = 100000
+  val amount = 10_000
   test("Reader should handle large data streams") {
     val separator = ','
     val source = new TestSource(separator)

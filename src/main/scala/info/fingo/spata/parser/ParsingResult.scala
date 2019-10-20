@@ -13,6 +13,7 @@ private[spata] object ParsingErrorCode {
   case object UnescapedQuotation extends ErrorCode("Bad format: not escaped quotation")
   case object UnmatchedQuotation extends ErrorCode("Bad format: unmatched quotation (premature end of file)")
   case object FieldTooLong extends ErrorCode("Field is longer than provided maximum (unmatched quotation?)")
+  case object MissingHeader extends ErrorCode("Header not found (empty content?)")
 }
 
 import ParsingErrorCode._

@@ -1,10 +1,11 @@
 package info.fingo.spata
 
-import info.fingo.spata.CSVReader.CSVCallback
+import info.fingo.spata.CSVReader.{CSVCallback, CSVErrorHandler, IOErrorHandler}
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-import scala.io.Source
+import scala.io.{BufferedSource, Source}
+import java.io.IOException
 
 class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
 
@@ -37,19 +38,31 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Reader should clearly report errors in source data") {
+  test("Reader should clearly report errors in source data while handling errors") {
     forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
       forAll(separators) { separator =>
         val source = generateErroneousCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        val ex = intercept[CSVException] {
+        val ehCSV: CSVErrorHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
+        val ehIO: IOErrorHandler = ex => assertIOException(ex, errorCode)
+        reader.read(source, _ => true, ehCSV, ehIO)
+      }
+    }
+  }
+
+  test("Reader should throw exception on errors when there is no error handler provided") {
+    forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
+      forAll(separators) { separator =>
+        val source = generateErroneousCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        try {
           reader.read(source, _ => true)
         }
-        assert(ex.messageCode == errorCode)
-        assert(ex.line == line)
-        assert(ex.col == col)
-        assert(ex.row == row)
-        assert(ex.field == field)
+        catch {
+          case ex: CSVException => assertCSVException(ex, errorCode, line, col, row, field)
+          case ex: IOException => assertIOException(ex, errorCode)
+          case _: Throwable => fail()
+        }
       }
     }
   }
@@ -64,6 +77,20 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         assert(source.hasNext)
       }
     }
+  }
+
+  private def assertCSVException(ex: CSVException, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]): Unit = {
+    assert(ex.messageCode == errorCode)
+    assert(ex.line == line)
+    assert(ex.row == row)
+    assert(ex.col == col)
+    assert(ex.field == field)
+    ()
+  }
+
+  private def assertIOException(ex: Throwable, errorCode: String): Unit = {
+    assert(ex.getMessage == errorCode)
+    ()
   }
 
   val basicCases = Table(
@@ -140,7 +167,10 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("unmatched quotation with trailing spaces","unmatchedQuotation",Some(2),Some(5),Some(1),Some("NAME")),
     ("unmatched quotation with escaped one","unmatchedQuotation",Some(2),Some(3),Some(1),Some("NAME")),
     ("field too long","fieldTooLong",Some(2),Some(103),Some(1),Some("NAME")),
-    ("field too long through unmatched quotation","fieldTooLong",Some(3),Some(11),Some(1),Some("NAME"))
+    ("field too long through unmatched quotation","fieldTooLong",Some(3),Some(11),Some(1),Some("NAME")),
+    ("malformed header", "unclosedQuotation", Some(1), Some(10), Some(0), None),
+    ("no content", "missingHeader", Some(1), None, Some(0), None),
+    ("io exception", "message", None, None, None, None)
   )
 
   def generateErroneousCSV(testCase: String, separator: Char): Source = {
@@ -203,7 +233,17 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
            |1$s"Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "malformed header" =>
+        s"""ID${s}NAME${s}D"ATE${s}VALUE
+           |1${s}Fanky Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "no content" => ""
+      case "io exception" => "io.exception"
+      case _ => throw new RuntimeException("Unknown test case")
     }
-    Source.fromString(csv)
+    if(csv == "io.exception") new ExceptionSource else Source.fromString(csv)
   }
+
+  private class ExceptionSource extends BufferedSource(() => throw new IOException("message"))
 }

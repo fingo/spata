@@ -1,9 +1,8 @@
 package info.fingo.spata
 
-class CSVRow(val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
+import info.fingo.spata.parser.ParsingErrorCode
 
-  if(row.length != header.size)
-    throw new CSVException("Bad format: wrong number of values","valuesNumber", lineNum, rowNum)
+class CSVRow private (val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
 
   def getString(key: String): String = {
     val pos = header(key)
@@ -11,4 +10,14 @@ class CSVRow(val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(imp
   }
 
   override def toString: String = row.mkString(",")
+}
+
+object CSVRow {
+  def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(implicit header: Map[String, Int]): Either[CSVException,CSVRow] =
+    if(row.size == header.size)
+      Right(new CSVRow(row, lineNum, rowNum)(header))
+    else {
+      val err = ParsingErrorCode.FieldsHeaderImbalance
+      Left(new CSVException(err.message, err.code, lineNum, rowNum))
+    }
 }

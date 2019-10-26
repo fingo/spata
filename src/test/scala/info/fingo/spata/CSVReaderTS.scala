@@ -1,6 +1,6 @@
 package info.fingo.spata
 
-import info.fingo.spata.CSVReader.{CSVCallback, CSVErrorHandler, IOErrorHandler}
+import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -43,8 +43,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
       forAll(separators) { separator =>
         val source = generateErroneousCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        val ehCSV: CSVErrorHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
-        val ehIO: IOErrorHandler = ex => assertIOException(ex, errorCode)
+        val ehCSV: CSVErrHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
+        val ehIO: IOErrHandler = ex => assertIOException(ex, errorCode)
         reader.read(source, _ => true, ehCSV, ehIO)
       }
     }
@@ -157,9 +157,9 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
 
   val errorCases = Table(
     ("testCase","errorCode","lineNum","colNum","rowNum","field"),
-    ("missing value","valuesNumber",Some(2),None,Some(1),None),
-    ("missing value with empty lines","valuesNumber",Some(3),None,Some(1),None),
-    ("too many values","valuesNumber",Some(2),None,Some(1),None),
+    ("missing value","fieldsHeaderImbalance",Some(2),None,Some(1),None),
+    ("missing value with empty lines","fieldsHeaderImbalance",Some(3),None,Some(1),None),
+    ("too many values","fieldsHeaderImbalance",Some(2),None,Some(1),None),
     ("unclosed quotation","unclosedQuotation",Some(2),Some(8),Some(1),Some("NAME")),
     ("unclosed quotation with empty lines","unclosedQuotation",Some(3),Some(8),Some(1),Some("NAME")),
     ("unescaped quotation","unescapedQuotation",Some(2),Some(9),Some(1),Some("NAME")),

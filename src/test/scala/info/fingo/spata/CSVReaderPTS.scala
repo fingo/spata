@@ -16,7 +16,7 @@ class CSVReaderPTS extends FunSuite {
       count += 1
       true
     }
-    reader.read(source, cb)
+    reader.process(source, cb)
     assert(count == amount)
   }
 

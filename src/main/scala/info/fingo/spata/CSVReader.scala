@@ -3,7 +3,7 @@ package info.fingo.spata
 import java.io.IOException
 
 import cats.effect.IO
-import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, ParsingResult, RecordParser}
+import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
 
 import scala.io.Source
 import fs2.{Pull, Stream}
@@ -14,27 +14,40 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
   private val recordDelimiter: Char = '\n'
   private val quote: Char = '"'
 
-  def read(source: Source, cb: CSVCallback, ehCSV: CSVErrHandler, ehIO: IOErrHandler): Unit =
-    read(source, cb, Some(ehCSV), Some(ehIO))
-  def read(source: Source, cb: CSVCallback): Unit = read(source, cb, None, None)
+  def process(source: Source, cb: CSVCallback, ehCSV: CSVErrHandler, ehIO: IOErrHandler): Unit =
+  process(source, cb, Some(ehCSV), Some(ehIO))
+  def process(source: Source, cb: CSVCallback): Unit = process(source, cb, None, None)
 
-  private def read(source: Source, cb: CSVCallback, ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Unit = {
-    val stream = parse(source)
+  private def process(source: Source, cb: CSVCallback, ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Unit = {
+    val eh = errorHandler(ehoCSV, ehoIO)
+    val stream = parse(source).flatMap(_.process(cb)).handleErrorWith(eh)
+    stream.compile.drain.unsafeRunSync()
+  }
+
+  def get(source: Source): List[CSVRecord] = get(source, None)
+  def get(source: Source, limit: Long): List[CSVRecord] = get(source, Some(limit))
+
+  private def get(source: Source, limit: Option[Long]): List[CSVRecord] = {
+    val stream = parse(source).flatMap(_.toRecords)
+    val toGet = limit match {
+      case Some(l) => stream.take(l)
+      case _ => stream
+    }
+    toGet.compile.toList.unsafeRunSync()
+  }
+
+  private def parse(source: Source): Stream[IO,CSVContent] = {
+    val cp = new CharParser(separator, recordDelimiter, quote)
+    val fp = new FieldParser(fieldSizeLimit)
+    val rp = new RecordParser()
+    val stream = Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
     val pull = stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(CSVContent(h, t))
       case None =>
         val err = ParsingErrorCode.MissingHeader
         Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
     }
-    val eh = errorHandler(ehoCSV, ehoIO)
-    pull.stream.rethrow.flatMap(_.process(cb)).handleErrorWith(eh).compile.drain.unsafeRunSync()
-  }
-
-  private def parse(source: Source): Stream[IO,ParsingResult] = {
-    val cp = new CharParser(separator, recordDelimiter, quote)
-    val fp = new FieldParser(fieldSizeLimit)
-    val rp = new RecordParser()
-    Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
+    pull.stream.rethrow
   }
 
   private def errorHandler(ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Throwable => Stream[IO,Unit] = ex => {
@@ -48,7 +61,7 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
 }
 
 object CSVReader {
-  type CSVCallback = CSVRow => Boolean
+  type CSVCallback = CSVRecord => Boolean
   type CSVErrHandler = CSVException => Unit
   type IOErrHandler = IOException => Unit
 }

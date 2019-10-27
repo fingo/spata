@@ -12,7 +12,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
   val separators = Table("separator",',',';','\t')
   val maxFieldSize = Some(100)
 
-  test("Reader should read basic csv data") {
+  test("Reader should process basic csv data") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase,separator)
@@ -32,7 +32,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
             case _ => true
           }
         }
-        reader.read(source, cb)
+        reader.process(source, cb)
         assert(count == 3)
       }
     }
@@ -45,7 +45,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         val reader = new CSVReader(separator, maxFieldSize)
         val ehCSV: CSVErrHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
         val ehIO: IOErrHandler = ex => assertIOException(ex, errorCode)
-        reader.read(source, _ => true, ehCSV, ehIO)
+        reader.process(source, _ => true, ehCSV, ehIO)
       }
     }
   }
@@ -56,7 +56,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
         val source = generateErroneousCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
         try {
-          reader.read(source, _ => true)
+          reader.process(source, _ => true)
         }
         catch {
           case ex: CSVException => assertCSVException(ex, errorCode, line, col, row, field)
@@ -73,7 +73,39 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        reader.read(source, cb)
+        reader.process(source, cb)
+        assert(source.hasNext)
+      }
+    }
+  }
+
+  test("Reader should allow getting the records as list") {
+    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
+      forAll(separators) { separator =>
+        val source = generateBasicCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val list = reader.get(source)
+        assert(list.size == 3)
+        val first = list.head
+        assert(first.getString("NAME") == firstName)
+        assert(first.getString("VALUE") == firstValue)
+        val last = list.last
+        assert(last.getString("NAME") == lastName)
+        assert(last.getString("VALUE") == lastValue)
+      }
+    }
+  }
+
+  test("Reader should allow getting limited number of records as list") {
+    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
+      forAll(separators) { separator =>
+        val source = generateBasicCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val list = reader.get(source, 2)
+        assert(list.size == 2)
+        val first = list.head
+        assert(first.getString("NAME") == firstName)
+        assert(first.getString("VALUE") == firstValue)
         assert(source.hasNext)
       }
     }

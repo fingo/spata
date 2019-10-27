@@ -10,14 +10,16 @@ private[spata] class CSVContent private (data: Stream[IO,ParsingResult], index: 
   private val rIndex = buildReverseHeaderIndex(index)
 
   def process(cb: CSVCallback): Stream[IO, Boolean] = {
-    data.map(wrapRow).rethrow.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
+    toRecords.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
   }
+
+  def toRecords: Stream[IO, CSVRecord] = data.map(wrapRow).rethrow
 
   private def buildReverseHeaderIndex(hi: Map[String,Int]): Map[Int,String] = hi.map(x => x._2 -> x._1)
 
-  private def wrapRow(pr: ParsingResult): Either[CSVException,CSVRow] = pr match {
+  private def wrapRow(pr: ParsingResult): Either[CSVException,CSVRecord] = pr match {
     case RawRecord(fields, location, recordNum) =>
-      CSVRow(fields, location.line, recordNum-1)(index)   // -1 because of header
+      CSVRecord(fields, location.line, recordNum-1)(index)   // -1 because of header
     case ParsingFailure(code, location, recordNum, fieldNum) =>
       Left(new CSVException(
         code.message,

@@ -84,7 +84,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        val list = reader.get(source)
+        val list = reader.load(source)
         assert(list.size == 3)
         val first = list.head
         assert(first.getString("NAME") == firstName)
@@ -101,7 +101,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        val list = reader.get(source, 2)
+        val list = reader.load(source, 2)
         assert(list.size == 2)
         val first = list.head
         assert(first.getString("NAME") == firstName)

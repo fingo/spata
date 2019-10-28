@@ -2,22 +2,17 @@ package info.fingo.spata
 
 import cats.effect.IO
 import fs2.Stream
-import info.fingo.spata.CSVReader.CSVCallback
 import info.fingo.spata.parser.{ParsingFailure, ParsingResult, RawRecord}
 
 private[spata] class CSVContent private (data: Stream[IO,ParsingResult], index: Map[String,Int]) {
 
   private val rIndex = buildReverseHeaderIndex(index)
 
-  def process(cb: CSVCallback): Stream[IO, Boolean] = {
-    toRecords.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
-  }
-
-  def toRecords: Stream[IO, CSVRecord] = data.map(wrapRow).rethrow
+  def toRecords: Stream[IO, CSVRecord] = data.map(wrapRecord).rethrow
 
   private def buildReverseHeaderIndex(hi: Map[String,Int]): Map[Int,String] = hi.map(x => x._2 -> x._1)
 
-  private def wrapRow(pr: ParsingResult): Either[CSVException,CSVRecord] = pr match {
+  private def wrapRecord(pr: ParsingResult): Either[CSVException,CSVRecord] = pr match {
     case RawRecord(fields, location, recordNum) =>
       CSVRecord(fields, location.line, recordNum-1)(index)   // -1 because of header
     case ParsingFailure(code, location, recordNum, fieldNum) =>

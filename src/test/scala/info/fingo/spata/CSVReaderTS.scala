@@ -3,16 +3,85 @@ package info.fingo.spata
 import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
 import org.scalatest.FunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-
+import fs2.Stream
 import scala.io.{BufferedSource, Source}
 import java.io.IOException
+import cats.effect.IO
 
 class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
+
+  type ErrorHandler = Throwable => Stream[IO,Unit]
 
   val separators = Table("separator",',',';','\t')
   val maxFieldSize = Some(100)
 
   test("Reader should process basic csv data") {
+    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
+      forAll(separators) { separator =>
+        val source = generateBasicCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val stream = reader.parse(source)
+        val list = stream.compile.toList.unsafeRunSync()
+        assert(list.size == 3)
+        assertListFirst(list, firstName, firstValue)
+        assertListLast(list, lastName, lastValue)
+      }
+    }
+  }
+
+  test("Reader should clearly report errors in source data while handling errors") {
+    forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
+      forAll(separators) { separator =>
+        val source = generateErroneousCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val stream = reader.parse(source)
+        val eh: ErrorHandler = ex => assertError(ex, errorCode, line, col, row, field)
+        stream.handleErrorWith(eh).compile.drain.unsafeRunSync()
+      }
+    }
+  }
+
+  test("Reader should throw exception on errors when there is no error handler for stream provided") {
+    forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
+      forAll(separators) { separator =>
+        val source = generateErroneousCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val stream = reader.parse(source)
+        val ex = intercept[Exception] {
+          stream.compile.drain.unsafeRunSync()
+        }
+        assertError(ex, errorCode, line, col, row, field)
+      }
+    }
+  }
+
+  test("Reader should allow loading records as list") {
+    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
+      forAll(separators) { separator =>
+        val source = generateBasicCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val list = reader.load(source)
+        assert(list.size == 3)
+        assertListFirst(list, firstName, firstValue)
+        assertListLast(list, lastName, lastValue)
+      }
+    }
+  }
+
+  test("Reader should allow loading limited number of records as list") {
+    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
+      forAll(separators) { separator =>
+        val source = generateBasicCSV(testCase, separator)
+        val reader = new CSVReader(separator, maxFieldSize)
+        val list = reader.load(source, 2)
+        assert(list.size == 2)
+        assertListFirst(list, firstName, firstValue)
+        assert(source.hasNext)
+      }
+    }
+  }
+
+  test("Reader should provide access to csv data through callback function") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
       forAll(separators) { separator =>
         val source = generateBasicCSV(testCase,separator)
@@ -38,7 +107,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Reader should clearly report errors in source data while handling errors") {
+  test("Reader should support dedicated error handlers while processing callbacks") {
     forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
       forAll(separators) { separator =>
         val source = generateErroneousCSV(testCase, separator)
@@ -50,24 +119,20 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Reader should throw exception on errors when there is no error handler provided") {
+  test("Reader should throw exception on errors when there is no error handler for callback provided") {
     forAll(errorCases) { (testCase: String, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]) =>
       forAll(separators) { separator =>
         val source = generateErroneousCSV(testCase, separator)
         val reader = new CSVReader(separator, maxFieldSize)
-        try {
+        val ex = intercept[Exception] {
           reader.process(source, _ => true)
         }
-        catch {
-          case ex: CSVException => assertCSVException(ex, errorCode, line, col, row, field)
-          case ex: IOException => assertIOException(ex, errorCode)
-          case _: Throwable => fail()
-        }
+        assertError(ex, errorCode, line, col, row, field)
       }
     }
   }
 
-  test("Reader should consume only required part of stream") {
+  test("Reader should consume only required part of stream depending on callback return value") {
     val cb: CSVCallback = row => if(row.row(0).startsWith("2")) false else true
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
@@ -79,36 +144,27 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Reader should allow getting the records as list") {
-    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
-      forAll(separators) { separator =>
-        val source = generateBasicCSV(testCase, separator)
-        val reader = new CSVReader(separator, maxFieldSize)
-        val list = reader.load(source)
-        assert(list.size == 3)
-        val first = list.head
-        assert(first.getString("NAME") == firstName)
-        assert(first.getString("VALUE") == firstValue)
-        val last = list.last
-        assert(last.getString("NAME") == lastName)
-        assert(last.getString("VALUE") == lastValue)
-      }
-    }
+  private def assertListFirst(list: List[CSVRecord], firstName: String, firstValue: String): Unit = {
+    val first = list.head
+    assert(first.getString("NAME") == firstName)
+    assert(first.getString("VALUE") == firstValue)
+    ()
   }
 
-  test("Reader should allow getting limited number of records as list") {
-    forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
-      forAll(separators) { separator =>
-        val source = generateBasicCSV(testCase, separator)
-        val reader = new CSVReader(separator, maxFieldSize)
-        val list = reader.load(source, 2)
-        assert(list.size == 2)
-        val first = list.head
-        assert(first.getString("NAME") == firstName)
-        assert(first.getString("VALUE") == firstValue)
-        assert(source.hasNext)
-      }
+  private def assertListLast(list: List[CSVRecord], lastName: String, lastValue: String): Unit = {
+    val last = list.last
+    assert(last.getString("NAME") == lastName)
+    assert(last.getString("VALUE") == lastValue)
+    ()
+  }
+
+  private def assertError(ex: Throwable, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]): Stream[IO,Unit] = {
+    ex match {
+      case ex: CSVException => assertCSVException(ex, errorCode, line, col, row, field)
+      case ex: IOException => assertIOException(ex, errorCode)
+      case _ => fail()
     }
+    Stream.emit[IO,Unit](())
   }
 
   private def assertCSVException(ex: CSVException, errorCode: String, line: Option[Int], col: Option[Int], row: Option[Int], field: Option[String]): Unit = {

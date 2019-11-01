@@ -14,15 +14,18 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
   private val recordDelimiter: Char = '\n'
   private val quote: Char = '"'
 
-  def process(source: Source, cb: CSVCallback, ehCSV: CSVErrHandler, ehIO: IOErrHandler): Unit =
-    process(source, cb, Some(ehCSV), Some(ehIO))
-  def process(source: Source, cb: CSVCallback): Unit = process(source, cb, None, None)
-
-  private def process(source: Source, cb: CSVCallback, ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Unit = {
-    val effect = evalCallback(cb)
-    val eh = errorHandler(ehoCSV, ehoIO)
-    val stream = parse(source).through(effect).handleErrorWith(eh)
-    stream.compile.drain.unsafeRunSync()
+  def parse(source: Source): Stream[IO,CSVRecord] = {
+    val cp = new CharParser(separator, recordDelimiter, quote)
+    val fp = new FieldParser(fieldSizeLimit)
+    val rp = new RecordParser()
+    val stream = Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
+    val pull = stream.pull.uncons1.flatMap {
+      case Some((h, t)) => Pull.output1(CSVContent(h, t))
+      case None =>
+        val err = ParsingErrorCode.MissingHeader
+        Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
+    }
+    pull.stream.rethrow.flatMap(_.toRecords)
   }
 
   def load(source: Source): List[CSVRecord] = load(source, None)
@@ -37,18 +40,15 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
     limited.compile.toList.unsafeRunSync()
   }
 
-  private def parse(source: Source): Stream[IO,CSVRecord] = {
-    val cp = new CharParser(separator, recordDelimiter, quote)
-    val fp = new FieldParser(fieldSizeLimit)
-    val rp = new RecordParser()
-    val stream = Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
-    val pull = stream.pull.uncons1.flatMap {
-      case Some((h, t)) => Pull.output1(CSVContent(h, t))
-      case None =>
-        val err = ParsingErrorCode.MissingHeader
-        Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
-    }
-    pull.stream.rethrow.flatMap(_.toRecords)
+  def process(source: Source, cb: CSVCallback, ehCSV: CSVErrHandler, ehIO: IOErrHandler): Unit =
+    process(source, cb, Some(ehCSV), Some(ehIO))
+  def process(source: Source, cb: CSVCallback): Unit = process(source, cb, None, None)
+
+  private def process(source: Source, cb: CSVCallback, ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Unit = {
+    val effect = evalCallback(cb)
+    val eh = errorHandler(ehoCSV, ehoIO)
+    val stream = parse(source).through(effect).handleErrorWith(eh)
+    stream.compile.drain.unsafeRunSync()
   }
 
   private def evalCallback(cb: CSVCallback): Pipe[IO,CSVRecord,Boolean] =

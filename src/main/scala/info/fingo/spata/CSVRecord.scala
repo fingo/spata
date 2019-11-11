@@ -4,6 +4,13 @@ import info.fingo.spata.parser.ParsingErrorCode
 
 class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
 
+  import StringParser._
+
+  def get[A: StringParser](key: String): Option[A] = {
+    val pos = header(key)
+    parse[A](row(pos))
+  }
+
   def getString(key: String): String = {
     val pos = header(key)
     row(pos)

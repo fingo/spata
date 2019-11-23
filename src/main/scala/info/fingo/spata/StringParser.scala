@@ -27,7 +27,7 @@ object StringParser {
     new StringParser[BigDecimal] {
       override type FmtType = DecimalFormat
       override def parse(str: String): Option[BigDecimal] = Try(BigDecimal(str)).toOption
-      def parse(str: String, fmt: FmtType): Option[BigDecimal] = {
+      override def parse(str: String, fmt: FmtType): Option[BigDecimal] = {
         fmt.setParseBigDecimal(true)
         Try(BigDecimal(fmt.parse(str).asInstanceOf[java.math.BigDecimal])).toOption
       }
@@ -35,8 +35,8 @@ object StringParser {
 
   implicit val localDateParser: StringParser[LocalDate] {type FmtType = DateTimeFormatter} =
     new StringParser[LocalDate] {
-      type FmtType = DateTimeFormatter
+      override type FmtType = DateTimeFormatter
       override def parse(str: String): Option[LocalDate] = Try(LocalDate.parse(str)).toOption
-      def parse(str: String, fmt: FmtType): Option[LocalDate] = Try(LocalDate.parse(str, fmt)).toOption
+      override def parse(str: String, fmt: FmtType): Option[LocalDate] = Try(LocalDate.parse(str, fmt)).toOption
     }
 }

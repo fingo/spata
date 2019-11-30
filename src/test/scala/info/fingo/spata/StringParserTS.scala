@@ -11,8 +11,8 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
 
   import StringParser._
-  val locale = new Locale("pl", "PL")
-  val nbsp = '\u00A0'
+  private val locale = new Locale("pl", "PL")
+  private val nbsp = '\u00A0'
 
   test("StringParser should correctly parse strings") {
     forAll(strings) { (_: String, str: String, string: Option[String]) =>
@@ -96,27 +96,27 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  val strings = Table(
+  private lazy val strings = Table(
     ("testCase","str","string"),
     ("basic", "lorem ipsum", Some("lorem ipsum")),
     ("empty", "", None)
   )
 
-  val ints = Table(
+  private lazy val ints = Table(
     ("testCase","str","int"),
     ("basic", "123456789", Some(123456789)),
     ("negative", "-123456789", Some(-123456789)),
     ("empty", "", None)
   )
 
-  val longs = Table(
+  private lazy val longs = Table(
     ("testCase","str","long","format"),
     ("basic", "123456789", Some(123456789L), None),
     ("locale", s"-123${nbsp}456${nbsp}789", Some(-123456789L), Some(NumberFormat.getInstance(locale))),
     ("empty", "", None, None)
   )
 
-  val doubles = Table(
+  private lazy val doubles = Table(
     ("testCase","str","double","format"),
     ("basic", "123456.789", Some(123456.789), None),
     ("integral", "123456789", Some(123456789.0), None),
@@ -124,7 +124,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  val decimals = Table(
+  private lazy val decimals = Table(
     ("testCase","str","decimal","format"),
     ("basic", "123456.789", Some(BigDecimal(123456.789)), None),
     ("integral", "123456789", Some(BigDecimal(123456789)), None),
@@ -132,7 +132,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  val localDates = Table(
+  private lazy val localDates = Table(
     ("testCase","str","date","format"),
     ("basic", "2020-02-29", Some(LocalDate.of(2020,2,29)), None),
     ("locale", "29.02.2020", Some(LocalDate.of(2020,2,29)), Some(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale))),
@@ -140,7 +140,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  val localTimes = Table(
+  private lazy val localTimes = Table(
     ("testCase","str","time","format"),
     ("basic", "12:34:56", Some(LocalTime.of(12,34,56)), None),
     ("milis", "12:34:56.789", Some(LocalTime.of(12,34,56, 789_000_000)), None),
@@ -149,7 +149,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  val localDateTimes = Table(
+  private lazy val localDateTimes = Table(
     ("testCase","str","datetime","format"),
     ("basic", "2020-02-29T12:34:56", Some(LocalDateTime.of(2020,2,29,12,34,56)), None),
     ("locale", "29.02.2020, 12:34", Some(LocalDateTime.of(2020,2,29,12,34)), Some(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))),
@@ -157,10 +157,11 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  val booleans = Table(
+  private lazy val booleans = Table(
     ("testCase","str","boolean","format"),
     ("basic", "true", Some(true), None),
     ("locale", "FAŁSZ", Some(false), Some(BooleanFormatter("prawda", "fałsz", locale))),
     ("formatted", "y", Some(true), Some(BooleanFormatter("y", "n"))),
     ("empty", "", None, None)
-  )}
+  )
+}

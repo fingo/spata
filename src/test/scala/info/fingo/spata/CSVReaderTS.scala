@@ -12,8 +12,8 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
 
   type ErrorHandler = Throwable => Stream[IO,Unit]
 
-  val separators = Table("separator",',',';','\t')
-  val maxFieldSize = Some(100)
+  private val separators = Table("separator",',',';','\t')
+  private val maxFieldSize = Some(100)
 
   test("Reader should process basic csv data") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
@@ -181,7 +181,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ()
   }
 
-  val basicCases = Table(
+  private lazy val basicCases = Table(
     ("testCase","firstName","firstValue","lastName","lastValue"),
     ("basic","Fanky Koval","100.00","Han Solo","999.99"),
     ("basic quoted","Koval, Fanky","100.00","Solo, Han","999.99"),
@@ -193,7 +193,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty lines","Fanky Koval","100.00","Han Solo","999.99")
   )
 
-  def generateBasicCSV(testCase: String, separator: Char): Source = {
+  private def generateBasicCSV(testCase: String, separator: Char): Source = {
     val s = separator
     val csv = testCase match {
       case "basic" =>
@@ -243,7 +243,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     Source.fromString(csv)
   }
 
-  val errorCases = Table(
+  private lazy val errorCases = Table(
     ("testCase","errorCode","lineNum","colNum","rowNum","field"),
     ("missing value","fieldsHeaderImbalance",Some(2),None,Some(1),None),
     ("missing value with empty lines","fieldsHeaderImbalance",Some(3),None,Some(1),None),
@@ -261,7 +261,7 @@ class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
     ("io exception", "message", None, None, None, None)
   )
 
-  def generateErroneousCSV(testCase: String, separator: Char): Source = {
+  private def generateErroneousCSV(testCase: String, separator: Char): Source = {
     val s = separator
     val csv = testCase match {
       case "missing value" =>

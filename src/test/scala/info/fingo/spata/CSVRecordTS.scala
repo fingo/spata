@@ -21,7 +21,7 @@ class CSVRecordTS extends FunSuite with TableDrivenPropertyChecks {
   private def createRecord(name: String, date: String, value: String, lineNum: Int, rowNum: Int): CSVRecord =
     CSVRecord(Vector(name, date, value), lineNum, rowNum).toOption.get
 
-  val basicCases = Table(
+  private lazy val basicCases = Table(
     ("testCase","name","date","value","lineNum","rowNum"),
     ("basic","Fanky Koval","2020-02-02","999.99", 1, 1),
     ("lineBreaks","Fanky\nKoval","2020-02-02","999.99", 3, 4)

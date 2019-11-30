@@ -14,45 +14,39 @@ object Config {
 }
 
 object CharStates {
-  def csr(c: Char) = CharState(Some(c), Regular)
-  def csr = CharState(None, Regular)
-  def cst(c: Char) = CharState(Some(c), Trailing)
-  def csq(c: Char) = CharState(Some(c), Quoted)
-  def csq = CharState(None, Quoted)
-  val cses = CharState(None, Escape)
-  val css = CharState(None, Start)
-  def cse = CharState(None, End)
-  def csff = CharState(None, FinishedField)
-  def csfr = CharState(None, FinishedRecord)
+  def csr(c: Char): CharState = CharState(Some(c), Regular)
+  def csr: CharState = CharState(None, Regular)
+  def cst(c: Char): CharState = CharState(Some(c), Trailing)
+  def csq(c: Char): CharState = CharState(Some(c), Quoted)
+  def csq: CharState = CharState(None, Quoted)
+  val cses: CharState = CharState(None, Escape)
+  val css: CharState = CharState(None, Start)
+  def cse: CharState = CharState(None, End)
+  def csff: CharState = CharState(None, FinishedField)
+  def csfr: CharState = CharState(None, FinishedRecord)
 }
 
 object CharFailures {
-  val cfcq = CharFailure(UnclosedQuotation)
-  val cfmq = CharFailure(UnmatchedQuotation)
-  val cfeq = CharFailure(UnescapedQuotation)
+  val cfcq: CharFailure = CharFailure(UnclosedQuotation)
+  val cfmq: CharFailure = CharFailure(UnmatchedQuotation)
+  val cfeq: CharFailure = CharFailure(UnescapedQuotation)
 }
 
 object RawFields {
-  def rf(v: String, pos: Int, ln: Int = 1) =
-    RawField(v, Location(pos, ln))
-  def rfe(v: String, pos: Int, ln: Int = 1) =
-    RawField(v, Location(pos, ln), endOfRecord = true)
+  def rf(v: String, pos: Int, ln: Int = 1): RawField = RawField(v, Location(pos, ln))
+  def rfe(v: String, pos: Int, ln: Int = 1): RawField = RawField(v, Location(pos, ln), endOfRecord = true)
 }
 
 object FieldFailures {
-  def ffcq(pos: Int, ln: Int = 1) =
-    FieldFailure(UnclosedQuotation, Location(pos, ln))
-  def ffmq(pos: Int, ln: Int = 1) =
-    FieldFailure(UnmatchedQuotation, Location(pos, ln))
-  def ffeq(pos: Int, ln: Int = 1) =
-    FieldFailure(UnescapedQuotation, Location(pos, ln))
-  def ffrtl(pos: Int, ln: Int = 1) =
-    FieldFailure(FieldTooLong, Location(pos, ln))
+  def ffcq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnclosedQuotation, Location(pos, ln))
+  def ffmq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnmatchedQuotation, Location(pos, ln))
+  def ffeq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnescapedQuotation, Location(pos, ln))
+  def ffrtl(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(FieldTooLong, Location(pos, ln))
 }
 
 object ParsingResults {
-  def rr(fields: String*)(pos: Int, ln: Int = 1, rnum: Int = 1) =
+  def rr(fields: String*)(pos: Int, ln: Int = 1, rnum: Int = 1): RawRecord =
     RawRecord(Vector(fields: _*), Location(pos, ln), rnum)
-  def pf(code: ErrorCode, pos: Int, ln: Int = 1, rnum: Int = 1, fnum: Int = 1) =
+  def pf(code: ErrorCode, pos: Int, ln: Int = 1, rnum: Int = 1, fnum: Int = 1): ParsingFailure =
     ParsingFailure(code, Location(pos, ln), rnum, fnum)
 }

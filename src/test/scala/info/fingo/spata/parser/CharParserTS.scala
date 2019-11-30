@@ -9,7 +9,7 @@ import CharFailures._
 
 class CharParserTS extends FunSuite with TableDrivenPropertyChecks {
 
-  val parser = new CharParser(sep, rs, qt)
+  private val parser = new CharParser(sep, rs, qt)
 
   test("Char parser should correctly parse provided input") {
     forAll(regularCases) { (_, input, output) =>
@@ -30,7 +30,7 @@ class CharParserTS extends FunSuite with TableDrivenPropertyChecks {
     stream.compile.toList.unsafeRunSync()
   }
 
-  val regularCases = Table(
+  private lazy val regularCases = Table(
     ("testCase", "input", "output"),
     ("basic", "abc", List(csr('a'), csr('b'), csr('c'), csfr)),
     ("sepEnd", s"abc$sep", List(csr('a'), csr('b'), csr('c'), csff, csfr)),
@@ -68,7 +68,7 @@ class CharParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", List(csfr))
   )
 
-  val malformedCases = Table(
+  private lazy val malformedCases = Table(
     ("testCase", "input", "output"),
     ("unquotedQuote", "a\"bc", List(csr('a'), cfcq)),
     ("unescapedQuote", "\"a\"bc\"", List(csq, csq('a'), cses, cfeq)),

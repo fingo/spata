@@ -12,7 +12,7 @@ import FieldParser.FieldResult
 
 class RecordParserTS extends FunSuite with TableDrivenPropertyChecks {
 
-  val parser = new RecordParser()
+  private val parser = new RecordParser()
 
   test("Record parser should correctly parse provided input") {
     forAll(regularCases) { (_, input, output) =>
@@ -33,7 +33,7 @@ class RecordParserTS extends FunSuite with TableDrivenPropertyChecks {
     stream.compile.toList.unsafeRunSync()
   }
 
-  val regularCases = Table(
+  private lazy val regularCases = Table(
     ("testCase", "input", "output"),
     ("oneField", List(rfe("abc",3)), List(rr("abc")(3))),
     ("twoFields", List(rf("abc",3), rfe("xyz",7)), List(rr("abc","xyz")(7))),
@@ -48,7 +48,7 @@ class RecordParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", List(), List())
   )
 
-  val failureCases = Table(
+  private lazy val failureCases = Table(
     ("testCase", "input", "output"),
     ("errorOnly", List(ffcq(3)), List(pf(UnclosedQuotation,3))),
     ("fieldAndError", List(rf("abc",3), ffeq(7)), List(pf(UnescapedQuotation,7,1,1,2))),

@@ -12,7 +12,7 @@ import FieldFailures._
 
 class FieldParserTS extends FunSuite with TableDrivenPropertyChecks {
 
-  val parser = new FieldParser(Some(limit))
+  private val parser = new FieldParser(Some(limit))
 
   test("Field parser should correctly parse provided input") {
     forAll(regularCases) { (_, input, output) =>
@@ -33,7 +33,7 @@ class FieldParserTS extends FunSuite with TableDrivenPropertyChecks {
     stream.compile.toList.unsafeRunSync()
   }
 
-  val regularCases = Table(
+  private lazy val regularCases = Table(
     ("testCase", "input", "output"),
     ("basic", List(csr('a'), csr('b'), csr('c'), csfr), List(rfe("abc",3))),
     ("sepEnd", List(csr('a'), csr('b'), csr('c'), csff), List(rf("abc",3))),
@@ -60,7 +60,7 @@ class FieldParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("noSep", List(csr('a'), csr('b'), csr('c')), List()),
     ("empty", List(), List())
   )
-  val failureCases = Table(
+  private lazy val failureCases = Table(
     ("testCase", "input", "output"),
     ("qtUnclosed", List(csr('a'), csr('b'), cfcq), List(ffcq(3))),
     ("qtUnescaped", List(csq, csq('a'), csq('b'), css, cfeq), List(ffeq(4))),

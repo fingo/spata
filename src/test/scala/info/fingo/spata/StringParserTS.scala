@@ -1,8 +1,8 @@
 package info.fingo.spata
 
-import java.text.{DecimalFormat, NumberFormat}
+import java.text.{DecimalFormat, NumberFormat, ParseException}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
-import java.time.format.{DateTimeFormatter, FormatStyle}
+import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.util.Locale
 
 import org.scalatest.FunSuite
@@ -28,11 +28,11 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
 
   test("StringParser should correctly parse longs") {
     forAll(longs) { (_: String, str: String, long: Option[Long], fmt: Option[NumberFormat]) =>
-      val result = fmt match {
-        case Some(f) => parse(str,f)
-        case _ => parse[Long](str)
-      }
-      assert(result == long)
+        val result = fmt match {
+          case Some (f) => parse (str, f)
+          case _ => parse[Long] (str)
+        }
+        assert (result == long)
     }
   }
 
@@ -57,7 +57,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("StringParser should correctly parse local dates") {
-    forAll(localDates) { (_: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
+    forAll(dates) { (_: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
         case Some(f) => parse[LocalDate,DateTimeFormatter](str,f)
         case _ => parse[LocalDate](str)
@@ -67,7 +67,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("StringParser should correctly parse local times") {
-    forAll(localTimes) { (_: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
+    forAll(times) { (_: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
         case Some(f) => parse[LocalTime,DateTimeFormatter](str,f)
         case _ => parse[LocalTime](str)
@@ -77,7 +77,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("StringParser should correctly parse local date-times") {
-    forAll(localDateTimes) { (_: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
+    forAll(dateTimes) { (_: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
         case Some(f) => parse[LocalDateTime,DateTimeFormatter](str,f)
         case _ => parse[LocalDateTime](str)
@@ -96,6 +96,22 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("String parser should throw exception on incorrect input") {
+    assertThrows[NumberFormatException] { parse[Int]("wrong") }
+    assertThrows[NumberFormatException] { parse[Int]("12345678901234567890") }
+    assertThrows[NumberFormatException] { parse[Long]("wrong") }
+    assertThrows[ParseException] { parse("123:456:789", NumberFormat.getInstance(locale)) }
+    assertThrows[NumberFormatException] { parse[Double]("123e1e2") }
+    assertThrows[ParseException] { parse[Double,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
+    assertThrows[ParseException] { parse[BigDecimal,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
+    assertThrows[DateTimeParseException] { parse[LocalDate]("2020-02-30") }
+    assertThrows[DateTimeParseException] { parse[LocalDate,DateTimeFormatter]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy")) }
+    assertThrows[DateTimeParseException] { parse[LocalTime]("24:24") }
+    assertThrows[DateTimeParseException] { parse[LocalDateTime]("wrong") }
+    assertThrows[ParseException] { parse[Boolean]("yes") }
+    assertThrows[ParseException] { parse("yes", BooleanFormatter("y", "n")) }
+  }
+
   private lazy val strings = Table(
     ("testCase","str","string"),
     ("basic", "lorem ipsum", Some("lorem ipsum")),
@@ -106,6 +122,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("testCase","str","int"),
     ("basic", "123456789", Some(123456789)),
     ("negative", "-123456789", Some(-123456789)),
+    ("spaces", " 123456789 ", Some(123456789)),
     ("empty", "", None)
   )
 
@@ -113,6 +130,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("testCase","str","long","format"),
     ("basic", "123456789", Some(123456789L), None),
     ("locale", s"-123${nbsp}456${nbsp}789", Some(-123456789L), Some(NumberFormat.getInstance(locale))),
+    ("spaces", " 123456789 ", Some(123456789L), None),
     ("empty", "", None, None)
   )
 
@@ -121,6 +139,7 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("basic", "123456.789", Some(123456.789), None),
     ("integral", "123456789", Some(123456789.0), None),
     ("locale", s"-123${nbsp}456,789", Some(-123456.789), Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])),
+    ("spaces", s" -123${nbsp}456,789 ", Some(-123456.789), Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])),
     ("empty", "", None, None)
   )
 
@@ -132,24 +151,26 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
     ("empty", "", None, None)
   )
 
-  private lazy val localDates = Table(
+  private lazy val dates = Table(
     ("testCase","str","date","format"),
     ("basic", "2020-02-29", Some(LocalDate.of(2020,2,29)), None),
     ("locale", "29.02.2020", Some(LocalDate.of(2020,2,29)), Some(DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale))),
     ("formatted", "29/02/2020", Some(LocalDate.of(2020,2,29)), Some(DateTimeFormatter.ofPattern("dd/MM/yyyy"))),
+    ("spaces", " 2020-02-29 ", Some(LocalDate.of(2020,2,29)), None),
     ("empty", "", None, None)
   )
 
-  private lazy val localTimes = Table(
+  private lazy val times = Table(
     ("testCase","str","time","format"),
     ("basic", "12:34:56", Some(LocalTime.of(12,34,56)), None),
     ("milis", "12:34:56.789", Some(LocalTime.of(12,34,56, 789_000_000)), None),
     ("locale", "12:34", Some(LocalTime.of(12,34)), Some(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))),
     ("formatted", "12:34 PM", Some(LocalTime.of(12,34)), Some(DateTimeFormatter.ofPattern("hh:mm a"))),
+    ("spaces", " 12:34 PM ", Some(LocalTime.of(12,34)), Some(DateTimeFormatter.ofPattern("hh:mm a"))),
     ("empty", "", None, None)
   )
 
-  private lazy val localDateTimes = Table(
+  private lazy val dateTimes = Table(
     ("testCase","str","datetime","format"),
     ("basic", "2020-02-29T12:34:56", Some(LocalDateTime.of(2020,2,29,12,34,56)), None),
     ("locale", "29.02.2020, 12:34", Some(LocalDateTime.of(2020,2,29,12,34)), Some(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale))),

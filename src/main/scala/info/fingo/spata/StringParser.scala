@@ -1,6 +1,6 @@
 package info.fingo.spata
 
-import java.text.{DecimalFormat, NumberFormat, ParseException}
+import java.text.{DecimalFormat, NumberFormat, ParseException, ParsePosition}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -18,9 +18,9 @@ object StringParser {
   type Aux[A,B] = StringParser[A] {type FmtType = B}
 
   def parse[A](str: String)(implicit parser: SimpleStringParser[A]): Option[A] =
-    if(str == null || str.isBlank) None else Some(parser.parse(str))
+    if(str == null || str.isBlank) None else Some(parser.parse(str.trim))
   def parse[A,B](str: String, fmt: B)(implicit parser: Aux[A,B]): Option[A] =
-    if(str == null || str.isBlank) None else Some(parser.parse(str, fmt))
+    if(str == null || str.isBlank) None else Some(parser.parse(str.trim, fmt))
 
   implicit val stringParser: SimpleStringParser[String] = (str: String) => str
 
@@ -30,14 +30,14 @@ object StringParser {
     new StringParser[Long] {
       override type FmtType = NumberFormat
       override def parse(str: String): Long = str.toLong
-      override def parse(str: String, fmt: FmtType): Long = fmt.parse(str).longValue()
+      override def parse(str: String, fmt: FmtType): Long = parseNumber(str, fmt).longValue()
     }
 
   implicit val doubleParser: StringParser[Double] {type FmtType = DecimalFormat} =
     new StringParser[Double] {
       override type FmtType = DecimalFormat
       override def parse(str: String): Double = str.toDouble
-      override def parse(str: String, fmt: FmtType): Double = fmt.parse(str).doubleValue()
+      override def parse(str: String, fmt: FmtType): Double = parseNumber(str, fmt).doubleValue()
     }
 
   implicit val bigDecimalParser: StringParser[BigDecimal] {type FmtType = DecimalFormat} =
@@ -46,7 +46,7 @@ object StringParser {
       override def parse(str: String): BigDecimal = BigDecimal(str)
       override def parse(str: String, fmt: FmtType): BigDecimal = {
         fmt.setParseBigDecimal(true)
-        BigDecimal(fmt.parse(str).asInstanceOf[java.math.BigDecimal])
+        BigDecimal(parseNumber(str, fmt).asInstanceOf[java.math.BigDecimal])
       }
   }
 
@@ -77,6 +77,13 @@ object StringParser {
       override def parse(str: String): Boolean = BooleanFormatter.default.parse(str)
       override def parse(str: String, fmt: FmtType): Boolean = fmt.parse(str)
     }
+
+  private def parseNumber(str: String, fmt: NumberFormat): Number = {
+    val pos = new ParsePosition(0)
+    val num = fmt.parse(str, pos)
+    if(pos.getIndex != str.length) throw new ParseException(s"Cannot parse $str as number", pos.getIndex)
+    num
+  }
 }
 
 class BooleanFormatter(tt: String, ft: String, locale: Locale) {

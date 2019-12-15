@@ -1,14 +1,16 @@
 package info.fingo.spata
 
 import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import fs2.Stream
+
 import scala.io.{BufferedSource, Source}
 import java.io.IOException
+
 import cats.effect.IO
 
-class CSVReaderTS extends FunSuite with TableDrivenPropertyChecks {
+class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   type ErrorHandler = Throwable => Stream[IO,Unit]
 

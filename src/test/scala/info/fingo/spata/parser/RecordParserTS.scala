@@ -1,6 +1,6 @@
 package info.fingo.spata.parser
 
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import fs2.Stream
 import Config._
@@ -10,7 +10,7 @@ import ParsingResults._
 import ParsingErrorCode._
 import FieldParser.FieldResult
 
-class RecordParserTS extends FunSuite with TableDrivenPropertyChecks {
+class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private val parser = new RecordParser()
 

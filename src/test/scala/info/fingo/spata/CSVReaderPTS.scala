@@ -1,11 +1,11 @@
 package info.fingo.spata
 
 import info.fingo.spata.CSVReader.CSVCallback
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 
 import scala.io.Source
 
-class CSVReaderPTS extends FunSuite {
+class CSVReaderPTS extends AnyFunSuite {
   val amount = 10_000
   test("Reader should handle large data streams") {
     val separator = ','

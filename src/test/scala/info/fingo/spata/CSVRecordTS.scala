@@ -2,10 +2,10 @@ package info.fingo.spata
 
 import java.time.LocalDate
 
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class CSVRecordTS extends FunSuite with TableDrivenPropertyChecks {
+class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private implicit val header: Map[String,Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
 

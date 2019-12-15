@@ -5,10 +5,10 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.util.Locale
 
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
+class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   import StringParser._
   private val locale = new Locale("pl", "PL")

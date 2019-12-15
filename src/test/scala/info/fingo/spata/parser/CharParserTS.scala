@@ -1,13 +1,13 @@
 package info.fingo.spata.parser
 
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import fs2.Stream
 import Config._
 import CharStates._
 import CharFailures._
 
-class CharParserTS extends FunSuite with TableDrivenPropertyChecks {
+class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private val parser = new CharParser(sep, rs, qt)
 

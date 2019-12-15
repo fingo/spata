@@ -1,6 +1,6 @@
 package info.fingo.spata
 
-import java.text.{DecimalFormat, NumberFormat, ParseException}
+import java.text.{DecimalFormat, NumberFormat}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.util.Locale
@@ -97,19 +97,27 @@ class StringParserTS extends FunSuite with TableDrivenPropertyChecks {
   }
 
   test("String parser should throw exception on incorrect input") {
-    assertThrows[NumberFormatException] { parse[Int]("wrong") }
-    assertThrows[NumberFormatException] { parse[Int]("12345678901234567890") }
-    assertThrows[NumberFormatException] { parse[Long]("wrong") }
-    assertThrows[ParseException] { parse("123:456:789", NumberFormat.getInstance(locale)) }
-    assertThrows[NumberFormatException] { parse[Double]("123e1e2") }
-    assertThrows[ParseException] { parse[Double,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
-    assertThrows[ParseException] { parse[BigDecimal,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
-    assertThrows[DateTimeParseException] { parse[LocalDate]("2020-02-30") }
-    assertThrows[DateTimeParseException] { parse[LocalDate,DateTimeFormatter]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy")) }
-    assertThrows[DateTimeParseException] { parse[LocalTime]("24:24") }
-    assertThrows[DateTimeParseException] { parse[LocalDateTime]("wrong") }
-    assertThrows[ParseException] { parse[Boolean]("yes") }
-    assertThrows[ParseException] { parse("yes", BooleanFormatter("y", "n")) }
+    assertThrows[DataParseException] { parse[Int]("wrong") }
+    val exInt = intercept[DataParseException] { parse[Int]("12345678901234567890") }
+    assert(exInt.dataType == "Int")
+    assertThrows[DataParseException] { parse[Long]("wrong") }
+    assertThrows[DataParseException] { parse("123:456:789", NumberFormat.getInstance(locale)) }
+    val exDouble = intercept[DataParseException] { parse[Double]("123e1e2") }
+    assert(exDouble.dataType == "Double")
+    assertThrows[DataParseException] { parse[Double,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
+    assertThrows[DataParseException] { parse[BigDecimal,DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]) }
+    val exDate = intercept[DataParseException] { parse[LocalDate]("2020-02-30") }
+    assert(exDate.dataType == "LocalDate")
+    assert(exDate.getCause.isInstanceOf[DateTimeParseException])
+    assertThrows[DataParseException] { parse[LocalDate,DateTimeFormatter]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy")) }
+    assertThrows[DataParseException] { parse[LocalTime]("24:24") }
+    assertThrows[DataParseException] { parse[LocalDateTime]("wrong") }
+    assertThrows[DataParseException] { parse[Boolean]("yes") }
+    val exBool = intercept[DataParseException] { parse("yes", BooleanFormatter("y", "n")) }
+    assert(exBool.dataType == "Boolean")
+    assert(exBool.content == "yes")
+    val exMessage = intercept[DataParseException] { parse[Int]("1234567890"*10) }
+    assert(exMessage.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as Int"))
   }
 
   private lazy val strings = Table(

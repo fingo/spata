@@ -2,8 +2,9 @@ package info.fingo.spata
 
 import info.fingo.spata.parser.ParsingErrorCode
 
-class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(implicit header: Map[String, Int]) {
-
+class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(
+  implicit header: Map[String, Int]
+) {
   import StringParser._
 
   def get[A: StringParser](key: String): Option[A] = {
@@ -20,8 +21,10 @@ class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowN
 }
 
 object CSVRecord {
-  def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(implicit header: Map[String, Int]): Either[CSVException,CSVRecord] =
-    if(row.size == header.size)
+  def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
+    implicit header: Map[String, Int]
+  ): Either[CSVException, CSVRecord] =
+    if (row.size == header.size)
       Right(new CSVRecord(row, lineNum, rowNum)(header))
     else {
       val err = ParsingErrorCode.FieldsHeaderImbalance

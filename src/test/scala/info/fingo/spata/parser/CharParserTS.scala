@@ -46,7 +46,11 @@ class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("sepRowBegBeg", s"$sep${rs}abc", List(csff, csfr, csr('a'), csr('b'), csr('c'), csfr)),
     ("sepRowSwap", s"abc$rs$sep", List(csr('a'), csr('b'), csr('c'), csfr, csff, csfr)),
     ("spaces", "  ab c ", List(css, css, csr('a'), csr('b'), cst(' '), csr('c'), cst(' '), csfr)),
-    ("spSepRowEnd", s" ab $sep c $rs", List(css, csr('a'), csr('b'), cst(' '), csff, css, csr('c'), cst(' '), csfr, csfr)),
+    (
+      "spSepRowEnd",
+      s" ab $sep c $rs",
+      List(css, csr('a'), csr('b'), cst(' '), csff, css, csr('c'), cst(' '), csfr, csfr)
+    ),
     ("spSepDbl", s"ab $sep${sep}c", List(csr('a'), csr('b'), cst(' '), csff, csff, csr('c'), csfr)),
     ("quote", s"${qt}abc$qt", List(csq, csq('a'), csq('b'), csq('c'), cses, csfr)),
     ("qtEscMid", s"${qt}ab$qt${qt}c$qt", List(csq, csq('a'), csq('b'), cses, csq('"'), csq('c'), cses, csfr)),

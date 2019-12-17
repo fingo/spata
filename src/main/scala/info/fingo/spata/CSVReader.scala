@@ -1,12 +1,10 @@
 package info.fingo.spata
 
 import java.io.IOException
-
-import cats.effect.IO
-import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
-
 import scala.io.Source
+import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
+import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
 import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
 
 class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
@@ -14,11 +12,12 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
   private val recordDelimiter: Char = '\n'
   private val quote: Char = '"'
 
-  def parse(source: Source): Stream[IO,CSVRecord] = {
+  def parse(source: Source): Stream[IO, CSVRecord] = {
     val cp = new CharParser(separator, recordDelimiter, quote)
     val fp = new FieldParser(fieldSizeLimit)
     val rp = new RecordParser()
-    val stream = Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
+    val stream =
+      Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
     val pull = stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(CSVContent(h, t))
       case None =>
@@ -44,24 +43,30 @@ class CSVReader(separator: Char, fieldSizeLimit: Option[Int] = None) {
     process(source, cb, Some(ehCSV), Some(ehIO))
   def process(source: Source, cb: CSVCallback): Unit = process(source, cb, None, None)
 
-  private def process(source: Source, cb: CSVCallback, ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Unit = {
+  private def process(
+    source: Source,
+    cb: CSVCallback,
+    ehoCSV: Option[CSVErrHandler],
+    ehoIO: Option[IOErrHandler]
+  ): Unit = {
     val effect = evalCallback(cb)
     val eh = errorHandler(ehoCSV, ehoIO)
     val stream = parse(source).through(effect).handleErrorWith(eh)
     stream.compile.drain.unsafeRunSync()
   }
 
-  private def evalCallback(cb: CSVCallback): Pipe[IO,CSVRecord,Boolean] =
+  private def evalCallback(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
     _.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
 
-  private def errorHandler(ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Throwable => Stream[IO,Unit] = ex => {
-    val eho = ex match {
-      case ex: CSVException => ehoCSV.map(eh => Stream.emit(eh(ex)))
-      case ex: IOException => ehoIO.map(eh => Stream.emit(eh(ex)))
-      case _ => None
+  private def errorHandler(ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Throwable => Stream[IO, Unit] =
+    ex => {
+      val eho = ex match {
+        case ex: CSVException => ehoCSV.map(eh => Stream.emit(eh(ex)))
+        case ex: IOException => ehoIO.map(eh => Stream.emit(eh(ex)))
+        case _ => None
+      }
+      eho.getOrElse(Stream.raiseError[IO](ex))
     }
-    eho.getOrElse(Stream.raiseError[IO](ex))
-  }
 }
 
 object CSVReader {

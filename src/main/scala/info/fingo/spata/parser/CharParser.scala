@@ -1,30 +1,30 @@
 package info.fingo.spata.parser
 
-import ParsingErrorCode._
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
+import ParsingErrorCode._
 
 private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import CharParser._
   import CharParser.CharPosition._
 
-  def toCharResults(state: CharState = CharState(None, Start)): Pipe[IO,Char,CharResult] = {
-    def loop(chars: Stream[IO, Char], state: CharState): Pull[IO,CharResult,Unit] =
+  def toCharResults(state: CharState = CharState(None, Start)): Pipe[IO, Char, CharResult] = {
+    def loop(chars: Stream[IO, Char], state: CharState): Pull[IO, CharResult, Unit] =
       chars.pull.uncons1.flatMap {
         case Some((h, t)) =>
-            parseChar(h, state) match {
+          parseChar(h, state) match {
             case cs: CharState => Pull.output1(cs) >> loop(t, cs)
             case cf: CharFailure => Pull.output1(cf) >> Pull.done
           }
         case None => Pull.output1(endOfStream(state)) >> Pull.done
       }
-    chars => loop(chars,state).stream
+    chars => loop(chars, state).stream
   }
 
   private def endOfStream(state: CharState): CharResult =
     state.position match {
-      case Quoted => CharFailure (UnmatchedQuotation)
-      case _ => CharState (None, FinishedRecord)
+      case Quoted => CharFailure(UnmatchedQuotation)
+      case _ => CharState(None, FinishedRecord)
     }
 
   @inline
@@ -63,6 +63,7 @@ private[spata] object CharParser {
 
   sealed trait CharResult
   case class CharFailure(code: ErrorCode) extends CharResult
+
   case class CharState(char: Option[Char], position: CharPosition) extends CharResult {
     def isSimple: Boolean = position == Regular || position == Trailing
     def finished: Boolean = position == FinishedField || position == FinishedRecord

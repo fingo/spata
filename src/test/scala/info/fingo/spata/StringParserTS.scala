@@ -9,7 +9,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  import StringParser._
+  import SimpleStringParser._
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
 

@@ -14,7 +14,7 @@ trait StringParser[A] extends SimpleStringParser[A] {
   def parse(str: String, fmt: FmtType): A
 }
 
-object StringParser {
+object SimpleStringParser {
   type Aux[A, B] = StringParser[A] { type FmtType = B }
 
   def parse[A](str: String)(implicit parser: SimpleStringParser[A]): Option[A] =

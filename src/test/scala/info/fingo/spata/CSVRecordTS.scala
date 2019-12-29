@@ -22,13 +22,21 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.getString("name") == name)
-      assert(record.get[String]("name").contains(name))
-      val dDate = record.get[LocalDate]("date")
-      assert(dDate.contains(date))
-      val bdValue = record.get[BigDecimal]("value")
-      assert(bdValue.contains(value))
-      val dValue = record.get[Double]("value")
-      assert(dValue.contains(value.doubleValue))
+      assert(record.get[String]("name") == name)
+      assert(record.get[LocalDate]("date") == date)
+      assert(record.get[BigDecimal]("value") == value)
+      assert(record.get[Double]("value") == value.doubleValue)
+    }
+  }
+
+  test("Record allows retrieving optional values") {
+    forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      assert(record.get[Option[String]]("name").forall(_ == name))
+      assert(record.get[Option[LocalDate]]("date").forall(_ == date))
+      assert(record.get[Option[BigDecimal]]("value").forall(_ == value))
+      assert(record.get[Option[Double]]("value").forall(_ == value.doubleValue))
     }
   }
 
@@ -45,12 +53,9 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         val header: Map[String, Int] = Map("num" -> 0, "date" -> 1, "value" -> 2)
         val record = createRecord(sNum, sDate, sValue)(header)
-        val lNum = record.get[Long]("num", numFmt)
-        assert(lNum.contains(num))
-        val dDate = record.get[LocalDate]("date", dateFmt)
-        assert(dDate.contains(date))
-        val bdValue = record.get[BigDecimal]("value", valueFmt)
-        assert(bdValue.contains(value))
+        assert(record.get[Long]("num", numFmt) == num)
+        assert(record.get[LocalDate]("date", dateFmt) == date)
+        assert(record.get[BigDecimal]("value", valueFmt) == value)
     }
   }
 
@@ -64,6 +69,13 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("basic", "Fanky Koval", "2020-02-22", "9999.99"),
     ("lineBreaks", "Fanky\nKoval", "2020-02-22", "9999.99"),
     ("spaces", "Fanky Koval", " 2020-02-22 ", " 9999.99 ")
+  )
+
+  private lazy val optionals = Table(
+    ("testCase", "name", "sDate", "sValue"),
+    ("basic", "Fanky Koval", "2020-02-22", "9999.99"),
+    ("spaces", "Fanky Koval", " ", " "),
+    ("empty", "", "", "")
   )
 
   private lazy val formatted = Table(

@@ -12,86 +12,80 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   import StringParser._
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
+  private val empty = "empty"
 
   test("StringParser should correctly parse strings") {
-    forAll(strings) { (_: String, str: String, string: Option[String]) =>
-      assert(parse[String](str) == string)
+    forAll(strings) { (tc: String, str: String, string: Option[String]) =>
+      assert(parse[Option[String]](str) == string)
+      if (tc != empty)
+        assert(string.contains(parse[String](str)))
     }
   }
 
   test("StringParser should correctly parse ints") {
-    forAll(ints) { (_: String, str: String, int: Option[Int]) =>
-      assert(parse[Int](str) == int)
+    forAll(ints) { (tc: String, str: String, int: Option[Int]) =>
+      assert(parse[Option[Int]](str) == int)
+      if (tc != empty)
+        assert(int.contains(parse[Int](str)))
     }
   }
 
   test("StringParser should correctly parse longs") {
-    forAll(longs) { (_: String, str: String, long: Option[Long], fmt: Option[NumberFormat]) =>
-      val result = fmt match {
-        case Some(f) => parse(str, f)
-        case _ => parse[Long](str)
-      }
-      assert(result == long)
+    forAll(longs) { (tc: String, str: String, long: Option[Long], fmt: Option[NumberFormat]) =>
+      assertParsing(str, long, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse doubles") {
-    forAll(doubles) { (_: String, str: String, double: Option[Double], fmt: Option[DecimalFormat]) =>
-      val result = fmt match {
-        case Some(f) => parse[Double](str, f)
-        case _ => parse[Double](str)
-      }
-      assert(result == double)
+    forAll(doubles) { (tc: String, str: String, double: Option[Double], fmt: Option[DecimalFormat]) =>
+      assertParsing(str, double, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse big decimals") {
-    forAll(decimals) { (_: String, str: String, decimal: Option[BigDecimal], fmt: Option[DecimalFormat]) =>
-      val result = fmt match {
-        case Some(f) => parse[BigDecimal](str, f)
-        case _ => parse[BigDecimal](str)
-      }
-      assert(result == decimal)
+    forAll(decimals) { (tc: String, str: String, decimal: Option[BigDecimal], fmt: Option[DecimalFormat]) =>
+      assertParsing(str, decimal, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse local dates") {
-    forAll(dates) { (_: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
-      val result = fmt match {
-        case Some(f) => parse[LocalDate](str, f)
-        case _ => parse[LocalDate](str)
-      }
-      assert(result == date)
+    forAll(dates) { (tc: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
+      assertParsing(str, date, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse local times") {
-    forAll(times) { (_: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
-      val result = fmt match {
-        case Some(f) => parse[LocalTime](str, f)
-        case _ => parse[LocalTime](str)
-      }
-      assert(result == time)
+    forAll(times) { (tc: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
+      assertParsing(str, time, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse local date-times") {
-    forAll(dateTimes) { (_: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
-      val result = fmt match {
-        case Some(f) => parse[LocalDateTime](str, f)
-        case _ => parse[LocalDateTime](str)
-      }
-      assert(result == dateTime)
+    forAll(dateTimes) { (tc: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
+      assertParsing(str, dateTime, fmt, tc)
     }
   }
 
   test("StringParser should correctly parse booleans") {
-    forAll(booleans) { (_: String, str: String, boolean: Option[Boolean], fmt: Option[BooleanFormatter]) =>
-      val result = fmt match {
-        case Some(f) => parse(str, f)
-        case _ => parse[Boolean](str)
+    forAll(booleans) { (tc: String, str: String, boolean: Option[Boolean], fmt: Option[BooleanFormatter]) =>
+      assertParsing(str, boolean, fmt, tc)
+    }
+  }
+
+  private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
+    implicit p: Aux[A, B]
+  ) = {
+    val result: Option[A] = fmt match {
+      case Some(f) => parse[Option[A]](str, f)
+      case _ => parse[Option[A]](str)
+    }
+    assert(result == expected)
+    if (tc != empty) {
+      val result: A = fmt match {
+        case Some(f) => parse[A](str, f)
+        case _ => parse[A](str)
       }
-      assert(result == boolean)
+      assert(expected.contains(result))
     }
   }
 
@@ -128,7 +122,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private lazy val strings = Table(
     ("testCase", "str", "string"),
     ("basic", "lorem ipsum", Some("lorem ipsum")),
-    ("empty", "", None)
+    (empty, "", None)
   )
 
   private lazy val ints = Table(
@@ -136,7 +130,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("basic", "123456789", Some(123456789)),
     ("negative", "-123456789", Some(-123456789)),
     ("spaces", " 123456789 ", Some(123456789)),
-    ("empty", "", None)
+    (empty, "", None)
   )
 
   private lazy val longs = Table(
@@ -144,7 +138,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("basic", "123456789", Some(123456789L), None),
     ("locale", s"-123${nbsp}456${nbsp}789", Some(-123456789L), Some(NumberFormat.getInstance(locale))),
     ("spaces", " 123456789 ", Some(123456789L), None),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val doubles = Table(
@@ -163,7 +157,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       Some(-123456.789),
       Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     ),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val decimals = Table(
@@ -176,7 +170,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       Some(BigDecimal(-123456.789)),
       Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     ),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val dates = Table(
@@ -190,7 +184,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ),
     ("formatted", "29/02/2020", Some(LocalDate.of(2020, 2, 29)), Some(DateTimeFormatter.ofPattern("dd/MM/yyyy"))),
     ("spaces", " 2020-02-29 ", Some(LocalDate.of(2020, 2, 29)), None),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val times = Table(
@@ -205,7 +199,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ),
     ("formatted", "12:34 PM", Some(LocalTime.of(12, 34)), Some(DateTimeFormatter.ofPattern("hh:mm a"))),
     ("spaces", " 12:34 PM ", Some(LocalTime.of(12, 34)), Some(DateTimeFormatter.ofPattern("hh:mm a"))),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val dateTimes = Table(
@@ -223,7 +217,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       Some(LocalDateTime.of(2020, 2, 29, 12, 34)),
       Some(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a"))
     ),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 
   private lazy val booleans = Table(
@@ -231,6 +225,6 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("basic", "true", Some(true), None),
     ("locale", "FAŁSZ", Some(false), Some(BooleanFormatter("prawda", "fałsz", locale))),
     ("formatted", "y", Some(true), Some(BooleanFormatter("y", "n"))),
-    ("empty", "", None, None)
+    (empty, "", None, None)
   )
 }

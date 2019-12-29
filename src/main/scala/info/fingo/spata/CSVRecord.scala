@@ -7,7 +7,7 @@ class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowN
 ) {
   import StringParser._
 
-  def get[A: StringParser](key: String): Option[A] = {
+  def get[A: StringParser](key: String): A = {
     val pos = header(key)
     parse[A](row(pos))
   }

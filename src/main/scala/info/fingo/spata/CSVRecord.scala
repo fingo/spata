@@ -5,16 +5,16 @@ import info.fingo.spata.parser.ParsingErrorCode
 class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(
   implicit header: Map[String, Int]
 ) {
-  import SimpleStringParser._
+  import StringParser._
 
-  def get[A: SimpleStringParser](key: String): Option[A] = {
+  def get[A: StringParser](key: String): Option[A] = {
     val pos = header(key)
     parse[A](row(pos))
   }
 
-  def get[A, B](key: String, fmt: B)(implicit parser: Aux[A, B]): Option[A] = {
-    val pos = header(key)
-    parse[A, B](row(pos), fmt)
+  def get[A]: Formatter[A] = {
+    val get = (key: String) => row(header(key))
+    new Formatter[A](get)
   }
 
   def getString(key: String): String = {

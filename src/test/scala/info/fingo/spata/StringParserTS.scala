@@ -9,7 +9,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  import SimpleStringParser._
+  import StringParser._
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
 
@@ -38,7 +38,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse doubles") {
     forAll(doubles) { (_: String, str: String, double: Option[Double], fmt: Option[DecimalFormat]) =>
       val result = fmt match {
-        case Some(f) => parse[Double, DecimalFormat](str, f)
+        case Some(f) => parse[Double](str, f)
         case _ => parse[Double](str)
       }
       assert(result == double)
@@ -48,7 +48,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse big decimals") {
     forAll(decimals) { (_: String, str: String, decimal: Option[BigDecimal], fmt: Option[DecimalFormat]) =>
       val result = fmt match {
-        case Some(f) => parse[BigDecimal, DecimalFormat](str, f)
+        case Some(f) => parse[BigDecimal](str, f)
         case _ => parse[BigDecimal](str)
       }
       assert(result == decimal)
@@ -58,7 +58,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse local dates") {
     forAll(dates) { (_: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
-        case Some(f) => parse[LocalDate, DateTimeFormatter](str, f)
+        case Some(f) => parse[LocalDate](str, f)
         case _ => parse[LocalDate](str)
       }
       assert(result == date)
@@ -68,7 +68,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse local times") {
     forAll(times) { (_: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
-        case Some(f) => parse[LocalTime, DateTimeFormatter](str, f)
+        case Some(f) => parse[LocalTime](str, f)
         case _ => parse[LocalTime](str)
       }
       assert(result == time)
@@ -78,7 +78,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse local date-times") {
     forAll(dateTimes) { (_: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
       val result = fmt match {
-        case Some(f) => parse[LocalDateTime, DateTimeFormatter](str, f)
+        case Some(f) => parse[LocalDateTime](str, f)
         case _ => parse[LocalDateTime](str)
       }
       assert(result == dateTime)
@@ -104,16 +104,16 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val exDouble = intercept[DataParseException] { parse[Double]("123e1e2") }
     assert(exDouble.dataType == "Double")
     assertThrows[DataParseException] {
-      parse[Double, DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
+      parse[Double]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     }
     assertThrows[DataParseException] {
-      parse[BigDecimal, DecimalFormat]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
+      parse[BigDecimal]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     }
     val exDate = intercept[DataParseException] { parse[LocalDate]("2020-02-30") }
     assert(exDate.dataType == "LocalDate")
     assert(exDate.getCause.isInstanceOf[DateTimeParseException])
     assertThrows[DataParseException] {
-      parse[LocalDate, DateTimeFormatter]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+      parse[LocalDate]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy"))
     }
     assertThrows[DataParseException] { parse[LocalTime]("24:24") }
     assertThrows[DataParseException] { parse[LocalDateTime]("wrong") }

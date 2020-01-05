@@ -59,6 +59,25 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Record parsing may throw exception") {
+    forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
+      val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      if (testCase != "missingValue") {
+        assert(record.get[String]("name") == name)
+        assertThrows[DataParseException] { record.get[LocalDate]("date") }
+        assertThrows[DataParseException] { record.get[BigDecimal]("value") }
+      } else {
+        assert(record.get[String]("name") == "")
+        assertThrows[DataParseException] { record.get[LocalDate]("date") }
+        assertThrows[DataParseException] { record.get[BigDecimal]("value") }
+        assert(record.get[Option[String]]("name").isEmpty)
+        assert(record.get[Option[LocalDate]]("date").isEmpty)
+        assert(record.get[Option[BigDecimal]]("value").isEmpty)
+      }
+    }
+  }
+
   private def createRecord(name: String, date: String, value: String)(
     implicit header: Map[String, Int]
   ): CSVRecord =
@@ -107,5 +126,12 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       s"9${nbsp}999,990",
       new DecimalFormat("#,###.000", dfs)
     )
+  )
+
+  private lazy val incorrect = Table(
+    ("testCase", "name", "sDate", "sValue"),
+    ("wrongFormat", "Fanky Koval", "2020-02-30", "9999,99"),
+    ("wrongType", "2020-02-22", "Fanky Koval", "true"),
+    ("missingValue", "", "", "")
   )
 }

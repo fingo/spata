@@ -6,16 +6,16 @@ lazy val basicSettings = Seq(
   scalaVersion := "2.13.1"
 )
 
-lazy val root = (project in file(".")).
-  settings(basicSettings: _*).
-  settings(
+lazy val root = (project in file("."))
+  .settings(basicSettings: _*)
+  .settings(
     fork in run := true,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "2.0.0",
-      "co.fs2" %% "fs2-core" % "2.1.0",
+      "co.fs2" %% "fs2-core" % "2.2.1",
       "org.scalatest" %% "scalatest" % "3.1.0" % "test"
     ),
-    scalacOptions ++= Seq(  // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
+    scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
       "-deprecation", // Emit warning and location for usages of deprecated APIs.
       "-explaintypes", // Explain type errors in more detail.
       "-feature", // Emit warning and location for usages of features that should be imported explicitly.
@@ -51,10 +51,11 @@ lazy val root = (project in file(".")).
       "-Ywarn-unused:patvars", // Warn if a variable bound in a pattern is unused.
       "-Ywarn-unused:privates", // Warn if a private member is unused.
       "-Ywarn-value-discard", // Warn when non-Unit expression results are unused.
-      "-Ybackend-parallelism", "8", // Enable paralellisation — change to desired number!
+      "-Ybackend-parallelism",
+      "8", // Enable paralellisation — change to desired number!
       "-Ycache-plugin-class-loader:last-modified", // Enables caching of classloaders for compiler plugins
       "-Ycache-macro-class-loader:last-modified", // and macro definitions. This can lead to performance improvements.
-      "-Yrangepos", // required by SemanticDB compiler plugin
+      "-Yrangepos" // required by SemanticDB compiler plugin
     ),
     scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
   )

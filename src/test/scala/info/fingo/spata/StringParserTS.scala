@@ -73,7 +73,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
-    implicit p: Aux[A, B]
+    implicit p: FormattedStringParser[A, B]
   ) = {
     val result: Option[A] = fmt match {
       case Some(f) => parse[Option[A]](str, f)
@@ -94,7 +94,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val exInt = intercept[DataParseException] { parse[Int]("12345678901234567890") }
     assert(exInt.dataType == "Int")
     assertThrows[DataParseException] { parse[Long]("wrong") }
-    assertThrows[DataParseException] { parse("123:456:789", NumberFormat.getInstance(locale)) }
+    assertThrows[DataParseException] { parse[Long]("123:456:789", NumberFormat.getInstance(locale)) }
     val exDouble = intercept[DataParseException] { parse[Double]("123e1e2") }
     assert(exDouble.dataType == "Double")
     assertThrows[DataParseException] {
@@ -112,7 +112,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assertThrows[DataParseException] { parse[LocalTime]("24:24") }
     assertThrows[DataParseException] { parse[LocalDateTime]("wrong") }
     assertThrows[DataParseException] { parse[Boolean]("yes") }
-    val exBool = intercept[DataParseException] { parse("yes", BooleanFormatter("y", "n")) }
+    val exBool = intercept[DataParseException] { parse[Boolean]("yes", BooleanFormatter("y", "n")) }
     assert(exBool.dataType == "Boolean")
     assert(exBool.content == "yes")
     val exMessage = intercept[DataParseException] { parse[Int]("1234567890" * 10) }

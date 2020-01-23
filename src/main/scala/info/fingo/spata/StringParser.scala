@@ -9,16 +9,13 @@ trait StringParser[A] {
   def parse(str: String): A
 }
 
-trait FormattedStringParser[A] extends StringParser[A] {
-  type FmtType
-  def parse(str: String, fmt: FmtType): A
+trait FormattedStringParser[A, B] extends StringParser[A] {
+  def parse(str: String, fmt: B): A
 }
 
 object StringParser {
-  type Aux[A, B] = FormattedStringParser[A] { type FmtType = B }
-
   class Formatter[A](get: String => String = identity) {
-    def apply[B](str: String, fmt: B)(implicit parser: Aux[A, B]): A = {
+    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val s = get(str)
       parser.parse(s, fmt)
     }
@@ -30,14 +27,12 @@ object StringParser {
   implicit def optionParser[A](implicit parser: StringParser[A]): StringParser[Option[A]] =
     (str: String) => if (str == null || str.isBlank) None else Some(parser.parse(str))
 
-  implicit def fmtOptionParser[A](
-    implicit parser: FormattedStringParser[A]
-  ): FormattedStringParser[Option[A]] { type FmtType = parser.FmtType } =
-    new FormattedStringParser[Option[A]] {
-      override type FmtType = parser.FmtType
-      override def parse(str: String): Option[A] =
-        if (str == null || str.isBlank) None else Some(parser.parse(str))
-      override def parse(str: String, fmt: FmtType): Option[A] =
+  implicit def fmtOptionParser[A, B](
+    implicit parser: FormattedStringParser[A, B]
+  ): FormattedStringParser[Option[A], B] =
+    new FormattedStringParser[Option[A], B] {
+      override def parse(str: String): Option[A] = if (str == null || str.isBlank) None else Some(parser.parse(str))
+      override def parse(str: String, fmt: B): Option[A] =
         if (str == null || str.isBlank) None else Some(parser.parse(str, fmt))
     }
 
@@ -45,68 +40,61 @@ object StringParser {
 
   implicit val intParser: StringParser[Int] = (str: String) => wrapException(str, "Int") { str.strip.toInt }
 
-  implicit val longParser: FormattedStringParser[Long] { type FmtType = NumberFormat } =
-    new FormattedStringParser[Long] {
-      override type FmtType = NumberFormat
+  implicit val longParser: FormattedStringParser[Long, NumberFormat] =
+    new FormattedStringParser[Long, NumberFormat] {
       override def parse(str: String): Long = wrapException(str, "Long") { str.strip.toLong }
-      override def parse(str: String, fmt: FmtType): Long = wrapException(str, "Long") {
+      override def parse(str: String, fmt: NumberFormat): Long = wrapException(str, "Long") {
         parseNumber(str, fmt).longValue()
       }
     }
 
-  implicit val doubleParser: FormattedStringParser[Double] { type FmtType = DecimalFormat } =
-    new FormattedStringParser[Double] {
-      override type FmtType = DecimalFormat
+  implicit val doubleParser: FormattedStringParser[Double, DecimalFormat] =
+    new FormattedStringParser[Double, DecimalFormat] {
       override def parse(str: String): Double = wrapException(str, "Double") { str.strip.toDouble }
-      override def parse(str: String, fmt: FmtType): Double = wrapException(str, "Double") {
+      override def parse(str: String, fmt: DecimalFormat): Double = wrapException(str, "Double") {
         parseNumber(str, fmt).doubleValue()
       }
     }
 
-  implicit val bigDecimalParser: FormattedStringParser[BigDecimal] { type FmtType = DecimalFormat } =
-    new FormattedStringParser[BigDecimal] {
-      override type FmtType = DecimalFormat
+  implicit val bigDecimalParser: FormattedStringParser[BigDecimal, DecimalFormat] =
+    new FormattedStringParser[BigDecimal, DecimalFormat] {
       override def parse(str: String): BigDecimal = wrapException(str, "BigDecimal") { BigDecimal(str.strip) }
-      override def parse(str: String, fmt: FmtType): BigDecimal = wrapException(str, "BigDecimal") {
+      override def parse(str: String, fmt: DecimalFormat): BigDecimal = wrapException(str, "BigDecimal") {
         fmt.setParseBigDecimal(true)
         BigDecimal(parseNumber(str, fmt).asInstanceOf[java.math.BigDecimal])
       }
     }
 
-  implicit val localDateParser: FormattedStringParser[LocalDate] { type FmtType = DateTimeFormatter } =
-    new FormattedStringParser[LocalDate] {
-      override type FmtType = DateTimeFormatter
+  implicit val localDateParser: FormattedStringParser[LocalDate, DateTimeFormatter] =
+    new FormattedStringParser[LocalDate, DateTimeFormatter] {
       override def parse(str: String): LocalDate = wrapException(str, "LocalDate") { LocalDate.parse(str.strip) }
-      override def parse(str: String, fmt: FmtType): LocalDate = wrapException(str, "LocalDate") {
+      override def parse(str: String, fmt: DateTimeFormatter): LocalDate = wrapException(str, "LocalDate") {
         LocalDate.parse(str.strip, fmt)
       }
     }
 
-  implicit val localTimeParser: FormattedStringParser[LocalTime] { type FmtType = DateTimeFormatter } =
-    new FormattedStringParser[LocalTime] {
-      override type FmtType = DateTimeFormatter
+  implicit val localTimeParser: FormattedStringParser[LocalTime, DateTimeFormatter] =
+    new FormattedStringParser[LocalTime, DateTimeFormatter] {
       override def parse(str: String): LocalTime = wrapException(str, "LocalTime") { LocalTime.parse(str.strip) }
-      override def parse(str: String, fmt: FmtType): LocalTime = wrapException(str, "LocalTime") {
+      override def parse(str: String, fmt: DateTimeFormatter): LocalTime = wrapException(str, "LocalTime") {
         LocalTime.parse(str.strip, fmt)
       }
     }
 
-  implicit val localDateTimeParser: FormattedStringParser[LocalDateTime] { type FmtType = DateTimeFormatter } =
-    new FormattedStringParser[LocalDateTime] {
-      override type FmtType = DateTimeFormatter
+  implicit val localDateTimeParser: FormattedStringParser[LocalDateTime, DateTimeFormatter] =
+    new FormattedStringParser[LocalDateTime, DateTimeFormatter] {
       override def parse(str: String): LocalDateTime = wrapException(str, "LocalDateTime") {
         LocalDateTime.parse(str.strip)
       }
-      override def parse(str: String, fmt: FmtType): LocalDateTime = wrapException(str, "LocalDateTime") {
+      override def parse(str: String, fmt: DateTimeFormatter): LocalDateTime = wrapException(str, "LocalDateTime") {
         LocalDateTime.parse(str.strip, fmt)
       }
     }
 
-  implicit val booleanParser: FormattedStringParser[Boolean] { type FmtType = BooleanFormatter } =
-    new FormattedStringParser[Boolean] {
-      override type FmtType = BooleanFormatter
+  implicit val booleanParser: FormattedStringParser[Boolean, BooleanFormatter] =
+    new FormattedStringParser[Boolean, BooleanFormatter] {
       override def parse(str: String): Boolean = BooleanFormatter.default.parse(str)
-      override def parse(str: String, fmt: FmtType): Boolean = fmt.parse(str)
+      override def parse(str: String, fmt: BooleanFormatter): Boolean = fmt.parse(str)
     }
 
   private def parseNumber(str: String, fmt: NumberFormat): Number = {

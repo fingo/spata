@@ -17,7 +17,7 @@ class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowN
     new Formatter[A](get)
   }
 
-  def getString(key: String): String = {
+  def apply(key: String): String = {
     val pos = header(key)
     row(pos)
   }

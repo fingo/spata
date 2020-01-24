@@ -112,12 +112,12 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
             count += 1
             row.rowNum match {
               case 1 =>
-                assert(row.getString("NAME") == firstName)
-                assert(row.getString("VALUE") == firstValue)
+                assert(row("NAME") == firstName)
+                assert(row("VALUE") == firstValue)
                 true
               case 3 =>
-                assert(row.getString("NAME") == lastName)
-                assert(row.getString("VALUE") == lastValue)
+                assert(row("NAME") == lastName)
+                assert(row("VALUE") == lastValue)
                 true
               case _ => true
             }
@@ -183,15 +183,15 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private def assertListFirst(list: List[CSVRecord], firstName: String, firstValue: String): Unit = {
     val first = list.head
-    assert(first.getString("NAME") == firstName)
-    assert(first.getString("VALUE") == firstValue)
+    assert(first("NAME") == firstName)
+    assert(first("VALUE") == firstValue)
     ()
   }
 
   private def assertListLast(list: List[CSVRecord], lastName: String, lastValue: String): Unit = {
     val last = list.last
-    assert(last.getString("NAME") == lastName)
-    assert(last.getString("VALUE") == lastValue)
+    assert(last("NAME") == lastName)
+    assert(last("VALUE") == lastValue)
     ()
   }
 

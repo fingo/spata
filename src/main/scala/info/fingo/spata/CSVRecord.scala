@@ -21,6 +21,7 @@ class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowN
     val pos = header(key)
     row(pos)
   }
+  def apply(idx: Int): String = row(idx)
 
   override def toString: String = row.mkString(",")
 }

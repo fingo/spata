@@ -22,6 +22,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
       assert(record("name") == name)
+      assert(record(0) == name)
       assert(record.get[String]("name") == name)
       assert(record.get[LocalDate]("date") == date)
       assert(record.get[BigDecimal]("value") == value)

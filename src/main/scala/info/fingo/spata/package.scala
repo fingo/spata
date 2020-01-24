@@ -1,12 +1,8 @@
 package info.fingo
 
-package object spata {
-  type Maybe[A] = Either[Exception, A]
+import scala.util.Try
 
-  def maybe[A](code: => A): Maybe[A] =
-    try {
-      Right(code)
-    } catch {
-      case ex: Exception => Left(ex)
-    }
+package object spata {
+  type Maybe[A] = Either[Throwable, A]
+  def maybe[A](code: => A): Maybe[A] = Try(code).toEither
 }

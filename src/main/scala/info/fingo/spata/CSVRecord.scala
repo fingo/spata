@@ -11,10 +11,15 @@ class CSVRecord private (val row: IndexedSeq[String], val lineNum: Int, val rowN
     val pos = header(key)
     parse[A](row(pos))
   }
-
   def get[A]: Formatter[A] = {
     val get = (key: String) => row(header(key))
     new Formatter[A](get)
+  }
+
+  def seek[A: StringParser](key: String): Maybe[A] = maybe(get[A](key))
+  def seek[A]: SafeFormatter[A] = {
+    val get = (key: String) => row(header(key))
+    new SafeFormatter[A](get)
   }
 
   def apply(key: String): String = {

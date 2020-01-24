@@ -24,7 +24,9 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(record("name") == name)
       assert(record(0) == name)
       assert(record.get[String]("name") == name)
+      assert(record.seek[String]("name").contains(name))
       assert(record.get[LocalDate]("date") == date)
+      assert(record.seek[LocalDate]("date").contains(date))
       assert(record.get[BigDecimal]("value") == value)
       assert(record.get[Double]("value") == value.doubleValue)
     }
@@ -37,7 +39,9 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(record.get[Option[String]]("name").forall(_ == name))
       assert(record.get[Option[LocalDate]]("date").forall(_ == date))
       assert(record.get[Option[BigDecimal]]("value").forall(_ == value))
+      assert(record.seek[Option[BigDecimal]]("value").exists(_.forall(_ == value)))
       assert(record.get[Option[Double]]("value").forall(_ == value.doubleValue))
+      assert(record.seek[Option[Double]]("value").exists(_.forall(_ == value.doubleValue)))
     }
   }
 
@@ -55,6 +59,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         val header: Map[String, Int] = Map("num" -> 0, "date" -> 1, "value" -> 2)
         val record = createRecord(sNum, sDate, sValue)(header)
         assert(record.get[Long]("num", numFmt) == num)
+        assert(record.seek[Long]("num", numFmt).contains(num))
         assert(record.get[LocalDate]("date", dateFmt) == date)
         assert(record.get[BigDecimal]("value", valueFmt) == value)
     }
@@ -64,18 +69,17 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
-      if (testCase != "missingValue") {
+      if (testCase != "missingValue")
         assert(record.get[String]("name") == name)
-        assertThrows[DataParseException] { record.get[LocalDate]("date") }
-        assertThrows[DataParseException] { record.get[BigDecimal]("value") }
-      } else {
+      else {
         assert(record.get[String]("name") == "")
-        assertThrows[DataParseException] { record.get[LocalDate]("date") }
-        assertThrows[DataParseException] { record.get[BigDecimal]("value") }
         assert(record.get[Option[String]]("name").isEmpty)
         assert(record.get[Option[LocalDate]]("date").isEmpty)
         assert(record.get[Option[BigDecimal]]("value").isEmpty)
       }
+      assertThrows[DataParseException] { record.get[LocalDate]("date") }
+      assert(record.seek[LocalDate]("date").isLeft)
+      assertThrows[DataParseException] { record.get[BigDecimal]("value") }
     }
   }
 

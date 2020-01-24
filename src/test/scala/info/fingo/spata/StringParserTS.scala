@@ -17,10 +17,10 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse strings") {
     forAll(strings) { (tc: String, str: String, string: Option[String]) =>
       assert(parse[Option[String]](str) == string)
-      assert(attempt[Option[String]](str).contains(string))
+      assert(parseSafe[Option[String]](str).contains(string))
       if (tc != empty) {
         assert(string.contains(parse[String](str)))
-        assert(attempt[String](str).toOption == string)
+        assert(parseSafe[String](str).toOption == string)
       }
     }
   }
@@ -28,12 +28,12 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringParser should correctly parse ints") {
     forAll(ints) { (tc: String, str: String, int: Option[Int]) =>
       assert(parse[Option[Int]](str) == int)
-      assert(attempt[Option[Int]](str).contains(int))
+      assert(parseSafe[Option[Int]](str).contains(int))
       if (tc != empty) {
         assert(int.contains(parse[Int](str)))
-        assert(attempt[Int](str).toOption == int)
+        assert(parseSafe[Int](str).toOption == int)
       } else
-        assert(attempt[Int](str).isLeft)
+        assert(parseSafe[Int](str).isLeft)
     }
   }
 
@@ -88,8 +88,8 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
     assert(result == expected)
     val maybeO: Maybe[Option[A]] = fmt match {
-      case Some(f) => attempt[Option[A]](str, f)
-      case _ => attempt[Option[A]](str)
+      case Some(f) => parseSafe[Option[A]](str, f)
+      case _ => parseSafe[Option[A]](str)
     }
     assert(maybeO.contains(expected))
     if (tc != empty) {
@@ -100,8 +100,8 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(expected.contains(result))
     }
     val maybe: Maybe[A] = fmt match {
-      case Some(f) => attempt[A](str, f)
-      case _ => attempt[A](str)
+      case Some(f) => parseSafe[A](str, f)
+      case _ => parseSafe[A](str)
     }
     assert(maybe.toOption == expected)
   }

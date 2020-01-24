@@ -14,15 +14,27 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
 }
 
 object StringParser {
+  type Maybe[A] = Either[DataParseException, A]
+
   class Formatter[A](get: String => String = identity) {
     def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val s = get(str)
       parser.parse(s, fmt)
     }
   }
+  class SafeFormatter[A](get: String => String = identity) {
+    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = {
+      val s = get(str)
+      maybe(parser.parse(s, fmt))
+    }
+  }
 
   def parse[A](str: String)(implicit parser: StringParser[A]): A = parser.parse(str)
   def parse[A]: Formatter[A] = new Formatter[A]
+
+  def attempt[A](str: String)(implicit parser: StringParser[A]): Either[DataParseException, A] =
+    maybe(parser.parse(str))
+  def attempt[A]: SafeFormatter[A] = new SafeFormatter[A]
 
   implicit def optionParser[A](implicit parser: StringParser[A]): StringParser[Option[A]] =
     (str: String) => if (str == null || str.isBlank) None else Some(parser.parse(str))
@@ -109,6 +121,13 @@ object StringParser {
     try code
     catch {
       case ex: Exception => throw new DataParseException(content, dataType, Some(ex))
+    }
+
+  def maybe[A](code: => A): Maybe[A] =
+    try {
+      Right(code)
+    } catch {
+      case ex: DataParseException => Left(ex)
     }
 }
 

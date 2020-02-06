@@ -11,8 +11,8 @@ lazy val root = (project in file("."))
   .settings(
     fork in run := true,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.0.0",
-      "co.fs2" %% "fs2-core" % "2.2.1",
+      "org.typelevel" %% "cats-effect" % "2.1.0",
+      "co.fs2" %% "fs2-core" % "2.2.2",
       "org.scalatest" %% "scalatest" % "3.1.0" % "test"
     ),
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/

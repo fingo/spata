@@ -12,13 +12,13 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   type ErrorHandler = Throwable => Stream[IO, Unit]
 
   private val separators = Table("separator", ',', ';', '\t')
-  private val maxFieldSize = Some(100)
+  private val maxFieldSize = 100
 
   test("Reader should process basic csv data") {
     forAll(basicCases) {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val stream = Stream
             .bracket(IO { generateBasicCSV(testCase, separator) })(source => IO { source.close() })
             .flatMap(reader.parse)
@@ -27,6 +27,24 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assertListFirst(list, firstName, firstValue)
           assertListLast(list, lastName, lastValue)
         }
+    }
+  }
+
+  test("Reader should process basic csv data without header") {
+    forAll(basicCases) { (testCase: String, _: String, _: String, lastName: String, lastValue: String) =>
+      forAll(separators) { separator =>
+        val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).noHeader().get
+        val stream = Stream
+          .bracket(IO { generateBasicCSV(testCase, separator) })(source => IO { source.close() })
+          .flatMap(reader.parse)
+        val list = stream.compile.toList.unsafeRunSync()
+        assert(list.size == 4)
+        assert(list.head("0") == "ID")
+        assert(list.head("1") == "NAME")
+        assert(list.head("3") == "VALUE")
+        assert(list.last("1") == lastName)
+        assert(list.last("3") == lastValue)
+      }
     }
   }
 
@@ -41,7 +59,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val stream = Stream
             .bracket(IO { generateErroneousCSV(testCase, separator) })(source => IO { source.close() })
             .flatMap(reader.parse)
@@ -62,7 +80,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val stream = Stream
             .bracket(IO { generateErroneousCSV(testCase, separator) })(source => IO { source.close() })
             .flatMap(reader.parse)
@@ -78,7 +96,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val source = generateBasicCSV(testCase, separator)
           val list = reader.load(source)
           assert(list.size == 3)
@@ -91,7 +109,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Reader should allow loading limited number of records as list") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
       forAll(separators) { separator =>
-        val reader = new CSVReader(separator, maxFieldSize)
+        val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
         val source = generateBasicCSV(testCase, separator)
         val list = reader.load(source, 2)
         assert(list.size == 2)
@@ -105,7 +123,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val source = generateBasicCSV(testCase, separator)
           var count = 0
           val cb: CSVCallback = row => {
@@ -139,7 +157,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val source = generateErroneousCSV(testCase, separator)
           val ehCSV: CSVErrHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
           val ehIO: IOErrHandler = ex => assertIOException(ex, errorCode)
@@ -159,7 +177,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
-          val reader = new CSVReader(separator, maxFieldSize)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val source = generateErroneousCSV(testCase, separator)
           val ex = intercept[Exception] {
             reader.process(source, _ => true)
@@ -173,7 +191,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val cb: CSVCallback = row => if (row.row(0).startsWith("2")) false else true
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
-        val reader = new CSVReader(separator, maxFieldSize)
+        val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
         val source = generateBasicCSV(testCase, separator)
         reader.process(source, cb)
         assert(source.hasNext)

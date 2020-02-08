@@ -35,10 +35,13 @@ object CSVContent {
       case Right(index) => Right(new CSVContent(data, index))
       case Left(e) => Left(e)
     }
+  def apply(headerSize: Int, data: Stream[IO, ParsingResult]): Either[CSVException, CSVContent] =
+    Right(new CSVContent(data, buildNumHeader(headerSize)))
 
   private def buildHeaderIndex(pr: ParsingResult): Either[CSVException, Map[String, Int]] = pr match {
     case RawRecord(captions, _, _) => Right(captions.zipWithIndex.toMap)
     case ParsingFailure(code, location, _, _) =>
       Left(new CSVException(code.message, code.toString, location.line, 0, location.position, None))
   }
+  private def buildNumHeader(size: Int) = (0 until size).map(i => i.toString -> i).toMap
 }

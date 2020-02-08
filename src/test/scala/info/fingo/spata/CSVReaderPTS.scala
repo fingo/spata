@@ -9,7 +9,7 @@ class CSVReaderPTS extends AnyFunSuite {
   test("Reader should handle large data streams") {
     val separator = ','
     val source = new TestSource(separator)
-    val reader = new CSVReader(separator)
+    val reader = CSVReader.config.fieldDelimiter(separator).get
     var count = 0
     val cb: CSVCallback = _ => {
       count += 1

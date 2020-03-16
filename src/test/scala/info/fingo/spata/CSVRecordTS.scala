@@ -21,6 +21,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
+      assert(record.size == 3)
       assert(record("name") == name)
       assert(record(0) == name)
       assert(record.get[String]("name") == name)
@@ -36,6 +37,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
+      assert(record.size == 3)
       assert(record.get[Option[String]]("name").forall(_ == name))
       assert(record.get[Option[LocalDate]]("date").forall(_ == date))
       assert(record.get[Option[BigDecimal]]("value").forall(_ == value))
@@ -69,6 +71,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
+      val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
         assert(record.get[String]("name") == name)
       else {
@@ -79,6 +82,9 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       }
       assertThrows[DataParseException] { record.get[LocalDate]("date") }
       assert(record.seek[LocalDate]("date").isLeft)
+      assert(record.seek[LocalDate]("wrong").isLeft)
+      assert(record.seek[LocalDate]("date", dtf).isLeft)
+      assert(record.seek[LocalDate]("wrong", dtf).isLeft)
       assertThrows[DataParseException] { record.get[BigDecimal]("value") }
     }
   }

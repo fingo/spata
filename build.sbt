@@ -11,9 +11,9 @@ lazy val root = (project in file("."))
   .settings(
     fork in run := true,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.1.0",
+      "org.typelevel" %% "cats-effect" % "2.1.2",
       "co.fs2" %% "fs2-core" % "2.2.2",
-      "org.scalatest" %% "scalatest" % "3.1.0" % "test"
+      "org.scalatest" %% "scalatest" % "3.1.1" % "test"
     ),
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
       "-deprecation", // Emit warning and location for usages of deprecated APIs.
@@ -57,5 +57,6 @@ lazy val root = (project in file("."))
       "-Ycache-macro-class-loader:last-modified", // and macro definitions. This can lead to performance improvements.
       "-Yrangepos" // required by SemanticDB compiler plugin
     ),
-    scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings")
+    scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
+    autoAPIMappings := true
   )

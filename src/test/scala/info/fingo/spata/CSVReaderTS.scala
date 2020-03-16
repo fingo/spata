@@ -18,33 +18,51 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
+          val content = basicContent(testCase, separator)
+          val header = basicHeader(separator)
+          val csv = s"$header\n$content"
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val stream = Stream
-            .bracket(IO { generateBasicCSV(testCase, separator) })(source => IO { source.close() })
+            .bracket(IO { Source.fromString(csv) })(source => IO { source.close() })
             .flatMap(reader.parse)
           val list = stream.compile.toList.unsafeRunSync()
           assert(list.size == 3)
-          assertListFirst(list, firstName, firstValue)
-          assertListLast(list, lastName, lastValue)
+          val head = list.head
+          val last = list.last
+          assertElement(head, firstName, firstValue)
+          assertElement(last, lastName, lastValue)
+          assert(head.size == last.size)
+          assert(head.lineNum == 1 + csv.takeWhile(_ != '.').count(_ == '\n')) // line breaks are placed before first dot
+          assert(head.rowNum == 1)
+          assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
+          assert(last.rowNum == list.size)
         }
     }
   }
 
   test("Reader should process basic csv data without header") {
-    forAll(basicCases) { (testCase: String, _: String, _: String, lastName: String, lastValue: String) =>
-      forAll(separators) { separator =>
-        val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).noHeader().get
-        val stream = Stream
-          .bracket(IO { generateBasicCSV(testCase, separator) })(source => IO { source.close() })
-          .flatMap(reader.parse)
-        val list = stream.compile.toList.unsafeRunSync()
-        assert(list.size == 4)
-        assert(list.head("0") == "ID")
-        assert(list.head("1") == "NAME")
-        assert(list.head("3") == "VALUE")
-        assert(list.last("1") == lastName)
-        assert(list.last("3") == lastValue)
-      }
+    forAll(basicCases) {
+      (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
+        forAll(separators) { separator =>
+          val csv = basicContent(testCase, separator)
+          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).noHeader().get
+          val stream = Stream
+            .bracket(IO { Source.fromString(csv) })(source => IO { source.close() })
+            .flatMap(reader.parse)
+          val list = stream.compile.toList.unsafeRunSync()
+          assert(list.size == 3)
+          val head = list.head
+          val last = list.last
+          assert(head("1") == firstName)
+          assert(head("3") == firstValue)
+          assert(last("1") == lastName)
+          assert(last("3") == lastValue)
+          assert(head.size == last.size)
+          assert(head.lineNum == 1 + csv.takeWhile(_ != '.').count(_ == '\n')) // line breaks are placed before first dot
+          assert(head.rowNum == 1)
+          assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
+          assert(last.rowNum == list.size)
+        }
     }
   }
 
@@ -97,7 +115,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
-          val source = generateBasicCSV(testCase, separator)
+          val source = Source.fromString(basicCSV(testCase, separator))
           val list = reader.load(source)
           assert(list.size == 3)
           assertListFirst(list, firstName, firstValue)
@@ -110,7 +128,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
-        val source = generateBasicCSV(testCase, separator)
+        val source = Source.fromString(basicCSV(testCase, separator))
         val list = reader.load(source, 2)
         assert(list.size == 2)
         assertListFirst(list, firstName, firstValue)
@@ -124,7 +142,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
         forAll(separators) { separator =>
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
-          val source = generateBasicCSV(testCase, separator)
+          val source = Source.fromString(basicCSV(testCase, separator))
           var count = 0
           val cb: CSVCallback = row => {
             count += 1
@@ -188,11 +206,11 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("Reader should consume only required part of stream depending on callback return value") {
-    val cb: CSVCallback = row => if (row.row(0).startsWith("2")) false else true
+    val cb: CSVCallback = row => if (row(0).startsWith("2")) false else true
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
-        val source = generateBasicCSV(testCase, separator)
+        val source = Source.fromString(basicCSV(testCase, separator))
         reader.process(source, cb)
         assert(source.hasNext)
       }
@@ -201,15 +219,19 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private def assertListFirst(list: List[CSVRecord], firstName: String, firstValue: String): Unit = {
     val first = list.head
-    assert(first("NAME") == firstName)
-    assert(first("VALUE") == firstValue)
-    ()
+    assert(first.rowNum == 1)
+    assertElement(first, firstName, firstValue)
   }
 
   private def assertListLast(list: List[CSVRecord], lastName: String, lastValue: String): Unit = {
     val last = list.last
-    assert(last("NAME") == lastName)
-    assert(last("VALUE") == lastValue)
+    assert(last.rowNum == list.size)
+    assertElement(last, lastName, lastValue)
+  }
+
+  private def assertElement(elem: CSVRecord, name: String, value: String): Unit = {
+    assert(elem("NAME") == name)
+    assert(elem("VALUE") == value)
     ()
   }
 
@@ -262,61 +284,63 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("empty lines", "Fanky Koval", "100.00", "Han Solo", "999.99")
   )
 
-  private def generateBasicCSV(testCase: String, separator: Char): Source = {
+  private def basicCSV(testCase: String, separator: Char): String = {
+    val header = basicHeader(separator)
+    val content = basicContent(testCase, separator)
+    s"$header\n$content"
+  }
+
+  private def basicHeader(separator: Char): String = {
     val s = separator
-    val csv = testCase match {
+    s"""ID${s}NAME${s}DATE${s}VALUE"""
+  }
+
+  private def basicContent(testCase: String, separator: Char): String = {
+    val s = separator
+    testCase match {
       case "basic" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Fanky Koval${s}01.01.2001${s}100.00
+        s"""1${s}Fanky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "basic quoted" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |"1"$s"Koval, Fanky"$s"01.01.2001"$s"100.00"
+        s""""1"$s"Koval, Fanky"$s"01.01.2001"$s"100.00"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, Han"$s"09.09.1999"$s"999.99"""".stripMargin
       case "mixed" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |"1"${s}Fanky Koval${s}01.01.2001$s"100.00"
+        s""""1"${s}Fanky Koval${s}01.01.2001$s"100.00"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, Han"${s}09.09.1999${s}999.99""".stripMargin
       case "spaces" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |"1"$s" Fanky Koval "${s}01.01.2001$s" "
+        s""""1"$s" Fanky Koval "${s}01.01.2001$s" "
            |"2"$s Eva Solo ${s}31.12.2012${s}123.45
            |"3"$s  Han Solo  ${s}09.09.1999$s" 999.99 """".stripMargin
       case "empty values" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |"1"$s${s}01.01.2001$s
+        s""""1"$s${s}01.01.2001$s
            |"2"${s}Eva Solo${s}31.12.2012${s}123.45
            |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "double quotes" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |"1"$s"^Fanky^ Koval"$s"01.01.2001"$s"^100.00^"
+        s""""1"$s"^Fanky^ Koval"$s"01.01.2001"$s"^100.00^"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, ^Han^"$s"09.09.1999"$s"999^.^99"""".stripMargin.replace("^", "\"\"")
       case "line breaks" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Fanky\nKoval"${s}01.01.2001${s}100.00
+        s"""1$s"Fanky\nKoval"${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
       case "empty lines" =>
-        s"""ID${s}NAME${s}DATE${s}VALUE
-           |
+        s"""
            |1${s}Fanky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99
            |""".stripMargin
       case _ => throw new RuntimeException("Unknown test case")
     }
-    Source.fromString(csv)
   }
 
   private lazy val errorCases = Table(
     ("testCase", "errorCode", "lineNum", "colNum", "rowNum", "field"),
-    ("missing value", "fieldsHeaderImbalance", Some(2), None, Some(1), None),
-    ("missing value with empty lines", "fieldsHeaderImbalance", Some(3), None, Some(1), None),
-    ("too many values", "fieldsHeaderImbalance", Some(2), None, Some(1), None),
+    ("missing value", "wrongNumberOfFields", Some(2), None, Some(1), None),
+    ("missing value with empty lines", "wrongNumberOfFields", Some(3), None, Some(1), None),
+    ("too many values", "wrongNumberOfFields", Some(2), None, Some(1), None),
     ("unclosed quotation", "unclosedQuotation", Some(2), Some(8), Some(1), Some("NAME")),
     ("unclosed quotation with empty lines", "unclosedQuotation", Some(3), Some(8), Some(1), Some("NAME")),
     ("unescaped quotation", "unescapedQuotation", Some(2), Some(9), Some(1), Some("NAME")),

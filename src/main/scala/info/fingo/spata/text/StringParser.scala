@@ -1,9 +1,11 @@
-package info.fingo.spata
+package info.fingo.spata.text
 
-import java.util.Locale
-import java.time.{LocalDate, LocalDateTime, LocalTime}
-import java.time.format.DateTimeFormatter
 import java.text.{DecimalFormat, NumberFormat, ParseException, ParsePosition}
+import java.time.format.DateTimeFormatter
+import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.util.Locale
+
+import info.fingo.spata.{maybe, Maybe}
 
 trait StringParser[A] {
   def parse(str: String): A

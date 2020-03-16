@@ -1,6 +1,7 @@
 package info.fingo.spata
 
 import java.io.IOException
+
 import scala.io.Source
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
@@ -39,7 +40,7 @@ class CSVReader(config: CSVConfig) {
     *   .flatMap(reader.parse)
     * }}}
     *
-    * Processing errors (I/O - [[IOException]], source structure - [[CSVException]], string parsing - [[DataParseException]])
+    * Processing errors (I/O - [[IOException]], source structure - [[CSVException]], string parsing - [[text.DataParseException]])
     * should be handled with [[fs2.Stream.handleErrorWith]].
     * If not handled, they will propagate as exceptions.
     *
@@ -129,7 +130,7 @@ class CSVReader(config: CSVConfig) {
     * Stops processing input as soon as the callback function returns false or end of data is reached.
     *
     * In addition to exceptions documented below this function may throw any exceptions from callback function,
-    * e.g. [[DataParseException]] resulting from CSV record parsing.
+    * e.g. [[text.DataParseException]] resulting from CSV record parsing.
     *
     * @param source the source containing CSV content
     * @param cb the callback function to operate on each CSV record and produce some side effect.

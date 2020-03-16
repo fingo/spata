@@ -1,6 +1,7 @@
 package info.fingo.spata
 
 import info.fingo.spata.parser.ParsingErrorCode
+import info.fingo.spata.text.{DataParseException, StringParser}
 
 /** CSV record representation.
   * A record is basically an indexed collection of strings.
@@ -27,12 +28,12 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Get typed record value.
     *
-    * Parsers for basic types are provided through [[StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
     *
     * To parse optional values provide `Option[T]` as type parameter.
     * Simple types will result in an exception for empty values.
     *
-    * @see [[StringParser]] for information on providing custom parsers.
+    * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
     * @note This function assumes "standard" string formatting, without any locale support,
     * e.g. point as decimal separator or ISO date and time formats.
@@ -42,7 +43,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * @param key the key of retrieved field
     * @return parsed value
     * @throws NoSuchElementException when incorrect `key` is provided
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws text#DataParseException if field cannot be parsed to requested type
     */
   @throws[NoSuchElementException]("when incorrect key is provided")
   @throws[DataParseException]("if field cannot be parsed to requested type")
@@ -51,23 +52,24 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     parse[A](row(pos))
   }
 
-  /** Get typed record value. Supports custom string formats through [[Formatter]].
+  /** Get typed record value. Supports custom string formats through [[text.StringParser.Formatter Formatter]].
     *
-    * The combination of `get`, [[StringParser.Formatter Formatter]] constructor and `apply` method
+    * The combination of `get`, [[text.StringParser.Formatter Formatter]] constructor and `apply` method
     * allow value retrieval in following form:
     * {{{ val date: LocalDate = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types (as required by [[Formatter]]) are provided through [[StringParser]] object.
+    * Parsers for basic types (as required by [[text.StringParser.Formatter Formatter]])
+    * are provided through [[text.StringParser StringParser]] object.
     *
     * To parse optional values provide `Option[T]` as type parameter.
     * Simple types will result in an exception for empty values.
     *
-    * @see [[StringParser]] for information on providing custom parsers.
+    * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
     * @tparam A type to parse the field to
     * @return formatter to retrieve value according to custom format
     * @throws NoSuchElementException when incorrect `key` is provided
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws text#DataParseException if field cannot be parsed to requested type
     */
   @throws[NoSuchElementException]("when incorrect key is provided")
   @throws[DataParseException]("if field cannot be parsed to requested type")
@@ -78,7 +80,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely get typed record value.
     *
-    * Parsers for basic types are provided through [[StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
     *
     * To parse optional values provide `Option[T]` as type parameter.
     * Simple types will result in an error for empty values.
@@ -86,7 +88,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * If wrong header is provided this function will return `Left[NoSuchElementException,A]`.
     * If parsing fails `Left[DataParseException,A]` will be returned.
     *
-    * @see [[StringParser]] for information on providing custom parsers.
+    * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
     * @note This function assumes "standard" string formatting, without any locale support,
     * e.g. point as decimal separator or ISO date and time formats.
@@ -100,11 +102,11 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely get typed record value.
     *
-    * The combination of `get`, [[StringParser.SafeFormatter SafeFormatter]] constructor and `apply` method
+    * The combination of `get`, [[text.StringParser.SafeFormatter SafeFormatter]] constructor and `apply` method
     * allow value retrieval in following form:
     * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types are provided through [[StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
     *
     * To parse optional values provide `Option[T]` as type parameter.
     * Simple types will result in an error for empty values.
@@ -112,7 +114,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * If wrong header is provided this function will return `Left[NoSuchElementException,A]`.
     * If parsing fails `Left[DataParseException,A]` will be returned.
     *
-    * @see [[StringParser]] for information on providing custom parsers.
+    * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
     * @tparam A type to parse the field to
     * @return formatter to retrieve value according to custom format
@@ -153,7 +155,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 /* CSVRecord helper object. Used to create records. */
 private[spata] object CSVRecord {
 
-  /* Create [[CSVRecord]]. see CSVRecord documentation for more information about parameters. */
+  /* Create `CSVRecord`. see CSVRecord documentation for more information about parameters. */
   def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
     implicit header: Map[String, Int]
   ): Either[CSVException, CSVRecord] =

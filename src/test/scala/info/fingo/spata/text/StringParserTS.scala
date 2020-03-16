@@ -1,9 +1,11 @@
-package info.fingo.spata
+package info.fingo.spata.text
 
-import java.util.Locale
-import java.time.{LocalDate, LocalDateTime, LocalTime}
-import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.text.{DecimalFormat, NumberFormat}
+import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.util.Locale
+
+import info.fingo.spata.Maybe
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 

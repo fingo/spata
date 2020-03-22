@@ -334,10 +334,17 @@ object BooleanFormatter {
   val default: BooleanFormatter = apply(true.toString, false.toString)
 }
 
+/** Exception for string parsing errors.
+  *
+  * @param content the content which has been parsed
+  * @param dataType the target data type name
+  * @param cause the root exception, if available
+  */
 class DataParseException(val content: String, val dataType: String, cause: Option[Throwable] = None)
   extends Exception(DataParseException.message(content, dataType), cause.orNull)
 
-object DataParseException {
+/* DataParseException companion object with helper methods */
+private object DataParseException {
   val maxInfoLength = 60
   val infoCutSuffix = "..."
   private def message(content: String, dataType: String): String =

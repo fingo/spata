@@ -146,7 +146,8 @@ object StringParser {
     *
     * @example {{{
     * import info.fingo.spata.text.StringParser._
-    * val result = parse[Double]("123.45")
+    * val x = parse[Double]("123.45")
+    * val y = parse[Option[Double]]("123.45").getOrElse(0)
     * }}}
     *
     * @param str the input string
@@ -199,9 +200,24 @@ object StringParser {
     */
   def parseSafe[A]: SafePattern[A] = new SafePattern[A]
 
+  /** Parser for optional values.
+    * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
+    *
+    * @param parser the parser for underlying simple type
+    * @tparam A the simple type wrapped by [[scala.Option Option]]
+    * @return parser which accepts empty input
+    */
   implicit def optionParser[A](implicit parser: StringParser[A]): StringParser[Option[A]] =
     (str: String) => if (str == null || str.isBlank) None else Some(parser.parse(str))
 
+  /** Parser for optional values with support for different formats.
+    * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
+    *
+    * @param parser the parser for underlying simple type
+    * @tparam A the simple type wrapped by [[scala.Option Option]]
+    * @tparam B type of formatter
+    * @return parser which support formatted input and accepts empty one
+    */
   implicit def fmtOptionParser[A, B](
     implicit parser: FormattedStringParser[A, B]
   ): FormattedStringParser[Option[A], B] =
@@ -211,10 +227,13 @@ object StringParser {
         if (str == null || str.isBlank) None else Some(parser.parse(str, fmt))
     }
 
+  /** No-op parser for strings. */
   implicit val stringParser: StringParser[String] = (str: String) => str
 
+  /** Parser for integer values. */
   implicit val intParser: StringParser[Int] = (str: String) => wrapException(str, "Int") { str.strip.toInt }
 
+  /** Parser for long values with support for formats. */
   implicit val longParser: FormattedStringParser[Long, NumberFormat] =
     new FormattedStringParser[Long, NumberFormat] {
       override def parse(str: String): Long = wrapException(str, "Long") { str.strip.toLong }
@@ -223,6 +242,7 @@ object StringParser {
       }
     }
 
+  /** Parser for double values with support for formats. */
   implicit val doubleParser: FormattedStringParser[Double, DecimalFormat] =
     new FormattedStringParser[Double, DecimalFormat] {
       override def parse(str: String): Double = wrapException(str, "Double") { str.strip.toDouble }
@@ -231,6 +251,7 @@ object StringParser {
       }
     }
 
+  /** Parser for decimal values with support for formats. */
   implicit val bigDecimalParser: FormattedStringParser[BigDecimal, DecimalFormat] =
     new FormattedStringParser[BigDecimal, DecimalFormat] {
       override def parse(str: String): BigDecimal = wrapException(str, "BigDecimal") { BigDecimal(str.strip) }
@@ -240,6 +261,7 @@ object StringParser {
       }
     }
 
+  /** Parser for date values with support for formats. */
   implicit val localDateParser: FormattedStringParser[LocalDate, DateTimeFormatter] =
     new FormattedStringParser[LocalDate, DateTimeFormatter] {
       override def parse(str: String): LocalDate = wrapException(str, "LocalDate") { LocalDate.parse(str.strip) }
@@ -248,6 +270,7 @@ object StringParser {
       }
     }
 
+  /** Parser for time values with support for formats. */
   implicit val localTimeParser: FormattedStringParser[LocalTime, DateTimeFormatter] =
     new FormattedStringParser[LocalTime, DateTimeFormatter] {
       override def parse(str: String): LocalTime = wrapException(str, "LocalTime") { LocalTime.parse(str.strip) }
@@ -256,6 +279,7 @@ object StringParser {
       }
     }
 
+  /** Parser for date with time values with support for formats. */
   implicit val localDateTimeParser: FormattedStringParser[LocalDateTime, DateTimeFormatter] =
     new FormattedStringParser[LocalDateTime, DateTimeFormatter] {
       override def parse(str: String): LocalDateTime = wrapException(str, "LocalDateTime") {
@@ -266,12 +290,14 @@ object StringParser {
       }
     }
 
+  /** Parser for boolean values with support for formats. */
   implicit val booleanParser: FormattedStringParser[Boolean, BooleanFormatter] =
     new FormattedStringParser[Boolean, BooleanFormatter] {
       override def parse(str: String): Boolean = BooleanFormatter.default.parse(str)
       override def parse(str: String, fmt: BooleanFormatter): Boolean = fmt.parse(str)
     }
 
+  /* Parse whole string to number (NumberFormat accepts partial input). */
   private def parseNumber(str: String, fmt: NumberFormat): Number = {
     val pos = new ParsePosition(0)
     val s = str.strip
@@ -280,6 +306,7 @@ object StringParser {
     num
   }
 
+  /* Converts any exception thrown by code to DataParseException */
   private def wrapException[A](content: String, dataType: String)(code: => A): A =
     try code
     catch {

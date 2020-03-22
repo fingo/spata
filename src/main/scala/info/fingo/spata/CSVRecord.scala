@@ -52,30 +52,29 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     parse[A](row(pos))
   }
 
-  /** Get typed record value. Supports custom string formats through [[text.StringParser.Formatter Formatter]].
+  /** Get typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
     *
-    * The combination of `get`, [[text.StringParser.Formatter Formatter]] constructor and `apply` method
+    * The combination of `get`, [[text.StringParser.Pattern Pattern]] constructor and `apply` method
     * allow value retrieval in following form:
     * {{{ val date: LocalDate = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types (as required by [[text.StringParser.Formatter Formatter]])
+    * Parsers for basic types (as required by [[text.StringParser.Pattern Pattern]])
     * are provided through [[text.StringParser StringParser]] object.
     *
     * To parse optional values provide `Option[T]` as type parameter.
     * Simple types will result in an exception for empty values.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @tparam A type to parse the field to
-    * @return formatter to retrieve value according to custom format
+    * @return intermediary to retrieve value according to custom format
     * @throws NoSuchElementException when incorrect `key` is provided
     * @throws text#DataParseException if field cannot be parsed to requested type
     */
   @throws[NoSuchElementException]("when incorrect key is provided")
   @throws[DataParseException]("if field cannot be parsed to requested type")
-  def get[A]: Formatter[A] = {
+  def get[A]: Pattern[A] = {
     val get = (key: String) => row(header(key))
-    new Formatter[A](get)
+    new Pattern[A](get)
   }
 
   /** Safely get typed record value.
@@ -102,7 +101,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely get typed record value.
     *
-    * The combination of `get`, [[text.StringParser.SafeFormatter SafeFormatter]] constructor and `apply` method
+    * The combination of `get`, [[text.StringParser.SafePattern SafePattern]] constructor and `apply` method
     * allow value retrieval in following form:
     * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
@@ -115,13 +114,12 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * If parsing fails `Left[DataParseException,A]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @tparam A type to parse the field to
-    * @return formatter to retrieve value according to custom format
+    * @return intermediary to retrieve value according to custom format
     */
-  def seek[A]: SafeFormatter[A] = {
+  def seek[A]: SafePattern[A] = {
     val get = (key: String) => row(header(key))
-    new SafeFormatter[A](get)
+    new SafePattern[A](get)
   }
 
   /** Get field value

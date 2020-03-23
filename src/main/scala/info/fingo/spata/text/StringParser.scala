@@ -30,9 +30,9 @@ trait StringParser[A] {
     *
     * @param str the input string
     * @return parsed value
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws DataParseException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if field cannot be parsed to requested type")
+  @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse(str: String): A
 }
 
@@ -57,9 +57,9 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
     * @param str the input string
     * @param fmt formatter, specific for particular result type, e.g. `DateTimeFormatter` for dates and times
     * @return parsed value
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws DataParseException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if field cannot be parsed to requested type")
+  @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse(str: String, fmt: B): A
 }
 
@@ -110,9 +110,9 @@ object StringParser {
       * @param parser the parser for specific target type
       * @tparam B type of concrete formatter
       * @return parsed value
-      * @throws DataParseException if field cannot be parsed to requested type
+      * @throws DataParseException if text cannot be parsed to requested type
       */
-    @throws[DataParseException]("if field cannot be parsed to requested type")
+    @throws[DataParseException]("if text cannot be parsed to requested type")
     def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val s = get(str)
       parser.parse(s, fmt)
@@ -154,9 +154,9 @@ object StringParser {
     * @param parser the parser for specific target type
     * @tparam A target type for parsing
     * @return parsed value
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws DataParseException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if field cannot be parsed to requested type")
+  @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse[A](str: String)(implicit parser: StringParser[A]): A = parser.parse(str)
 
   /** Parse string to desired type based on provided format.
@@ -172,9 +172,9 @@ object StringParser {
     *
     * @tparam A target type for parsing
     * @return intermediary to retrieve value according to custom format
-    * @throws DataParseException if field cannot be parsed to requested type
+    * @throws DataParseException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if field cannot be parsed to requested type")
+  @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse[A]: Pattern[A] = new Pattern[A]
 
   /** Safely parse string to desired type.
@@ -314,13 +314,38 @@ object StringParser {
     }
 }
 
+/** Formatter used to format and parse string representation of boolean values
+  *
+  * @constructor Creates formatter.
+  * @param tt the term representing `true`, case insensitive
+  * @param ft the term representing `false`, case insensitive
+  * @param locale the locale used to handle case conversion
+  */
 class BooleanFormatter(tt: String, ft: String, locale: Locale) {
   val trueTerm: String = tt.toLowerCase(locale)
   val falseTerm: String = ft.toLowerCase(locale)
 
+  /** Creates formatter with default locale.
+    *
+    * @param trueTerm the term representing `true`, case insensitive
+    * @param falseTerm the term representing `false`, case insensitive
+    */
   def this(trueTerm: String, falseTerm: String) = this(trueTerm, falseTerm, Locale.getDefault())
 
+  /** Return string representation of boolean value
+    *
+    * @param value the value to be converted to string
+    * @return textual representation of value
+    */
   def format(value: Boolean): String = if (value) trueTerm else falseTerm
+
+  /** Obtain boolean value from text.
+    *
+    * @param string the text to parse
+    * @return `true` or `false`
+    * @throws DataParseException if text cannot be parsed to boolean
+    */
+  @throws[DataParseException]("if text cannot be parsed to boolean")
   def parse(string: String): Boolean = string.strip().toLowerCase(locale) match {
     case `trueTerm` => true
     case `falseTerm` => false
@@ -328,9 +353,27 @@ class BooleanFormatter(tt: String, ft: String, locale: Locale) {
   }
 }
 
+/** [[BooleanFormatter]] companion object, used for formatter creation. */
 object BooleanFormatter {
+
+  /** Create new formatter.
+    *
+    * @param tt the term representing `true`, case insensitive
+    * @param ft the term representing `false`, case insensitive
+    * @param locale the locale used to handle case conversion
+    * @return new formatter for boolean values
+    */
   def apply(tt: String, ft: String, locale: Locale): BooleanFormatter = new BooleanFormatter(tt, ft, locale)
+
+  /** Create new formatter with default locale.
+    *
+    * @param tt the term representing `true`, case insensitive
+    * @param ft the term representing `false`, case insensitive
+    * @return new formatter for boolean values
+    */
   def apply(tt: String, ft: String): BooleanFormatter = new BooleanFormatter(tt, ft)
+
+  /** Provides default [[BooleanFormatter]], with `true` and `false` as textual representation */
   val default: BooleanFormatter = apply(true.toString, false.toString)
 }
 

@@ -26,7 +26,7 @@ class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def parse(input: String) = {
-    val stream = Stream(input.toIndexedSeq: _*).through(parser.toCharResults())
+    val stream = Stream(input.toIndexedSeq: _*).through(parser.toCharResults)
     stream.compile.toList.unsafeRunSync()
   }
 

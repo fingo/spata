@@ -29,7 +29,7 @@ class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def parse(input: List[CharResult]) = {
-    val stream = Stream(input: _*).through(parser.toFields())
+    val stream = Stream(input: _*).through(parser.toFields)
     stream.compile.toList.unsafeRunSync()
   }
 

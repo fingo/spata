@@ -4,11 +4,17 @@ import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
+/* A finite-state transducer to convert plain source characters into context-dependent symbols,
+ * taking into consideration special meaning of some characters (e.g. separators), quoting and escaping.
+ */
 private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import CharParser._
   import CharParser.CharPosition._
 
-  def toCharResults(state: CharState = CharState(None, Start)): Pipe[IO, Char, CharResult] = {
+  /* Transforms plain characters into context-dependent symbols by providing FS2 pipe. */
+  def toCharResults: Pipe[IO, Char, CharResult] = toCharResults(CharState(None, Start))
+
+  private def toCharResults(state: CharState): Pipe[IO, Char, CharResult] = {
     def loop(chars: Stream[IO, Char], state: CharState): Pull[IO, CharResult, Unit] =
       chars.pull.uncons1.flatMap {
         case Some((h, t)) =>
@@ -30,7 +36,8 @@ private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quo
   @inline
   private def isDelimiter(c: Char): Boolean = c == fieldDelimiter || c == recordDelimiter
 
-  def parseChar(char: Char, state: CharState): CharResult =
+  /* Core translating function - state transitions. */
+  private def parseChar(char: Char, state: CharState): CharResult =
     char match {
       case `quote` if state.atBeginning => CharState(None, Quoted)
       case `quote` if state.position == Quoted => CharState(None, Escape)
@@ -62,6 +69,7 @@ private[spata] object CharParser {
   import CharPosition._
 
   sealed trait CharResult
+
   case class CharFailure(code: ErrorCode) extends CharResult
 
   case class CharState(char: Option[Char], position: CharPosition) extends CharResult {

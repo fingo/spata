@@ -2,7 +2,7 @@ package info.fingo.spata
 
 import cats.effect.IO
 import fs2.Stream
-import info.fingo.spata.parser.{ParsingFailure, ParsingResult, RawRecord}
+import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to convert raw records into key-values indexed by header.
  * It converts additionally CSV parsing failures into stream error by raising CSVException.

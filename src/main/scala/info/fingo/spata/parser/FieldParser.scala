@@ -4,12 +4,16 @@ import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
+/* Converter from character symbols to CSV fields.
+ * This class tracks source position while consuming symbols to report it precisely, especially in case of failure.
+ */
 private[spata] class FieldParser(fieldSizeLimit: Option[Int]) {
   import FieldParser._
   import CharParser._
   import CharParser.CharPosition._
 
-  def toFields(counters: Location = Location(0)): Pipe[IO, CharResult, FieldResult] = {
+  /* Transforms stream of character symbols into fields by providing FS2 pipe. */
+  def toFields: Pipe[IO, CharResult, FieldResult] = {
 
     def loop(
       chars: Stream[IO, CharResult],
@@ -43,7 +47,7 @@ private[spata] class FieldParser(fieldSizeLimit: Option[Int]) {
         }
 
     val sb = new StringBuilder()
-    chars => loop(chars, sb, counters, LocalCounts(Location(0))).stream
+    chars => loop(chars, sb, Location(0), LocalCounts(Location(0))).stream
   }
 
   private def fail(error: ErrorCode, counters: Location, lc: LocalCounts): FieldFailure = {

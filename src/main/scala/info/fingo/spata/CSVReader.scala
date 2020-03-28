@@ -5,7 +5,8 @@ import java.io.IOException
 import scala.io.Source
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
-import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, ParsingResult, RecordParser}
+import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
+import info.fingo.spata.parser.RecordParser.ParsingResult
 import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
 
 /** A utility for parsing comma-separated values (CSV) sources.
@@ -55,7 +56,7 @@ class CSVReader(config: CSVConfig) {
     val fp = new FieldParser(config.fieldSizeLimit)
     val rp = new RecordParser()
     val stream =
-      Stream.fromIterator[IO][Char](source).through(cp.toCharResults()).through(fp.toFields()).through(rp.toRecords)
+      Stream.fromIterator[IO][Char](source).through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
     val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
     pull.stream.rethrow.flatMap(_.toRecords)
   }

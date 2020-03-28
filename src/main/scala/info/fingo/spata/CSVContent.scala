@@ -4,8 +4,8 @@ import cats.effect.IO
 import fs2.Stream
 import info.fingo.spata.parser.{ParsingFailure, ParsingResult, RawRecord}
 
-/* Intermediate entity used to convert raw records into indexed by header
- * Convert CSV parsing failure into stream error through raised CSVException
+/* Intermediate entity used to convert raw records into key-values indexed by header.
+ * It converts additionally CSV parsing failures into stream error by raising CSVException.
  */
 private[spata] class CSVContent private (
   data: Stream[IO, ParsingResult],
@@ -14,7 +14,7 @@ private[spata] class CSVContent private (
 ) {
   private val reverseIndex = index.map(x => x._2 -> x._1)
 
-  /* Convert RawRecord into CSVRecord and raise ParsingFailure as CSVException */
+  /* Converts RawRecord into CSVRecord and raise ParsingFailure as CSVException */
   def toRecords: Stream[IO, CSVRecord] = data.map(wrapRecord).rethrow
 
   private def wrapRecord(pr: ParsingResult): Either[CSVException, CSVRecord] = pr match {
@@ -33,21 +33,21 @@ private[spata] class CSVContent private (
       )
   }
 
-  /* First data record should be always at row 1, so record num has to be adjusted if header is present */
+  /* First data record should be always at row 1, so record num has to be adjusted if header is present. */
   private def dataOffset: Int = if (hasHeader) 1 else 0
 }
 
-/* CSVContent helper object. Used to create content for header and header-less data */
+/* CSVContent helper object. Used to create content for header and header-less data. */
 private[spata] object CSVContent {
 
-  /* Create CSVContent for data with header. May return CSVException if no header is available (means empty source) */
+  /* Creates CSVContent for data with header. May return CSVException if no header is available (means empty source). */
   def apply(header: ParsingResult, data: Stream[IO, ParsingResult]): Either[CSVException, CSVContent] =
     buildHeaderIndex(header) match {
       case Right(index) => Right(new CSVContent(data, index))
       case Left(e) => Left(e)
     }
 
-  /* Create CSVContent for data without header - build a numeric header */
+  /* Creates CSVContent for data without header - builds a numeric header. */
   def apply(headerSize: Int, data: Stream[IO, ParsingResult]): Either[CSVException, CSVContent] =
     Right(new CSVContent(data, buildNumHeader(headerSize), false))
 

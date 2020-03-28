@@ -8,24 +8,24 @@ import info.fingo.spata.{maybe, Maybe}
 
 /** Parser from `String` to desired type.
   *
-  * It defines behavior to be implemented by concrete, implicit parsers for various types,
+  * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
   * used by `parse` function from `StringParser` object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[T]` should be provided as type parameter.
+  * To accept empty input `Option[_]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   */
 trait StringParser[A] {
 
-  /** Parse string to desired type.
+  /** Parses string to desired type.
     *
     * If parsing fails this function should throw [[DataParseException]], possibly wrapping root exception.
     * This is further handled by [[StringParser#parseSafe[A](* parseSafe]] to allow for exception-free, functional code.
     *
     * @note This function assumes "standard" string formatting,
     * e.g. point as decimal separator or ISO date and time formats, without any locale support.
-    * Use [[FormattedStringParser]] if more control over source format is required
+    * Use [[FormattedStringParser]] if more control over source format is required.
     *
     * @param str the input string
     * @return parsed value
@@ -37,18 +37,18 @@ trait StringParser[A] {
 
 /** Parser from `String` to desired type with support for different formats.
   *
-  * It defines behavior to be implemented by concrete, implicit parsers for various types,
+  * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
   * used by `parse` function from `StringParser` object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[T]` should be provided as type parameter.
+  * To accept empty input `Option[_]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   * @tparam B type of formatter
   */
 trait FormattedStringParser[A, B] extends StringParser[A] {
 
-  /** Parse string to desired type based on provided format.
+  /** Parses string to desired type based on provided format.
     *
     * If parsing fails this function should throw [[DataParseException]], possibly wrapping root exception.
     * This is further handled by [[StringParser#parseSafe[A]:* parseSafe]] to allow for exception-free, functional code.
@@ -69,7 +69,7 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
   * Additional parsers may be provided by implementing [[StringParser]] or [[FormattedStringParser]] traits
   * and putting implicit values in scope.
   * `StringParser` may be implemented if there are no different formatting options for given type, e.g. for integers
-  * (although one may argue in this case). For all cases when different formatting options exist,
+  * (although one may argue if this is a good example). For all cases when different formatting options exist,
   * `FormattedStringParser` should be implemented.
   */
 object StringParser {
@@ -85,8 +85,9 @@ object StringParser {
     * and use it with nicer syntax
     * {{{entity.parse[Double]("123,45", numberFormat)}}}
     *
-    * When one needs the formatter to retrieve the string to be parsed, e.g. get value from a map based on key,
-    * it is possible to do it through the `get` parameter function, still keeping above shorter syntax of parsing call:
+    * If there is a need the formatter to additionally retrieve or convert the string to be parsed,
+    * e.g. get value from a map based on key, it is possible to do it through the `get` parameter function,
+    * still keeping above shorter syntax of parsing call:
     * {{{
     * import info.fingo.spata.text.StringParser._
     * val map = Map("v1" -> "123,45", "v2" -> "543,21")
@@ -102,7 +103,7 @@ object StringParser {
     */
   class Pattern[A](get: String => String = identity) {
 
-    /** Parse string to desired type based on provided format.
+    /** Parses string to desired type based on provided format.
       *
       * @param str the input string to parse
       * @param fmt concrete formatter, specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -119,7 +120,7 @@ object StringParser {
   }
 
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
-    * Provide exception-free parsing method
+    * Provide exception-free parsing method.
     *
     * @see [[Pattern]] for more information and example usage.
     * @param get the function to retrieve string to be parsed - identity by default
@@ -127,7 +128,7 @@ object StringParser {
     */
   class SafePattern[A](get: String => String = identity) {
 
-    /** Safely parse string to desired type based on provided format.
+    /** Safely parses string to desired type based on provided format.
       *
       * @param str the input string to parse
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -141,7 +142,7 @@ object StringParser {
     }
   }
 
-  /** Parse string to desired type.
+  /** Parses string to desired type.
     *
     * @example {{{
     * import info.fingo.spata.text.StringParser._
@@ -158,9 +159,9 @@ object StringParser {
   @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse[A](str: String)(implicit parser: StringParser[A]): A = parser.parse(str)
 
-  /** Parse string to desired type based on provided format.
+  /** Parses string to desired type based on provided format.
     *
-    * Delegate actual parsing to [[Pattern#apply]] method
+    * Delegates actual parsing to [[Pattern#apply]] method.
     *
     * @example {{{
     * import info.fingo.spata.text.StringParser._
@@ -176,9 +177,9 @@ object StringParser {
   @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse[A]: Pattern[A] = new Pattern[A]
 
-  /** Safely parse string to desired type.
+  /** Safely parses string to desired type.
     *
-    * @see [[parse[A](* parse]] for sample usage
+    * @see [[parse[A](* parse]] for sample usage.
     *
     * @param str the input string
     * @param parser the parser for specific target type
@@ -188,11 +189,11 @@ object StringParser {
   def parseSafe[A](str: String)(implicit parser: StringParser[A]): Maybe[A] =
     maybe(parser.parse(str))
 
-  /** Parse string to desired type based on provided format.
+  /** Parses string to desired type based on provided format.
     *
-    * Delegate actual parsing to [[SafePattern#apply]] method
+    * Delegates actual parsing to [[SafePattern#apply]] method.
     *
-    * @see [[parse[A]:* parse]] for sample usage
+    * @see [[parse[A]:* parse]] for sample usage.
     *
     * @tparam A target type for parsing
     * @return intermediary to retrieve value according to custom format
@@ -203,7 +204,7 @@ object StringParser {
     * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
     *
     * @param parser the parser for underlying simple type
-    * @tparam A the simple type wrapped by [[scala.Option Option]]
+    * @tparam A the simple type wrapped by [[scala.Option]]
     * @return parser which accepts empty input
     */
   implicit def optionParser[A](implicit parser: StringParser[A]): StringParser[Option[A]] =
@@ -213,7 +214,7 @@ object StringParser {
     * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
     *
     * @param parser the parser for underlying simple type
-    * @tparam A the simple type wrapped by [[scala.Option Option]]
+    * @tparam A the simple type wrapped by [[scala.Option]]
     * @tparam B type of formatter
     * @return parser which support formatted input and accepts empty one
     */
@@ -296,7 +297,7 @@ object StringParser {
       override def parse(str: String, fmt: BooleanFormatter): Boolean = fmt.parse(str)
     }
 
-  /* Parse whole string to number (NumberFormat accepts partial input). */
+  /* Parses whole string to number (since NumberFormat accepts partial input). */
   private def parseNumber(str: String, fmt: NumberFormat): Number = {
     val pos = new ParsePosition(0)
     val s = str.strip
@@ -305,7 +306,7 @@ object StringParser {
     num
   }
 
-  /* Converts any exception thrown by code to DataParseException */
+  /* Converts to DataParseException any exception thrown by code. */
   private def wrapException[A](content: String, dataType: String)(code: => A): A =
     try code
     catch {

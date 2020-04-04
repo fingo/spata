@@ -6,6 +6,8 @@ import java.time.{LocalDate, LocalDateTime, LocalTime}
 
 import info.fingo.spata.{maybe, Maybe}
 
+import scala.util.control.NonFatal
+
 /** Parser from `String` to desired type.
   *
   * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
@@ -310,6 +312,6 @@ object StringParser {
   private def wrapException[A](content: String, dataType: String)(code: => A): A =
     try code
     catch {
-      case ex: Exception => throw new DataParseException(content, dataType, Some(ex))
+      case NonFatal(ex) => throw new DataParseException(content, dataType, Some(ex))
     }
 }

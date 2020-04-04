@@ -6,7 +6,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import cats.effect.IO
 import fs2.Stream
-import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
+import info.fingo.spata.CSVReader.CSVCallback
 
 class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   type ErrorHandler = Throwable => Stream[IO, Unit]
@@ -164,27 +164,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Reader should support dedicated error handlers while processing callbacks") {
-    forAll(errorCases) {
-      (
-        testCase: String,
-        errorCode: String,
-        line: Option[Int],
-        col: Option[Int],
-        row: Option[Int],
-        field: Option[String]
-      ) =>
-        forAll(separators) { separator =>
-          val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
-          val source = generateErroneousCSV(testCase, separator)
-          val ehCSV: CSVErrHandler = ex => assertCSVException(ex, errorCode, line, col, row, field)
-          val ehIO: IOErrHandler = ex => assertIOException(ex, errorCode)
-          reader.process(source, _ => true, ehCSV, ehIO)
-        }
-    }
-  }
-
-  test("Reader should throw exception on errors when there is no error handler for callback provided") {
+  test("Reader should throw exception on errors") {
     forAll(errorCases) {
       (
         testCase: String,

@@ -7,7 +7,7 @@ import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
 import info.fingo.spata.parser.RecordParser.ParsingResult
-import info.fingo.spata.CSVReader.{CSVCallback, CSVErrHandler, IOErrHandler}
+import info.fingo.spata.CSVReader.CSVCallback
 
 /** A utility for parsing comma-separated values (CSV) sources.
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
@@ -114,22 +114,6 @@ class CSVReader(config: CSVConfig) {
     limited.compile.toList.unsafeRunSync()
   }
 
-  /** Processes each CSV record with provided callback function to execute some side effects.
-    * Stops processing input as soon as the callback function returns false or end of data is reached.
-    *
-    * CSV processing errors (I/O and CSV structure related) are dealt with by provided error handlers.
-    * Exceptions in callback function, including record parsing, should be handled inside callback or will propagate -
-    * they are not handled by error handlers.
-    *
-    * @param source the source containing CSV content
-    * @param cb the callback function to operate on each CSV record and produce some side effect.
-    * It should return `true` to continue the process with next record or `false` to stop processing the source.
-    * @param ehCSV CSV structure error handler, called in cases of erroneous source structure.
-    * @param ehIO I/O error handler, called when any I/O exception occurs.
-    */
-  def process(source: Source, cb: CSVCallback, ehCSV: CSVErrHandler, ehIO: IOErrHandler): Unit =
-    process(source, cb, Some(ehCSV), Some(ehIO))
-
   /** Processes each CSV record with provided callback functions to execute some side effects.
     * Stops processing input as soon as the callback function returns false or end of data is reached.
     *
@@ -144,37 +128,15 @@ class CSVReader(config: CSVConfig) {
     */
   @throws[IOException]("in case of any I/O error")
   @throws[CSVException]("in case of flawed CSV structure")
-  def process(source: Source, cb: CSVCallback): Unit = process(source, cb, None, None)
-
-  /* Processes the input through a callback function as long as it returns true.
-   * May handle I/O and CSV exceptions with provided handlers.
-   */
-  private def process(
-    source: Source,
-    cb: CSVCallback,
-    ehoCSV: Option[CSVErrHandler],
-    ehoIO: Option[IOErrHandler]
-  ): Unit = {
+  def process(source: Source, cb: CSVCallback): Unit = {
     val effect = evalCallback(cb)
-    val eh = errorHandler(ehoCSV, ehoIO)
-    val stream = parse(source).through(effect).handleErrorWith(eh)
+    val stream = parse(source).through(effect)
     stream.compile.drain.unsafeRunSync()
   }
 
   /* Callback function wrapper to enclose it in IO effect and letting the stream to evaluate it when run. */
   private def evalCallback(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
     _.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
-
-  /* Combines I/O and CSV error handlers if provided. The default behavior is to throw exception. */
-  private def errorHandler(ehoCSV: Option[CSVErrHandler], ehoIO: Option[IOErrHandler]): Throwable => Stream[IO, Unit] =
-    ex => {
-      val eho = ex match {
-        case ex: CSVException => ehoCSV.map(eh => Stream.emit(eh(ex)))
-        case ex: IOException => ehoIO.map(eh => Stream.emit(eh(ex)))
-        case _ => None
-      }
-      eho.getOrElse(Stream.raiseError[IO](ex))
-    }
 }
 
 /** [[CSVReader]] companion object with types definitions and convenience methods to create readers. */
@@ -182,12 +144,6 @@ object CSVReader {
 
   /** Callback function type. */
   type CSVCallback = CSVRecord => Boolean
-
-  /** CSV error handler type. */
-  type CSVErrHandler = CSVException => Unit
-
-  /** I/O error handler type. */
-  type IOErrHandler = IOException => Unit
 
   /** Creates a [[CSVReader]] with default configuration, as defined in RFC 4180. */
   def apply: CSVReader = new CSVReader(config)

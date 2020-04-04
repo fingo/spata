@@ -158,7 +158,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
               case _ => true
             }
           }
-          reader.process(source, cb)
+          reader.process(source)(cb)
           assert(count == 3)
         }
     }
@@ -178,7 +178,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val source = generateErroneousCSV(testCase, separator)
           val ex = intercept[Exception] {
-            reader.process(source, _ => true)
+            reader.process(source)(_ => true)
           }
           assertError(ex, errorCode, line, col, row, field)
         }
@@ -191,7 +191,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       forAll(separators) { separator =>
         val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
         val source = Source.fromString(basicCSV(testCase, separator))
-        reader.process(source, cb)
+        reader.process(source)(cb)
         assert(source.hasNext)
       }
     }

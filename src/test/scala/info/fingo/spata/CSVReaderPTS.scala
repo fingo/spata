@@ -2,20 +2,18 @@ package info.fingo.spata
 
 import scala.io.Source
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVReader.CSVCallback
 
 class CSVReaderPTS extends AnyFunSuite {
-  val amount = 10_000
+  val amount = 5_000
   test("Reader should handle large data streams") {
     val separator = ','
     val source = new TestSource(separator)
     val reader = CSVReader.config.fieldDelimiter(separator).get
     var count = 0
-    val cb: CSVCallback = _ => {
+    reader.process(source) { _ =>
       count += 1
       true
     }
-    reader.process(source, cb)
     assert(count == amount)
   }
 

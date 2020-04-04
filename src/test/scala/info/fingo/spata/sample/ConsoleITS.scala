@@ -58,17 +58,15 @@ class ConsoleITS extends AnyFunSuite {
     val reader = CSVReader.config.get // reader with default configuration
     try {
       withResource(sourceFromResource(dataFile)) { source =>
-        reader.process(
-          source,
-          record =>
-            if (record.get[Double]("max_temp") > 0) {
-              println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
-              false
-            } else {
-              assert(record.rowNum < 500)
-              true
-            }
-        )
+        reader.process(source) { record =>
+          if (record.get[Double]("max_temp") > 0) {
+            println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
+            false
+          } else {
+            assert(record.rowNum < 500)
+            true
+          }
+        }
       }
     } catch {
       case NonFatal(ex) =>

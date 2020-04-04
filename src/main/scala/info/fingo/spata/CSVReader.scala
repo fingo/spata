@@ -128,7 +128,7 @@ class CSVReader(config: CSVConfig) {
     */
   @throws[IOException]("in case of any I/O error")
   @throws[CSVException]("in case of flawed CSV structure")
-  def process(source: Source, cb: CSVCallback): Unit = {
+  def process(source: Source)(cb: CSVCallback): Unit = {
     val effect = evalCallback(cb)
     val stream = parse(source).through(effect)
     stream.compile.drain.unsafeRunSync()

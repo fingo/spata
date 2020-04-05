@@ -60,7 +60,8 @@ Credits
 * [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache 2 License](https://github.com/scoverage/sbt-scoverage#license) /D
 * [Scala](https://www.scala-lang.org/download/) licensed under [Apache 2 License](https://www.scala-lang.org/license/) /R
 * [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache 2 License](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
-* [ScalaTest](http://www.scalatest.org/) license under [Apache 2 License](http://www.scalatest.org/about) /T
+* [ScalaTest](http://www.scalatest.org/) licensed under [Apache 2 License](http://www.scalatest.org/about) /T
+* [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache 2 License](https://github.com/milessabin/shapeless/blob/master/LICENSE) /R
 
 **/R** means runtime dependency, **/T** means test dependency and **/D** means development tool.
 For libraries, only direct dependencies are presented on above list.

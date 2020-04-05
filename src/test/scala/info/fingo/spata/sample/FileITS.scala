@@ -38,9 +38,12 @@ class FileITS extends AnyFunSuite {
         println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}")
         Stream.empty[IO]
       }
-    // assert result
-    val check = Stream.eval_(IO(assert(outFile.length > 16000)))
+    // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
+    val checkAndClean = Stream.eval_(IO {
+      assert(outFile.length > 16000)
+      outFile.delete()
+    })
     // run
-    output.append(check).compile.drain.unsafeRunSync()
+    output.append(checkAndClean).compile.drain.unsafeRunSync()
   }
 }

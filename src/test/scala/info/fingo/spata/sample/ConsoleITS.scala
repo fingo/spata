@@ -1,20 +1,15 @@
 package info.fingo.spata.sample
 
-import java.io.{Closeable, FileNotFoundException}
 import java.time.LocalDate
-
-import scala.io.Source
-import org.scalatest.funsuite.AnyFunSuite
+import scala.util.control.NonFatal
 import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
+import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVReader
-
-import scala.util.control.NonFatal
 
 /* Samples which use console to output CSV processing results */
 class ConsoleITS extends AnyFunSuite {
-  val dataFile = "mars-weather.csv"
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows manipulate data using stream functionality") {
@@ -22,7 +17,7 @@ class ConsoleITS extends AnyFunSuite {
     val reader = CSVReader.config.get // reader with default configuration
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
-      .bracket(IO { sourceFromResource(dataFile) })(source => IO { source.close() })
+      .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       .flatMap(reader.parse)
     // convert and aggregate data, get stream of YTs
     val aggregates = records.filter { record =>
@@ -41,7 +36,7 @@ class ConsoleITS extends AnyFunSuite {
         YT(year, temp)
       }
       .handleErrorWith { ex =>
-        println(s"An error has been detected while processing $dataFile: ${ex.getMessage}")
+        println(s"An error has been detected while processing ${SampleTH.dataFile}: ${ex.getMessage}")
         Stream.empty[IO]
       }
     // get the IO effect with it final action
@@ -57,7 +52,7 @@ class ConsoleITS extends AnyFunSuite {
   test("spata allows executing simple side effects through callbacks") {
     val reader = CSVReader.config.get // reader with default configuration
     try {
-      withResource(sourceFromResource(dataFile)) { source =>
+      SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         reader.process(source) { record =>
           if (record.get[Double]("max_temp") > 0) {
             println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
@@ -78,7 +73,7 @@ class ConsoleITS extends AnyFunSuite {
   test("spata allow processing csv data as list") {
     val reader = CSVReader.config.get // reader with default configuration
     try {
-      withResource(sourceFromResource(dataFile)) { source =>
+      SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         val records = reader.load(source, 500) // load 500 first records
         val over0 = records.find(_.get[Double]("max_temp") > 0)
         assert(over0.isDefined)
@@ -91,27 +86,4 @@ class ConsoleITS extends AnyFunSuite {
         fail
     }
   }
-
-  /* Source.fromResource throws NullPointerException on access, instead one of IOExceptions,
-   * like fromFile or fromURL, so we convert it to be conform with typical usage scenarios.
-   */
-  def sourceFromResource(name: String): Source = {
-    val source = Source.fromResource(name)
-    try {
-      source.hasNext
-    } catch {
-      case _: NullPointerException => throw new FileNotFoundException(s"Cannot find resource $name")
-    }
-    source
-  }
-
-  /* This is very simplistic approach - don't use it in production code.
-   *  Look for better implementation of loan pattern or user ARM library
-   */
-  private def withResource[A <: Closeable, B](resource: A)(f: A => B): B =
-    try {
-      f(resource)
-    } finally {
-      resource.close()
-    }
 }

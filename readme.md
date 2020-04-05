@@ -2,28 +2,48 @@ spata
 =====
 
 **spata** is a functional Scala parser for tabular data (`CSV`).
+The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
-Main goal of the library is to provide precise information about errors in source data (their location) while keeping good performance.
+Main goal of the library is to provide precise information about errors in source data (their location)
+while keeping good performance.
 
 The source data format is assumed to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt).
-It is possible however to configure the parser to accept separator and quote symbols.
-Separators and quote tokens are required to be single characters.
-`CRLF` is treated as special case - setting record separator to `LF` automatically accepts `CRLF` too.
+It is possible however to configure the parser to accept separator and quote symbols - see CSVConfig for details.
 
-Examples how to use the library may be found in `src/test/scala/sample`.
+
+Usage
+-----
+Basic usage:
+```scala
+import scala.io.Source
+import cats.effect.IO
+import fs2.Stream
+import info.fingo.spata.CSVReader
+
+val reader = CSVReader.config.get // reader with default configuration
+val records = Stream
+  // get stream of CSV records while ensuring source cleanup
+  .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+  .flatMap(reader.parse)  // parse csv file and get csv records 
+  .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
+val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
+```
+
+More examples how to use the library may be found in `src/test/scala/sample`.
+
+Development plans
+-----------------
 
 The library provides already a practical solution although with minimalistic feature set.  
 Planned development includes:
 * Providing conversion of records to case classes through shapeless.
 * Providing more examples how to use the library.
 * Enhancing this readme to provide gentle introduction to the library.
-* Tidying and better documenting parsing code.
+* Using FS2 I/O library in addition to / in place of Scala's `Source`.
 * Parsing chunks instead of single elements
-* Using FS2 I/O library in addition to / in place of Scala's `Source` including safe resource acquisition and release.
+* Tidying and better documenting parsing code.
 * Declaring schema and providing its validation.
 * Supporting asynchronous execution.
-
-The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
 Credits
 -------

@@ -20,8 +20,7 @@ import info.fingo.spata.CSVReader.CSVCallback
   * Actual parsing is done through one of the 3 methods:
   *  - [[parse]] to get a stream of records and process data in a functional way, which is the recommended approach
   *  - [[load(source:scala\.io\.Source)* load]] to load whole source data at once into a list
-  *  - [[process(source:scala\.io\.Source,cb:info\.fingo\.spata\.CSVReader\.CSVCallback)* process]]
-  *    to deal with individual records through a callback function
+  *  - [[process]] to deal with individual records through a callback function
   *
   * @constructor Creates reader with provided configuration.
   * @param config the configuration for CSV parsing (delimiters, header presence etc.)

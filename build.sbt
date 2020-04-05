@@ -2,7 +2,7 @@ lazy val basicSettings = Seq(
   organization := "info.fingo",
   organizationName := "FINGO",
   name := "spata",
-  version := "0.3",
+  version := "0.4-SNAPSHOT",
   scalaVersion := "2.13.1"
 )
 
@@ -13,6 +13,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "2.1.2",
       "co.fs2" %% "fs2-core" % "2.3.0",
+      "com.chuusai" %% "shapeless" % "2.3.3",
       "org.scalatest" %% "scalatest" % "3.1.1" % "test"
     ),
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/

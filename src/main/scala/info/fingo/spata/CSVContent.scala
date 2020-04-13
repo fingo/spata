@@ -56,5 +56,6 @@ private[spata] object CSVContent {
     case ParsingFailure(code, location, _, _) =>
       Left(new CSVException(code.message, code.toString, location.line, 0, location.position, None))
   }
-  private def buildNumHeader(size: Int) = (0 until size).map(i => i.toString -> i).toMap
+  // tuple-style header: _1, _2, _3 etc.
+  private def buildNumHeader(size: Int) = (0 until size).map(i => s"_${i + 1}" -> i).toMap
 }

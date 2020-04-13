@@ -53,10 +53,10 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(list.size == 3)
           val head = list.head
           val last = list.last
-          assert(head("1") == firstName)
-          assert(head("3") == firstValue)
-          assert(last("1") == lastName)
-          assert(last("3") == lastValue)
+          assert(head("_2") == firstName)
+          assert(head("_4") == firstValue)
+          assert(last("_2") == lastName)
+          assert(last("_4") == lastValue)
           assert(head.size == last.size)
           assert(head.lineNum == 1 + csv.takeWhile(_ != '.').count(_ == '\n')) // line breaks are placed before first dot
           assert(head.rowNum == 1)

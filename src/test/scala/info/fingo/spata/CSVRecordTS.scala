@@ -164,6 +164,17 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Record may be converted to tuples") {
+    type Data = (String, LocalDate, BigDecimal)
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header: Map[String, Int] = Map("_1" -> 0, "_2" -> 1, "_3" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      val md = record.to[Data]()
+      assert(md.isRight)
+      assert(md.contains((name, date, value)))
+    }
+  }
+
   private def createRecord(name: String, date: String, value: String)(
     implicit header: Map[String, Int]
   ): CSVRecord =

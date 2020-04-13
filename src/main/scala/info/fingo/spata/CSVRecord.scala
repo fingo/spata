@@ -8,7 +8,7 @@ import shapeless.{HList, LabelledGeneric}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
-  * Values are indexed by header row if present or by header created from numbers, starting from `"0"`.
+  * Values are indexed by header row if present or by tuple-style header: `"_1"`, `"_2"` etc.
   *
   * `lineNum` is the last line in source file which content is part of this record
   * - in other words it is the number of lines consumed so far to load this record.

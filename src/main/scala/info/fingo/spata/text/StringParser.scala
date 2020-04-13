@@ -308,8 +308,17 @@ object StringParser {
     num
   }
 
-  /* Converts to DataParseException any exception thrown by code. */
-  private def wrapException[A](content: String, dataType: String)(code: => A): A =
+  /** Wraps any parsing exception in [[DataParseException]].
+    *
+    * @param content parsing content, used to provide error information
+    * @param dataType target data type, used to provide error information
+    * @param code the actual parsing code to execute
+    * @tparam A target type for parsing
+    * @return parsed value
+    * @throws DataParseException if text cannot be parsed to requested type
+    */
+  @throws[DataParseException]("if text cannot be parsed to requested type")
+  def wrapException[A](content: String, dataType: String)(code: => A): A =
     try code
     catch {
       case NonFatal(ex) => throw new DataParseException(content, dataType, Some(ex))

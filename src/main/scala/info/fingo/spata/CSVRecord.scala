@@ -1,7 +1,10 @@
 package info.fingo.spata
 
+import info.fingo.spata.CSVRecord.ToProduct
+import info.fingo.spata.convert.RecordToHList
 import info.fingo.spata.parser.ParsingErrorCode
 import info.fingo.spata.text.{DataParseException, StringParser}
+import shapeless.{HList, LabelledGeneric}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -138,6 +141,58 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     row(pos)
   }
 
+  /** Converts this record to [[scala.Product]], e.g. case class.
+    *
+    * The combination of `to`, [[CSVRecord.ToProduct]] constructor and `apply` method
+    * allows conversion in following form:
+    * {{{
+    * // assumming following CSV source
+    * // ----------------
+    * // name,born
+    * // Nicolaus Copernicus,1473-02-19,1543-05-24
+    * // Johannes Hevelius,1611-01-28,
+    * // ----------------
+    * // and a CSVRecord created based on this
+    * val record: CSVRecord = ???
+    * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
+    * val person: Maybe[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
+    * }}}
+    * Please note, that the conversion is name-base (case class field names have to match CSV header).
+    * The order of fields doesn't matter.
+    * Case class may be narrower and effectively retrieve only record subset.
+    *
+    * It is possible to use a tuple instead of case class.
+    * In such case the header must match the tuple field naming convention: `_1`, `_2` etc.
+    *
+    * Current implementation supports only shallow conversion -
+    * each product field has to be retrieved from single CSV field through [[text.StringParser StringParser]].
+    *
+    * Because conversion to product requires parsing of all fields through [[text.StringParser StringParser]],
+    * there is no way to provide custom formatter, like while using [[get[A]:* get]] or [[seek[A]:* seek]] methods.
+    * If other then the default formatting has to be handled, a custom implicit `stringParser` has to be provided:
+    * {{{
+    * // assumming following CSV source
+    * // ----------------
+    * // name,born,died
+    * // Nicolaus Copernicus,19.02.1473,24.05.1543
+    * // Johannes Hevelius,28.01.1611,
+    * // ----------------
+    * // and a CSVRecord created based on this
+    * val record: CSVRecord = ???
+    * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
+    * implicit val ldsp: StringParser[LocalDate] = (str: String) =>
+    *   StringParser.wrapException(str, "LocalDate") {
+    *     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+    *     LocalDate.parse(str.strip, fmt)
+    *   }
+    * val person: Maybe[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
+    * }}}
+    *
+    * @tparam P the Product type to convert this record to
+    * @return intermediary to infer representation type and return proper type
+    */
+  def to[P <: Product]: ToProduct[P] = new ToProduct[P](this)
+
   /** Gets field value
     *
     * @param idx the index of retrieved field, starting from `0`
@@ -154,11 +209,11 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   override def toString: String = row.mkString(",")
 }
 
-/* CSVRecord helper object. Used to create records. */
-private[spata] object CSVRecord {
+/** CSVRecord helper object. Used to create and convert records. */
+object CSVRecord {
 
   /* Creates `CSVRecord`. See CSVRecord documentation for more information about parameters. */
-  def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
+  private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
     implicit header: Map[String, Int]
   ): Either[CSVException, CSVRecord] =
     if (row.size == header.size)
@@ -167,4 +222,26 @@ private[spata] object CSVRecord {
       val err = ParsingErrorCode.WrongNumberOfFields
       Left(new CSVException(err.message, err.code, lineNum, rowNum))
     }
+
+  /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
+    *
+    * When converting a record to [[scala.Product]] (e.g. case class) one may use:
+    * {{{ val tp = new CSVRecord.ToProduct[C](record)() }}}
+    *
+    * @see [[CSVRecord.to]] for real world usage scenario.
+    * @param record the record to convert
+    * @tparam P the target type for conversion
+    */
+  class ToProduct[P <: Product](record: CSVRecord) {
+
+    /** Converts record to [[scala.Product]], e.g. case class.
+      *
+      * @param gen the generic for specified target type and [[shapeless.HList]] representation
+      * @param rToHL intermediary converter from record to [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s
+      * @tparam R [[shapeless.HList]] representation type
+      * @return either converted product or an exception
+      */
+    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rToHL: RecordToHList[R]): Maybe[P] =
+      rToHL(record).map(gen.from)
+  }
 }

@@ -5,7 +5,7 @@ import java.text.{DecimalFormat, DecimalFormatSymbols, NumberFormat}
 import java.time.LocalDate
 import java.time.format.{DateTimeFormatter, FormatStyle}
 
-import info.fingo.spata.text.DataParseException
+import info.fingo.spata.text.{DataParseException, StringParser}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -90,6 +90,64 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Record may be converted to case class") {
+    case class Data(name: String, value: Double, date: LocalDate)
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      val md = record.to[Data]()
+      assert(md.isRight)
+      assert(md.contains(Data(name, value.doubleValue, date)))
+    }
+  }
+
+  test("Record may be converted to case class with optional fields") {
+    case class Data(name: String, value: Option[Double], date: Option[LocalDate])
+    forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      val md = record.to[Data]()
+      assert(md.isRight)
+      assert(md.forall(_.name == name))
+      if (sValue.trim.isEmpty)
+        assert(md.forall(_.value.isEmpty))
+      else
+        assert(md.forall(_.value.contains(value)))
+    }
+  }
+
+  test("Record may be converted to case class with custom formatting") {
+    case class Data(num: Long, value: BigDecimal, date: LocalDate)
+    forAll(formatted) {
+      (
+        _: String,
+        sNum: String,
+        numFmt: NumberFormat,
+        sDate: String,
+        dateFmt: DateTimeFormatter,
+        sValue: String,
+        valueFmt: DecimalFormat
+      ) =>
+        val header: Map[String, Int] = Map("num" -> 0, "date" -> 1, "value" -> 2)
+        val record = createRecord(sNum, sDate, sValue)(header)
+        implicit val nsp: StringParser[Long] = (str: String) =>
+          StringParser.wrapException(str, "Long") {
+            val fmt = numFmt
+            fmt.parse(str).longValue()
+          }
+        implicit val ldsp: StringParser[LocalDate] = (str: String) =>
+          StringParser.wrapException(str, "LocalDate") {
+            LocalDate.parse(str.strip, dateFmt)
+          }
+        implicit val dsp: StringParser[BigDecimal] = (str: String) =>
+          StringParser.wrapException(str, "BigDecimal") {
+            valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
+          }
+        val md = record.to[Data]()
+        assert(md.isRight)
+        assert(md.contains(Data(num, value, date)))
+    }
+  }
   private def createRecord(name: String, date: String, value: String)(
     implicit header: Map[String, Int]
   ): CSVRecord =

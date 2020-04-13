@@ -148,6 +148,22 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         assert(md.contains(Data(num, value, date)))
     }
   }
+
+  test("Converting record to case class yields Left[Throwable, _] on incorrect input") {
+    forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
+      case class Data(name: String, value: Double, date: LocalDate)
+      val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
+      val record = createRecord(name, sDate, sValue)(header)
+      val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
+      implicit val ldsp: StringParser[LocalDate] = (str: String) =>
+        StringParser.wrapException(str, "LocalDate") {
+          LocalDate.parse(str.strip, dtf)
+        }
+      val md = record.to[Data]()
+      assert(md.isLeft)
+    }
+  }
+
   private def createRecord(name: String, date: String, value: String)(
     implicit header: Map[String, Int]
   ): CSVRecord =

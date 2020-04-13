@@ -1,12 +1,16 @@
 package info.fingo.spata
 
 import java.io.IOException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
 import scala.io.{BufferedSource, Source}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import cats.effect.IO
 import fs2.Stream
 import info.fingo.spata.CSVReader.CSVCallback
+import info.fingo.spata.text.StringParser
 
 class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   type ErrorHandler = Throwable => Stream[IO, Unit]
@@ -36,6 +40,19 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(head.rowNum == 1)
           assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
           assert(last.rowNum == list.size)
+
+          case class Data(NAME: String, DATE: LocalDate)
+          implicit val ldsp: StringParser[LocalDate] = (str: String) =>
+            StringParser.wrapException(str, "LocalDate") {
+              val dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+              LocalDate.parse(str.strip, dtf)
+            }
+          val hmd = head.to[Data]()
+          assert(hmd.isRight)
+          assert(hmd.forall(_.NAME == firstName))
+          val lmd = last.to[Data]()
+          assert(lmd.isRight)
+          assert(lmd.forall(_.NAME == lastName))
         }
     }
   }
@@ -62,6 +79,14 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(head.rowNum == 1)
           assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
           assert(last.rowNum == list.size)
+
+          type Data = (Int, String)
+          val hmd = head.to[Data]()
+          assert(hmd.isRight)
+          assert(hmd.forall(_._2 == firstName))
+          val lmd = last.to[Data]()
+          assert(lmd.isRight)
+          assert(lmd.forall(_._2 == lastName))
         }
     }
   }
@@ -120,6 +145,11 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(list.size == 3)
           assertListFirst(list, firstName, firstValue)
           assertListLast(list, lastName, lastValue)
+
+          case class Data(ID: Int, NAME: String)
+          val data = list.map(_.to[Data]()).collect { case Right(v) => v }
+          assert(data.length == 3)
+          assert(data.head.NAME == firstName)
         }
     }
   }

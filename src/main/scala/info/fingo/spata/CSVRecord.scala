@@ -157,9 +157,10 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * val person: Maybe[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
     * }}}
-    * Please note, that the conversion is name-base (case class field names have to match CSV header).
+    * Please note, that the conversion is name-base (case class field names have to match CSV header)
+    * and is case sensitive.
     * The order of fields doesn't matter.
-    * Case class may be narrower and effectively retrieve only record subset.
+    * Case class may be narrower and effectively retrieve only a subset of record's fields.
     *
     * It is possible to use a tuple instead of case class.
     * In such case the header must match the tuple field naming convention: `_1`, `_2` etc.

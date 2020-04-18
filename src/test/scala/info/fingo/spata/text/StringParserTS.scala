@@ -111,11 +111,11 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("String parser should throw exception on incorrect input") {
     assertThrows[DataParseException] { parse[Int]("wrong") }
     val exInt = intercept[DataParseException] { parse[Int]("12345678901234567890") }
-    assert(exInt.dataType == "Int")
+    assert(exInt.dataType.contains("number"))
     assertThrows[DataParseException] { parse[Long]("wrong") }
     assertThrows[DataParseException] { parse[Long]("123:456:789", NumberFormat.getInstance(locale)) }
     val exDouble = intercept[DataParseException] { parse[Double]("123e1e2") }
-    assert(exDouble.dataType == "Double")
+    assert(exDouble.dataType.contains("number"))
     assertThrows[DataParseException] {
       parse[Double]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     }
@@ -123,7 +123,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       parse[BigDecimal]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
     }
     val exDate = intercept[DataParseException] { parse[LocalDate]("2020-02-30") }
-    assert(exDate.dataType == "LocalDate")
+    assert(exDate.dataType.contains("date/time"))
     assert(exDate.getCause.isInstanceOf[DateTimeParseException])
     assertThrows[DataParseException] {
       parse[LocalDate]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy"))
@@ -132,10 +132,10 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assertThrows[DataParseException] { parse[LocalDateTime]("wrong") }
     assertThrows[DataParseException] { parse[Boolean]("yes") }
     val exBool = intercept[DataParseException] { parse[Boolean]("yes", BooleanFormatter("y", "n")) }
-    assert(exBool.dataType == "Boolean")
+    assert(exBool.dataType.contains("boolean"))
     assert(exBool.content == "yes")
     val exMessage = intercept[DataParseException] { parse[Int]("1234567890" * 10) }
-    assert(exMessage.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as Int"))
+    assert(exMessage.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as requested number"))
   }
 
   private lazy val strings = Table(

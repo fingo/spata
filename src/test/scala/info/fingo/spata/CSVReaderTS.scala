@@ -42,11 +42,8 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(last.rowNum == list.size)
 
           case class Data(NAME: String, DATE: LocalDate)
-          implicit val ldsp: StringParser[LocalDate] = (str: String) =>
-            StringParser.wrapException(str, "LocalDate") {
-              val dtf = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-              LocalDate.parse(str.strip, dtf)
-            }
+          implicit val ldsp: StringParser[LocalDate] =
+            (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
           val hmd = head.to[Data]()
           assert(hmd.isRight)
           assert(hmd.forall(_.NAME == firstName))

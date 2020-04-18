@@ -130,19 +130,10 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         val header: Map[String, Int] = Map("num" -> 0, "date" -> 1, "value" -> 2)
         val record = createRecord(sNum, sDate, sValue)(header)
-        implicit val nsp: StringParser[Long] = (str: String) =>
-          StringParser.wrapException(str, "Long") {
-            val fmt = numFmt
-            fmt.parse(str).longValue()
-          }
-        implicit val ldsp: StringParser[LocalDate] = (str: String) =>
-          StringParser.wrapException(str, "LocalDate") {
-            LocalDate.parse(str.strip, dateFmt)
-          }
-        implicit val dsp: StringParser[BigDecimal] = (str: String) =>
-          StringParser.wrapException(str, "BigDecimal") {
-            valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
-          }
+        implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
+        implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
+        implicit val dsp: StringParser[BigDecimal] =
+          (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
         val md = record.to[Data]()
         assert(md.isRight)
         assert(md.contains(Data(num, value, date)))
@@ -154,11 +145,8 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       case class Data(name: String, value: Double, date: LocalDate)
       val header: Map[String, Int] = Map("name" -> 0, "date" -> 1, "value" -> 2)
       val record = createRecord(name, sDate, sValue)(header)
-      val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
-      implicit val ldsp: StringParser[LocalDate] = (str: String) =>
-        StringParser.wrapException(str, "LocalDate") {
-          LocalDate.parse(str.strip, dtf)
-        }
+      implicit val ldsp: StringParser[LocalDate] =
+        (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yy"))
       val md = record.to[Data]()
       assert(md.isLeft)
     }

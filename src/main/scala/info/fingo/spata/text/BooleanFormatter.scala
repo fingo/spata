@@ -37,7 +37,7 @@ class BooleanFormatter(tt: String, ft: String, locale: Locale) {
   def parse(string: String): Boolean = string.strip().toLowerCase(locale) match {
     case `trueTerm` => true
     case `falseTerm` => false
-    case _ => throw new DataParseException(string, "Boolean")
+    case _ => throw new DataParseException(string, Some("boolean"))
   }
 }
 

@@ -1,12 +1,10 @@
 package info.fingo.spata.text
 
 import java.text.{DecimalFormat, NumberFormat, ParseException, ParsePosition}
-import java.time.format.DateTimeFormatter
+import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
-
-import info.fingo.spata.{maybe, Maybe}
-
 import scala.util.control.NonFatal
+import info.fingo.spata.{maybe, Maybe}
 
 /** Parser from `String` to desired type.
   *
@@ -31,9 +29,9 @@ trait StringParser[A] {
     *
     * @param str the input string
     * @return parsed value
-    * @throws DataParseException if text cannot be parsed to requested type
+    * @throws RuntimeException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if text cannot be parsed to requested type")
+  @throws[RuntimeException]("if text cannot be parsed to requested type")
   def parse(str: String): A
 }
 
@@ -58,9 +56,9 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
     * @param str the input string
     * @param fmt formatter, specific for particular result type, e.g. `DateTimeFormatter` for dates and times
     * @return parsed value
-    * @throws DataParseException if text cannot be parsed to requested type
+    * @throws RuntimeException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if text cannot be parsed to requested type")
+  @throws[RuntimeException]("if text cannot be parsed to requested type")
   def parse(str: String, fmt: B): A
 }
 
@@ -117,7 +115,7 @@ object StringParser {
     @throws[DataParseException]("if text cannot be parsed to requested type")
     def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val s = get(str)
-      parser.parse(s, fmt)
+      wrapExc(str) { parser.parse(s, fmt) }
     }
   }
 
@@ -140,7 +138,7 @@ object StringParser {
       */
     def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = maybe {
       val s = get(str)
-      parser.parse(s, fmt)
+      wrapExc(str) { parser.parse(s, fmt) }
     }
   }
 
@@ -159,7 +157,7 @@ object StringParser {
     * @throws DataParseException if text cannot be parsed to requested type
     */
   @throws[DataParseException]("if text cannot be parsed to requested type")
-  def parse[A](str: String)(implicit parser: StringParser[A]): A = parser.parse(str)
+  def parse[A](str: String)(implicit parser: StringParser[A]): A = wrapExc(str) { parser.parse(str) }
 
   /** Parses string to desired type based on provided format.
     *
@@ -174,9 +172,7 @@ object StringParser {
     *
     * @tparam A target type for parsing
     * @return intermediary to retrieve value according to custom format
-    * @throws DataParseException if text cannot be parsed to requested type
     */
-  @throws[DataParseException]("if text cannot be parsed to requested type")
   def parse[A]: Pattern[A] = new Pattern[A]
 
   /** Safely parses string to desired type.
@@ -189,7 +185,7 @@ object StringParser {
     * @return either parsed value or an [[DataParseException]]
     */
   def parseSafe[A](str: String)(implicit parser: StringParser[A]): Maybe[A] =
-    maybe(parser.parse(str))
+    maybe(wrapExc(str) { parser.parse(str) })
 
   /** Parses string to desired type based on provided format.
     *
@@ -233,31 +229,27 @@ object StringParser {
   implicit val stringParser: StringParser[String] = (str: String) => str
 
   /** Parser for integer values. */
-  implicit val intParser: StringParser[Int] = (str: String) => wrapException(str, "Int") { str.strip.toInt }
+  implicit val intParser: StringParser[Int] = (str: String) => str.strip.toInt
 
   /** Parser for long values with support for formats. */
   implicit val longParser: FormattedStringParser[Long, NumberFormat] =
     new FormattedStringParser[Long, NumberFormat] {
-      override def parse(str: String): Long = wrapException(str, "Long") { str.strip.toLong }
-      override def parse(str: String, fmt: NumberFormat): Long = wrapException(str, "Long") {
-        parseNumber(str, fmt).longValue()
-      }
+      override def parse(str: String): Long = str.strip.toLong
+      override def parse(str: String, fmt: NumberFormat): Long = parseNumber(str, fmt).longValue()
     }
 
   /** Parser for double values with support for formats. */
   implicit val doubleParser: FormattedStringParser[Double, DecimalFormat] =
     new FormattedStringParser[Double, DecimalFormat] {
-      override def parse(str: String): Double = wrapException(str, "Double") { str.strip.toDouble }
-      override def parse(str: String, fmt: DecimalFormat): Double = wrapException(str, "Double") {
-        parseNumber(str, fmt).doubleValue()
-      }
+      override def parse(str: String): Double = str.strip.toDouble
+      override def parse(str: String, fmt: DecimalFormat): Double = parseNumber(str, fmt).doubleValue()
     }
 
   /** Parser for decimal values with support for formats. */
   implicit val bigDecimalParser: FormattedStringParser[BigDecimal, DecimalFormat] =
     new FormattedStringParser[BigDecimal, DecimalFormat] {
-      override def parse(str: String): BigDecimal = wrapException(str, "BigDecimal") { BigDecimal(str.strip) }
-      override def parse(str: String, fmt: DecimalFormat): BigDecimal = wrapException(str, "BigDecimal") {
+      override def parse(str: String): BigDecimal = BigDecimal(str.strip)
+      override def parse(str: String, fmt: DecimalFormat): BigDecimal = {
         fmt.setParseBigDecimal(true)
         BigDecimal(parseNumber(str, fmt).asInstanceOf[java.math.BigDecimal])
       }
@@ -266,30 +258,22 @@ object StringParser {
   /** Parser for date values with support for formats. */
   implicit val localDateParser: FormattedStringParser[LocalDate, DateTimeFormatter] =
     new FormattedStringParser[LocalDate, DateTimeFormatter] {
-      override def parse(str: String): LocalDate = wrapException(str, "LocalDate") { LocalDate.parse(str.strip) }
-      override def parse(str: String, fmt: DateTimeFormatter): LocalDate = wrapException(str, "LocalDate") {
-        LocalDate.parse(str.strip, fmt)
-      }
+      override def parse(str: String): LocalDate = LocalDate.parse(str.strip)
+      override def parse(str: String, fmt: DateTimeFormatter): LocalDate = LocalDate.parse(str.strip, fmt)
     }
 
   /** Parser for time values with support for formats. */
   implicit val localTimeParser: FormattedStringParser[LocalTime, DateTimeFormatter] =
     new FormattedStringParser[LocalTime, DateTimeFormatter] {
-      override def parse(str: String): LocalTime = wrapException(str, "LocalTime") { LocalTime.parse(str.strip) }
-      override def parse(str: String, fmt: DateTimeFormatter): LocalTime = wrapException(str, "LocalTime") {
-        LocalTime.parse(str.strip, fmt)
-      }
+      override def parse(str: String): LocalTime = LocalTime.parse(str.strip)
+      override def parse(str: String, fmt: DateTimeFormatter): LocalTime = LocalTime.parse(str.strip, fmt)
     }
 
   /** Parser for date with time values with support for formats. */
   implicit val localDateTimeParser: FormattedStringParser[LocalDateTime, DateTimeFormatter] =
     new FormattedStringParser[LocalDateTime, DateTimeFormatter] {
-      override def parse(str: String): LocalDateTime = wrapException(str, "LocalDateTime") {
-        LocalDateTime.parse(str.strip)
-      }
-      override def parse(str: String, fmt: DateTimeFormatter): LocalDateTime = wrapException(str, "LocalDateTime") {
-        LocalDateTime.parse(str.strip, fmt)
-      }
+      override def parse(str: String): LocalDateTime = LocalDateTime.parse(str.strip)
+      override def parse(str: String, fmt: DateTimeFormatter): LocalDateTime = LocalDateTime.parse(str.strip, fmt)
     }
 
   /** Parser for boolean values with support for formats. */
@@ -304,23 +288,22 @@ object StringParser {
     val pos = new ParsePosition(0)
     val s = str.strip
     val num = fmt.parse(s, pos)
-    if (pos.getIndex != s.length) throw new ParseException(s"Cannot parse $str as number", pos.getIndex)
+    if (pos.getIndex != s.length)
+      throw new DataParseException(
+        str,
+        Some("number"),
+        Some(new ParseException(s"Cannot parse $str as number", pos.getIndex))
+      )
     num
   }
 
-  /** Wraps any parsing exception in [[DataParseException]].
-    *
-    * @param content parsing content, used to provide error information
-    * @param dataType target data type, used to provide error information
-    * @param code the actual parsing code to execute
-    * @tparam A target type for parsing
-    * @return parsed value
-    * @throws DataParseException if text cannot be parsed to requested type
-    */
-  @throws[DataParseException]("if text cannot be parsed to requested type")
-  def wrapException[A](content: String, dataType: String)(code: => A): A =
+  /* Wraps any parsing exception in DataParseException. */
+  private def wrapExc[A](content: String)(code: => A): A =
     try code
     catch {
-      case NonFatal(ex) => throw new DataParseException(content, dataType, Some(ex))
+      case ex: DataParseException => throw ex
+      case ex: NumberFormatException => throw new DataParseException(content, Some("number"), Some(ex))
+      case ex: DateTimeParseException => throw new DataParseException(content, Some("date/time"), Some(ex))
+      case NonFatal(ex) => throw new DataParseException(content, None, Some(ex))
     }
 }

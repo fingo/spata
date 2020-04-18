@@ -28,7 +28,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
           val stream = Stream
             .bracket(IO { Source.fromString(csv) })(source => IO { source.close() })
-            .flatMap(reader.parse)
+            .through(reader.pipe)
           val list = stream.compile.toList.unsafeRunSync()
           assert(list.size == 3)
           val head = list.head
@@ -62,7 +62,7 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
           val reader = CSVReader.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).noHeader().get
           val stream = Stream
             .bracket(IO { Source.fromString(csv) })(source => IO { source.close() })
-            .flatMap(reader.parse)
+            .through(reader.pipe)
           val list = stream.compile.toList.unsafeRunSync()
           assert(list.size == 3)
           val head = list.head

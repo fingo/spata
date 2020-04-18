@@ -17,8 +17,9 @@ import info.fingo.spata.CSVReader.CSVCallback
   * or through a helper [[CSVReader.config]] function from companion object, e.g.:
   * {{{ val reader = CSVReader.config.fieldDelimiter(';').get }}}
   *
-  * Actual parsing is done through one of the 3 methods:
-  *  - [[parse]] to get a stream of records and process data in a functional way, which is the recommended approach
+  * Actual parsing is done through one of the 3 groups methods:
+  *  - [[parse]] or [[pipe]] to get a stream of records and process data in a functional way,
+  *    which is the recommended approach
   *  - [[load(source:scala\.io\.Source)* load]] to load whole source data at once into a list
   *  - [[process]] to deal with individual records through a callback function
   *
@@ -59,6 +60,21 @@ class CSVReader(config: CSVConfig) {
     val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
     pull.stream.rethrow.flatMap(_.toRecords)
   }
+
+  /** Converts a CSV source into records.
+    * This is a wrapper of [[parse]] to use this reader with [[fs2.Stream.through]]:
+    * {{{
+    * val reader = CSVReader()
+    * val stream = Stream
+    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .through(reader.pipe)
+    * }}}
+    *
+    * @see [[parse]] for more information.
+    *
+    * @return a pipe to convert [[scala.io.Source]] into [[CSVRecord]]s
+    */
+  def pipe: Pipe[IO, Source, CSVRecord] = (in: Stream[IO, Source]) => in.flatMap(s => parse(s))
 
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[IO, ParsingResult]) = stream.pull.uncons1.flatMap {

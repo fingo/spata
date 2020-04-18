@@ -15,7 +15,7 @@ class ConvertITS extends AnyFunSuite {
     val reader = CSVReader.config.get // reader with default configuration
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .flatMap(reader.parse) // get stream of CSV records
+      .through(reader.pipe) // get stream of CSV records
       .map(_.to[DayTemp]()) // convert records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
       .filter(_.terrestrial_date.getYear == 2016) // filter data for specific year

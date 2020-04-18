@@ -15,7 +15,7 @@ class FileITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .flatMap(reader.parse)
+      .through(reader.pipe)
     // convert and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
       record("max_temp") != "NaN" && record("min_temp") != "NaN"

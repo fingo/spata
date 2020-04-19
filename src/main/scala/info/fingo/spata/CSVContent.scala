@@ -41,21 +41,27 @@ private[spata] class CSVContent private (
 private[spata] object CSVContent {
 
   /* Creates CSVContent for data with header. May return CSVException if no header is available (means empty source). */
-  def apply(header: ParsingResult, data: Stream[IO, ParsingResult]): Either[CSVException, CSVContent] =
-    buildHeaderIndex(header) match {
+  def apply(header: ParsingResult, data: Stream[IO, ParsingResult], headerMap: S2S): Either[CSVException, CSVContent] =
+    buildHeaderIndex(header, headerMap) match {
       case Right(index) => Right(new CSVContent(data, index))
       case Left(e) => Left(e)
     }
 
   /* Creates CSVContent for data without header - builds a numeric header. */
-  def apply(headerSize: Int, data: Stream[IO, ParsingResult]): Either[CSVException, CSVContent] =
-    Right(new CSVContent(data, buildNumHeader(headerSize), false))
+  def apply(headerSize: Int, data: Stream[IO, ParsingResult], headerMap: S2S): Either[CSVException, CSVContent] =
+    Right(new CSVContent(data, buildNumHeader(headerSize, headerMap), false))
 
-  private def buildHeaderIndex(pr: ParsingResult): Either[CSVException, Map[String, Int]] = pr match {
-    case RawRecord(captions, _, _) => Right(captions.zipWithIndex.toMap)
+  /* Build index for header with remapping selected header values. */
+  private def buildHeaderIndex(pr: ParsingResult, headerMap: S2S): Either[CSVException, Map[String, Int]] = pr match {
+    case RawRecord(captions, _, _) => Right(captions.map(hRemap(_, headerMap)).zipWithIndex.toMap)
     case ParsingFailure(code, location, _, _) =>
       Left(new CSVException(code.message, code.toString, location.line, 0, location.position, None))
   }
-  // tuple-style header: _1, _2, _3 etc.
-  private def buildNumHeader(size: Int) = (0 until size).map(i => s"_${i + 1}" -> i).toMap
+
+  /* Tuple-style header: _1, _2, _3 etc. (if not remapped). */
+  private def buildNumHeader(size: Int, headerMap: S2S) =
+    (0 until size).map(i => hRemap(s"_${i + 1}", headerMap) -> i).toMap
+
+  /* Remap provided header values, leave intact the rest. */
+  private def hRemap(header: String, f: S2S): String = if (f.isDefinedAt(header)) f(header) else header
 }

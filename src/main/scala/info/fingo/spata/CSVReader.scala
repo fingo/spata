@@ -77,18 +77,20 @@ class CSVReader(config: CSVConfig) {
   def pipe: Pipe[IO, Source, CSVRecord] = (in: Stream[IO, Source]) => in.flatMap(s => parse(s))
 
   /* Splits source data into header and actual content. */
-  private def contentWithHeader(stream: Stream[IO, ParsingResult]) = stream.pull.uncons1.flatMap {
-    case Some((h, t)) => Pull.output1(CSVContent(h, t))
-    case None =>
-      val err = ParsingErrorCode.MissingHeader
-      Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
-  }
+  private def contentWithHeader(stream: Stream[IO, ParsingResult]) =
+    stream.pull.uncons1.flatMap {
+      case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
+      case None =>
+        val err = ParsingErrorCode.MissingHeader
+        Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
+    }
 
   /* Adds numeric header to source data - provides record size to construct it. */
-  private def contentWithoutHeader(stream: Stream[IO, ParsingResult]) = stream.pull.peek1.flatMap {
-    case Some((h, s)) => Pull.output1(CSVContent(h.fieldNum, s))
-    case None => Pull.output1(CSVContent(0, stream))
-  }
+  private def contentWithoutHeader(stream: Stream[IO, ParsingResult]) =
+    stream.pull.peek1.flatMap {
+      case Some((h, s)) => Pull.output1(CSVContent(h.fieldNum, s, config.mapHeader))
+      case None => Pull.output1(CSVContent(0, stream, config.mapHeader))
+    }
 
   /** Loads whole source content into list of records.
     *

@@ -18,7 +18,13 @@ package info.fingo.spata
   * In another case the white characters are stripped.
   *
   * If the source has a header, which is the default, it is used as an keys to actual values and not included in data.
-  * If there is no header, a number-based keys are created (starting from `"0"`).
+  * If there is no header, a number-based keys are created (starting from `"_1"`).
+  *
+  * If CSV records are converted to case classes, header values are used as class fields and may require remapping.
+  * This can be achieved through [[mapHeader(* mapHeader]]:
+  * {{{config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))}}}
+  * or if there is no header line:
+  * {{{config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName")))}}}
   *
   * Field size limit is used to stop processing input when it is significantly larger then expected
   * and avoid `OutOfMemoryError`.
@@ -29,6 +35,7 @@ package info.fingo.spata
   * @param recordDelimiter record (row) separator
   * @param quoteMark character used to wrap (quote) field content
   * @param hasHeader set if data starts with header row
+  * @param mapHeader partial function to remap selected header values
   * @param fieldSizeLimit maximal size of a field
   */
 case class CSVConfig private[spata] (
@@ -36,6 +43,7 @@ case class CSVConfig private[spata] (
   recordDelimiter: Char = '\n',
   quoteMark: Char = '"',
   hasHeader: Boolean = true,
+  mapHeader: S2S = PartialFunction.empty,
   fieldSizeLimit: Option[Int] = None
 ) {
 
@@ -53,6 +61,9 @@ case class CSVConfig private[spata] (
 
   /** Gets new config from this one by replacing field size limit with provided one. */
   def fieldSizeLimit(fsl: Int): CSVConfig = this.copy(fieldSizeLimit = Some(fsl))
+
+  /** Remap selected fields names. */
+  def mapHeader(mh: S2S): CSVConfig = this.copy(mapHeader = mh)
 
   /** Creates [[CSVReader]] from this config. */
   def get: CSVReader = new CSVReader(this)

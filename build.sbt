@@ -2,7 +2,7 @@ lazy val basicSettings = Seq(
   organization := "info.fingo",
   organizationName := "FINGO",
   name := "spata",
-  version := "0.4-SNAPSHOT",
+  version := "0.4",
   scalaVersion := "2.13.1"
 )
 

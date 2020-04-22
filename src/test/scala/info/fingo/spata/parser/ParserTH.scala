@@ -11,19 +11,24 @@ object Config {
   val qt = '"'
   val limit = 100
   val nl: Char = CharParser.LF
+  val cr: Char = CharParser.CR
+  val sp = ' '
+  val end: Char = CharParser.ETX
 }
 
 object CharStates {
-  def csr(c: Char): CharState = CharState(Some(c), Regular)
-  def csr: CharState = CharState(None, Regular)
-  def cst(c: Char): CharState = CharState(Some(c), Trailing)
-  def csq(c: Char): CharState = CharState(Some(c), Quoted)
-  def csq: CharState = CharState(None, Quoted)
-  val cses: CharState = CharState(None, Escape)
-  val css: CharState = CharState(None, Start)
-  def cse: CharState = CharState(None, End)
-  def csff: CharState = CharState(None, FinishedField)
-  def csfr: CharState = CharState(None, FinishedRecord)
+  import Config._
+  def csr(c: Char): CharState = CharState(Right(c), Regular)
+  def csr: CharState = CharState(Left(cr), Regular)
+  def cst(c: Char): CharState = CharState(Right(c), Trailing)
+  def csq(c: Char): CharState = CharState(Right(c), Quoted)
+  def csq: CharState = CharState(Left(qt), Quoted)
+  val cses: CharState = CharState(Left(qt), Escape)
+  val css: CharState = CharState(Left(sp), Start)
+  def cse: CharState = CharState(Left(sp), End)
+  def csff: CharState = CharState(Left(sep), FinishedField)
+  def csfr: CharState = CharState(Left(rs), FinishedRecord)
+  def csf: CharState = CharState(Left(end), FinishedRecord)
 }
 
 object CharFailures {

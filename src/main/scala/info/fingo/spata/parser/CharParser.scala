@@ -12,7 +12,7 @@ private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quo
   import CharParser.CharPosition._
 
   /* Transforms plain characters into context-dependent symbols by providing FS2 pipe. */
-  def toCharResults: Pipe[IO, Char, CharResult] = toCharResults(CharState(None, Start))
+  def toCharResults: Pipe[IO, Char, CharResult] = toCharResults(CharState(Left(STX), Start))
 
   private def toCharResults(state: CharState): Pipe[IO, Char, CharResult] = {
     def loop(chars: Stream[IO, Char], state: CharState): Pull[IO, CharResult, Unit] =
@@ -30,7 +30,7 @@ private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quo
   private def endOfStream(state: CharState): CharResult =
     state.position match {
       case Quoted => CharFailure(UnmatchedQuotation)
-      case _ => CharState(None, FinishedRecord)
+      case _ => CharState(Left(ETX), FinishedRecord)
     }
 
   @inline
@@ -39,28 +39,32 @@ private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quo
   /* Core translating function - state transitions. */
   private def parseChar(char: Char, state: CharState): CharResult =
     char match {
-      case `quote` if state.atBeginning => CharState(None, Quoted)
-      case `quote` if state.position == Quoted => CharState(None, Escape)
-      case `quote` if state.position == Escape => CharState(Some(quote), Quoted)
+      case `quote` if state.atBeginning => CharState(Left(char), Quoted)
+      case `quote` if state.position == Quoted => CharState(Left(char), Escape)
+      case `quote` if state.position == Escape => CharState(Right(quote), Quoted)
       case `quote` => CharFailure(UnclosedQuotation)
-      case CR if recordDelimiter == LF && state.position != Quoted => CharState(None, state.position)
-      case c if isDelimiter(c) && state.position == Quoted => CharState(Some(c), Quoted)
-      case `fieldDelimiter` => CharState(None, FinishedField)
-      case `recordDelimiter` => CharState(None, FinishedRecord)
-      case c if c.isWhitespace && state.atBoundary => CharState(None, state.position)
-      case c if c.isWhitespace && state.position == FinishedField => CharState(None, Start)
-      case c if c.isWhitespace && state.position == Escape => CharState(None, End)
-      case c if c.isWhitespace && state.isSimple => CharState(Some(c), Trailing)
+      case CR if recordDelimiter == LF && state.position != Quoted => CharState(Left(char), state.position)
+      case c if isDelimiter(c) && state.position == Quoted => CharState(Right(c), Quoted)
+      case `fieldDelimiter` => CharState(Left(char), FinishedField)
+      case `recordDelimiter` => CharState(Left(char), FinishedRecord)
+      case c if c.isWhitespace && state.atBoundary => CharState(Left(char), state.position)
+      case c if c.isWhitespace && state.position == FinishedField => CharState(Left(char), Start)
+      case c if c.isWhitespace && state.position == Escape => CharState(Left(char), End)
+      case c if c.isWhitespace && state.isSimple => CharState(Right(c), Trailing)
       case _ if state.position == Escape || state.position == End => CharFailure(UnescapedQuotation)
-      case c if state.atBeginning => CharState(Some(c), Regular)
-      case c if state.position == Trailing => CharState(Some(c), Regular)
-      case c => CharState(Some(c), state.position)
+      case c if state.atBeginning => CharState(Right(c), Regular)
+      case c if state.position == Trailing => CharState(Right(c), Regular)
+      case c => CharState(Right(c), state.position)
     }
+
+  val newLineDelimiter: Option[Char] = List(recordDelimiter, fieldDelimiter, quote).find(_ == LF)
 }
 
 private[spata] object CharParser {
   val LF: Char = 0x0A.toChar
   val CR: Char = 0x0D.toChar
+  val STX: Char = 0x02.toChar
+  val ETX: Char = 0x03.toChar
 
   object CharPosition extends Enumeration {
     type CharPosition = Value
@@ -72,13 +76,16 @@ private[spata] object CharParser {
 
   case class CharFailure(code: ErrorCode) extends CharResult
 
-  case class CharState(char: Option[Char], position: CharPosition) extends CharResult {
+  /* Represents character with its context - position in CSV.
+   * If character retains its direct meaning it is represented as Right.
+   * If it is interpreted as a special character or is skipped, it is represented as Left.
+   */
+  case class CharState(char: Either[Char, Char], position: CharPosition) extends CharResult {
     def isSimple: Boolean = position == Regular || position == Trailing
     def finished: Boolean = position == FinishedField || position == FinishedRecord
     def atBoundary: Boolean = position == Start || position == End
     def atBeginning: Boolean = position == Start || finished
-    // TODO: check if any separator is really a new line
-    def isNewLine: Boolean = char.contains(LF) || position == FinishedRecord
-    def hasChar: Boolean = char.isDefined
+    def isNewLine: Boolean = char.fold(_ == LF, _ == LF)
+    def hasChar: Boolean = char.isRight
   }
 }

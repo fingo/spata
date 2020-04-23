@@ -17,7 +17,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
         .through(reader.pipe)
         .map(_.to[Book]())
-        .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
+        .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
       val result = stream.compile.toList.unsafeRunSync()
       assert(result.exists(_.isLeft))
     }

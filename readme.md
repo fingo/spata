@@ -26,8 +26,8 @@ val records = Stream
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(reader.pipe)  // parse csv file and get csv records 
   .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
-  .map(_.to[Data]()) // convert records to case class
-  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
+  .map(_.to[Data]()) // converter records to case class
+  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
 ```
 

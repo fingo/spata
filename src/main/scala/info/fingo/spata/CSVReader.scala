@@ -72,7 +72,7 @@ class CSVReader(config: CSVConfig) {
     *
     * @see [[parse]] for more information.
     *
-    * @return a pipe to convert [[scala.io.Source]] into [[CSVRecord]]s
+    * @return a pipe to converter [[scala.io.Source]] into [[CSVRecord]]s
     */
   def pipe: Pipe[IO, Source, CSVRecord] = (in: Stream[IO, Source]) => in.flatMap(s => parse(s))
 

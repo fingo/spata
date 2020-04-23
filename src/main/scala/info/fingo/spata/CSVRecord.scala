@@ -4,7 +4,7 @@ import java.time.format.DateTimeParseException
 import java.util.NoSuchElementException
 
 import info.fingo.spata.CSVRecord.ToProduct
-import info.fingo.spata.convert.RecordToHList
+import info.fingo.spata.converter.RecordToHList
 import info.fingo.spata.parser.ParsingErrorCode
 import info.fingo.spata.text.{DataParseException, FormattedStringParser, StringParser}
 import shapeless.{HList, LabelledGeneric}
@@ -176,7 +176,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * val person: Maybe[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
     * }}}
     *
-    * @tparam P the Product type to convert this record to
+    * @tparam P the Product type to converter this record to
     * @return intermediary to infer representation type and return proper type
     */
   def to[P <: Product]: ToProduct[P] = new ToProduct[P](this)
@@ -262,7 +262,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   }
 }
 
-/** CSVRecord helper object. Used to create and convert records. */
+/** CSVRecord helper object. Used to create and converter records. */
 object CSVRecord {
 
   /* Creates `CSVRecord`. See CSVRecord documentation for more information about parameters. */
@@ -282,7 +282,7 @@ object CSVRecord {
     * {{{ val tp = new CSVRecord.ToProduct[C](record)() }}}
     *
     * @see [[CSVRecord.to]] for real world usage scenario.
-    * @param record the record to convert
+    * @param record the record to converter
     * @tparam P the target type for conversion
     */
   class ToProduct[P <: Product](record: CSVRecord) {

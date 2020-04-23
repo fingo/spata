@@ -9,7 +9,7 @@ object SampleTH {
   val dataFile = "mars-weather.csv"
 
   /* Source.fromResource throws NullPointerException on access, instead one of IOExceptions,
-   * like fromFile or fromURL, so we convert it to be conform with typical usage scenarios.
+   * like fromFile or fromURL, so we converter it to be conform with typical usage scenarios.
    */
   def sourceFromResource(name: String): Source = {
     val source = Source.fromResource(name)

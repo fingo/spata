@@ -1,4 +1,4 @@
-package info.fingo.spata.convert
+package info.fingo.spata.converter
 
 import info.fingo.spata.{CSVRecord, Maybe}
 import info.fingo.spata.text.StringParser
@@ -21,7 +21,7 @@ trait RecordToHList[L <: HList] {
   def apply(record: CSVRecord): Maybe[L]
 }
 
-/** Implicits to convert CSVRecord to [[shapeless.HNil]] and [[shapeless.::]]. */
+/** Implicits to converter CSVRecord to [[shapeless.HNil]] and [[shapeless.::]]. */
 object RecordToHList {
 
   /** Converter to [[shapeless.HNil]] */

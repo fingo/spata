@@ -85,7 +85,7 @@ object StringParser {
     * and use it with nicer syntax
     * {{{entity.parse[Double]("123,45", numberFormat)}}}
     *
-    * If there is a need the formatter to additionally retrieve or convert the string to be parsed,
+    * If there is a need the formatter to additionally retrieve or converter the string to be parsed,
     * e.g. get value from a map based on key, it is possible to do it through the `get` parameter function,
     * still keeping above shorter syntax of parsing call:
     * {{{

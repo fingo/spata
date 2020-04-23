@@ -13,13 +13,13 @@ class ConsoleITS extends AnyFunSuite {
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows manipulate data using stream functionality") {
-    case class YT(year: Int, temp: Double) // class to convert data to
+    case class YT(year: Int, temp: Double) // class to converter data to
     val reader = CSVReader.config.get // reader with default configuration
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       .flatMap(reader.parse)
-    // convert and aggregate data, get stream of YTs
+    // converter and aggregate data, get stream of YTs
     val aggregates = records.filter { record =>
       record("max_temp") != "NaN"
     }.map { record =>

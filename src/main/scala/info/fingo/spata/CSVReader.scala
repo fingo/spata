@@ -42,8 +42,8 @@ class CSVReader(config: CSVConfig) {
     *   .flatMap(reader.parse)
     * }}}
     *
-    * Processing errors (I/O - [[IOException]], source structure - [[CSVException]],
-    * string parsing - [[text.DataParseException DataParseException]]) should be handled with
+    * Processing errors (I/O - [[IOException]], source structure - [[CSVStructureException]],
+    * string parsing - [[CSVDataException]]) should be handled with
     * [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
     *
     * @see [[https://fs2.io/ FS2]] documentation for guidance how to use stream library.
@@ -82,7 +82,7 @@ class CSVReader(config: CSVConfig) {
       case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
       case None =>
         val err = ParsingErrorCode.MissingHeader
-        Pull.raiseError[IO](new CSVException(err.message, err.code, 1, 0))
+        Pull.raiseError[IO](new CSVStructureException(err.message, err.code, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
@@ -99,10 +99,10 @@ class CSVReader(config: CSVConfig) {
     * @param source the source containing CSV content
     * @return the list of records
     * @throws IOException in case of any I/O error
-    * @throws CSVException in case of flawed CSV structure
+    * @throws CSVStructureException in case of flawed CSV structure
     */
   @throws[IOException]("in case of any I/O error")
-  @throws[CSVException]("in case of flawed CSV structure")
+  @throws[CSVStructureException]("in case of flawed CSV structure")
   def load(source: Source): List[CSVRecord] = load(source, None)
 
   /** Loads requested number of CSV records from source into a list.
@@ -115,10 +115,10 @@ class CSVReader(config: CSVConfig) {
     * @param limit the number of records to load
     * @return the list of records
     * @throws IOException in case of any I/O error
-    * @throws CSVException in case of flawed CSV structure
+    * @throws CSVStructureException in case of flawed CSV structure
     */
   @throws[IOException]("in case of any I/O error")
-  @throws[CSVException]("in case of flawed CSV structure")
+  @throws[CSVStructureException]("in case of flawed CSV structure")
   def load(source: Source, limit: Long): List[CSVRecord] = load(source, Some(limit))
 
   /* Loads all or provided number of records into a list. */
@@ -134,17 +134,14 @@ class CSVReader(config: CSVConfig) {
   /** Processes each CSV record with provided callback functions to execute some side effects.
     * Stops processing input as soon as the callback function returns false or end of data is reached.
     *
-    * In addition to exceptions documented below this function may throw any exceptions from callback function,
-    * e.g. [[text.DataParseException DataParseException]] resulting from CSV record parsing.
-    *
     * @param source the source containing CSV content
     * @param cb the callback function to operate on each CSV record and produce some side effect.
     * It should return `true` to continue the process with next record or `false` to stop processing the source.
     * @throws IOException in case of any I/O error
-    * @throws CSVException in case of flawed CSV structure
+    * @throws CSVException in case of flawed CSV structure or field parsing errors
     */
   @throws[IOException]("in case of any I/O error")
-  @throws[CSVException]("in case of flawed CSV structure")
+  @throws[CSVException]("in case of flawed CSV structure or field parsing errors")
   def process(source: Source)(cb: CSVCallback): Unit = {
     val effect = evalCallback(cb)
     val stream = parse(source).through(effect)

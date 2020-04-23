@@ -1,10 +1,15 @@
 package info.fingo.spata
 
+import java.time.format.DateTimeParseException
+import java.util.NoSuchElementException
+
 import info.fingo.spata.CSVRecord.ToProduct
 import info.fingo.spata.convert.RecordToHList
 import info.fingo.spata.parser.ParsingErrorCode
-import info.fingo.spata.text.{DataParseException, StringParser}
+import info.fingo.spata.text.{DataParseException, FormattedStringParser, StringParser}
 import shapeless.{HList, LabelledGeneric}
+
+import scala.util.control.NonFatal
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -27,7 +32,6 @@ import shapeless.{HList, LabelledGeneric}
 class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(
   implicit header: Map[String, Int]
 ) {
-  import StringParser._
 
   /** Gets typed record value.
     *
@@ -46,23 +50,23 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * @param key the key of retrieved field
     * @return parsed value
     * @throws NoSuchElementException when incorrect `key` is provided
-    * @throws text#DataParseException if field cannot be parsed to requested type
+    * @throws CSVDataException if field cannot be parsed to requested type
     */
   @throws[NoSuchElementException]("when incorrect key is provided")
-  @throws[DataParseException]("if field cannot be parsed to requested type")
+  @throws[CSVDataException]("if field cannot be parsed to requested type")
   def get[A: StringParser](key: String): A = {
-    val pos = header(key)
-    parse[A](row(pos))
+    val value = row(header(key))
+    val parser = implicitly[StringParser[A]]
+    wrapParseExc(key) { parser.parse(value) }
   }
 
   /** Gets typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
     *
-    * The combination of `get`, [[text.StringParser.Pattern Pattern]] constructor and `apply` method
+    * The combination of `get`, [[Field]] constructor and `apply` method
     * allows value retrieval in following form:
     * {{{ val date: LocalDate = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types (as required by [[text.StringParser.Pattern Pattern]])
-    * are provided through [[text.StringParser StringParser]] object.
+    * Parsers for basic types (as required by [[Field]]) are provided through [[text.StringParser StringParser]] object.
     * Additional ones may be provided as implicits.
     *
     * To parse optional values provide `Option[_]` as type parameter.
@@ -72,15 +76,8 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     *
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
-    * @throws NoSuchElementException when incorrect `key` is provided
-    * @throws text#DataParseException if field cannot be parsed to requested type
     */
-  @throws[NoSuchElementException]("when incorrect key is provided")
-  @throws[DataParseException]("if field cannot be parsed to requested type")
-  def get[A]: Pattern[A] = {
-    val get = (key: String) => row(header(key))
-    new Pattern[A](get)
-  }
+  def get[A]: Field[A] = new Field[A]
 
   /** Safely gets typed record value.
     *
@@ -90,7 +87,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * Parsing empty value to simple type will result in an error.
     *
     * If wrong header is provided this function will return `Left[NoSuchElementException,_]`.
-    * If parsing fails `Left[DataParseException,_]` will be returned.
+    * If parsing fails `Left[CSVDataException,_]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
@@ -106,8 +103,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely gets typed record value.
     *
-    * The combination of `get`, [[text.StringParser.SafePattern SafePattern]] constructor and `apply` method
-    * allows value retrieval in following form:
+    * The combination of `get`, [[SafeField]] constructor and `apply` method allows value retrieval in following form:
     * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
     * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
@@ -116,18 +112,12 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
-    * If wrong header is provided this function will return `Left[NoSuchElementException,_]`.
-    * If parsing fails `Left[DataParseException,_]` will be returned.
-    *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     *
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
     */
-  def seek[A]: SafePattern[A] = {
-    val get = (key: String) => row(header(key))
-    new SafePattern[A](get)
-  }
+  def seek[A]: SafeField[A] = new SafeField[A]
 
   /** Gets field value.
     *
@@ -182,10 +172,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * val record: CSVRecord = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * implicit val ldsp: StringParser[LocalDate] = (str: String) =>
-    *   StringParser.wrapException(str, "LocalDate") {
-    *     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-    *     LocalDate.parse(str.strip, fmt)
-    *   }
+    *     LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
     * val person: Maybe[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
     * }}}
     *
@@ -208,6 +195,71 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Gets text representation of record, with fields separated by comma. */
   override def toString: String = row.mkString(",")
+
+  /* Converts any parsing exception to CSVDataException to provide error position */
+  private def wrapParseExc[A](field: String)(code: => A): A =
+    try code
+    catch {
+      case NonFatal(ex) => throw new CSVDataException(exceptionMsg(ex, field), "wrongType", lineNum, rowNum, field, ex)
+    }
+
+  private def exceptionMsg(ex: Throwable, field: String) = {
+    val typeInfo = ex match {
+      case e: DataParseException if e.dataType.isDefined => e.dataType.get
+      case _: NumberFormatException => "number"
+      case _: DateTimeParseException => "date/time"
+      case NonFatal(_) => "requested type"
+    }
+    s"Cannot parse field $field at record $rowNum to $typeInfo"
+  }
+
+  /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
+    *
+    * @tparam A target type for parsing
+    */
+  class Field[A] {
+
+    /** Parses field to desired type based on provided format.
+      *
+      * @param key the key of retrieved field
+      * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
+      * @param parser the parser for specific target type
+      * @tparam B type of concrete formatter
+      * @return parsed value
+      * @throws NoSuchElementException when incorrect `key` is provided
+      * @throws CSVDataException if field cannot be parsed to requested type
+      */
+    @throws[NoSuchElementException]("when incorrect key is provided")
+    @throws[CSVDataException]("if field cannot be parsed to requested type")
+    def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
+      val value = row(header(key))
+      wrapParseExc(key) { parser.parse(value, fmt) }
+    }
+  }
+
+  /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
+    * Provide exception-free parsing method.
+    *
+    * @tparam A target type for parsing
+    */
+  class SafeField[A] {
+
+    /** Safely parses string to desired type based on provided format.
+      *
+      * If wrong header is provided this function will return `Left[NoSuchElementException,_]`.
+      * If parsing fails `Left[CSVDataException,_]` will be returned.
+      *
+      * @param key the key of retrieved field
+      * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
+      * @param parser the parser for specific target type
+      * @tparam B type of formatter
+      * @return either parsed value or an exception
+      */
+    def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = maybe {
+      val value = row(header(key))
+      wrapParseExc(key) { parser.parse(value, fmt) }
+    }
+  }
 }
 
 /** CSVRecord helper object. Used to create and convert records. */
@@ -216,12 +268,12 @@ object CSVRecord {
   /* Creates `CSVRecord`. See CSVRecord documentation for more information about parameters. */
   private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
     implicit header: Map[String, Int]
-  ): Either[CSVException, CSVRecord] =
+  ): Either[CSVStructureException, CSVRecord] =
     if (row.size == header.size)
       Right(new CSVRecord(row, lineNum, rowNum)(header))
     else {
       val err = ParsingErrorCode.WrongNumberOfFields
-      Left(new CSVException(err.message, err.code, lineNum, rowNum))
+      Left(new CSVStructureException(err.message, err.code, lineNum, rowNum))
     }
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.

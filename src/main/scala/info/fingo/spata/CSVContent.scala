@@ -5,7 +5,7 @@ import fs2.Stream
 import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to convert raw records into key-values indexed by header.
- * It converts additionally CSV parsing failures into stream error by raising CSVException.
+ * It converts additionally CSV parsing failures into stream error by raising CSVStructureException.
  */
 private[spata] class CSVContent private (
   data: Stream[IO, ParsingResult],
@@ -14,20 +14,20 @@ private[spata] class CSVContent private (
 ) {
   private val reverseIndex = index.map(x => x._2 -> x._1)
 
-  /* Converts RawRecord into CSVRecord and raise ParsingFailure as CSVException */
+  /* Converts RawRecord into CSVRecord and raise ParsingFailure as CSVStructureException */
   def toRecords: Stream[IO, CSVRecord] = data.map(wrapRecord).rethrow
 
-  private def wrapRecord(pr: ParsingResult): Either[CSVException, CSVRecord] = pr match {
+  private def wrapRecord(pr: ParsingResult): Either[CSVStructureException, CSVRecord] = pr match {
     case RawRecord(fields, location, recordNum) =>
       CSVRecord(fields, location.line, recordNum - dataOffset)(index)
     case ParsingFailure(code, location, recordNum, fieldNum) =>
       Left(
-        new CSVException(
+        new CSVStructureException(
           code.message,
           code.toString,
           location.line,
           recordNum - dataOffset,
-          location.position,
+          Some(location.position),
           reverseIndex.get(fieldNum - 1)
         )
       )
@@ -40,23 +40,32 @@ private[spata] class CSVContent private (
 /* CSVContent helper object. Used to create content for header and header-less data. */
 private[spata] object CSVContent {
 
-  /* Creates CSVContent for data with header. May return CSVException if no header is available (means empty source). */
-  def apply(header: ParsingResult, data: Stream[IO, ParsingResult], headerMap: S2S): Either[CSVException, CSVContent] =
+  /* Creates CSVContent for data with header. May return CSVStructureException if no header is available (means empty source). */
+  def apply(
+    header: ParsingResult,
+    data: Stream[IO, ParsingResult],
+    headerMap: S2S
+  ): Either[CSVStructureException, CSVContent] =
     buildHeaderIndex(header, headerMap) match {
       case Right(index) => Right(new CSVContent(data, index))
       case Left(e) => Left(e)
     }
 
   /* Creates CSVContent for data without header - builds a numeric header. */
-  def apply(headerSize: Int, data: Stream[IO, ParsingResult], headerMap: S2S): Either[CSVException, CSVContent] =
+  def apply(
+    headerSize: Int,
+    data: Stream[IO, ParsingResult],
+    headerMap: S2S
+  ): Either[CSVStructureException, CSVContent] =
     Right(new CSVContent(data, buildNumHeader(headerSize, headerMap), false))
 
   /* Build index for header with remapping selected header values. */
-  private def buildHeaderIndex(pr: ParsingResult, headerMap: S2S): Either[CSVException, Map[String, Int]] = pr match {
-    case RawRecord(captions, _, _) => Right(captions.map(hRemap(_, headerMap)).zipWithIndex.toMap)
-    case ParsingFailure(code, location, _, _) =>
-      Left(new CSVException(code.message, code.toString, location.line, 0, location.position, None))
-  }
+  private def buildHeaderIndex(pr: ParsingResult, headerMap: S2S): Either[CSVStructureException, Map[String, Int]] =
+    pr match {
+      case RawRecord(captions, _, _) => Right(captions.map(hRemap(_, headerMap)).zipWithIndex.toMap)
+      case ParsingFailure(code, location, _, _) =>
+        Left(new CSVStructureException(code.message, code.toString, location.line, 0, Some(location.position), None))
+    }
 
   /* Tuple-style header: _1, _2, _3 etc. (if not remapped). */
   private def buildNumHeader(size: Int, headerMap: S2S) =

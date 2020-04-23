@@ -93,9 +93,9 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       (
         testCase: String,
         errorCode: String,
-        line: Option[Int],
+        line: Int,
+        row: Int,
         col: Option[Int],
-        row: Option[Int],
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
@@ -114,9 +114,9 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       (
         testCase: String,
         errorCode: String,
-        line: Option[Int],
+        line: Int,
+        row: Int,
         col: Option[Int],
-        row: Option[Int],
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
@@ -196,9 +196,9 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       (
         testCase: String,
         errorCode: String,
-        line: Option[Int],
+        line: Int,
+        row: Int,
         col: Option[Int],
-        row: Option[Int],
         field: Option[String]
       ) =>
         forAll(separators) { separator =>
@@ -245,13 +245,13 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private def assertError(
     ex: Throwable,
     errorCode: String,
-    line: Option[Int],
+    line: Int,
     col: Option[Int],
-    row: Option[Int],
+    row: Int,
     field: Option[String]
   ): Stream[IO, Unit] = {
     ex match {
-      case ex: CSVException => assertCSVException(ex, errorCode, line, col, row, field)
+      case ex: CSVStructureException => assertCSVException(ex, errorCode, line, col, row, field)
       case ex: IOException => assertIOException(ex, errorCode)
       case _ => fail()
     }
@@ -259,11 +259,11 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def assertCSVException(
-    ex: CSVException,
+    ex: CSVStructureException,
     errorCode: String,
-    line: Option[Int],
+    line: Int,
     col: Option[Int],
-    row: Option[Int],
+    row: Int,
     field: Option[String]
   ): Unit = {
     assert(ex.messageCode == errorCode)
@@ -345,20 +345,20 @@ class CSVReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val errorCases = Table(
     ("testCase", "errorCode", "lineNum", "colNum", "rowNum", "field"),
-    ("missing value", "wrongNumberOfFields", Some(2), None, Some(1), None),
-    ("missing value with empty lines", "wrongNumberOfFields", Some(3), None, Some(1), None),
-    ("too many values", "wrongNumberOfFields", Some(2), None, Some(1), None),
-    ("unclosed quotation", "unclosedQuotation", Some(2), Some(8), Some(1), Some("NAME")),
-    ("unclosed quotation with empty lines", "unclosedQuotation", Some(3), Some(8), Some(1), Some("NAME")),
-    ("unescaped quotation", "unescapedQuotation", Some(2), Some(9), Some(1), Some("NAME")),
-    ("unmatched quotation", "unmatchedQuotation", Some(2), Some(3), Some(1), Some("NAME")),
-    ("unmatched quotation with trailing spaces", "unmatchedQuotation", Some(2), Some(5), Some(1), Some("NAME")),
-    ("unmatched quotation with escaped one", "unmatchedQuotation", Some(2), Some(3), Some(1), Some("NAME")),
-    ("field too long", "fieldTooLong", Some(2), Some(103), Some(1), Some("NAME")),
-    ("field too long through unmatched quotation", "fieldTooLong", Some(3), Some(11), Some(1), Some("NAME")),
-    ("malformed header", "unclosedQuotation", Some(1), Some(10), Some(0), None),
-    ("no content", "missingHeader", Some(1), None, Some(0), None),
-    ("io exception", "message", None, None, None, None)
+    ("missing value", "wrongNumberOfFields", 2, 1, None, None),
+    ("missing value with empty lines", "wrongNumberOfFields", 3, 1, None, None),
+    ("too many values", "wrongNumberOfFields", 2, 1, None, None),
+    ("unclosed quotation", "unclosedQuotation", 2, 1, Some(8), Some("NAME")),
+    ("unclosed quotation with empty lines", "unclosedQuotation", 3, 1, Some(8), Some("NAME")),
+    ("unescaped quotation", "unescapedQuotation", 2, 1, Some(9), Some("NAME")),
+    ("unmatched quotation", "unmatchedQuotation", 2, 1, Some(3), Some("NAME")),
+    ("unmatched quotation with trailing spaces", "unmatchedQuotation", 2, 1, Some(5), Some("NAME")),
+    ("unmatched quotation with escaped one", "unmatchedQuotation", 2, 1, Some(3), Some("NAME")),
+    ("field too long", "fieldTooLong", 2, 1, Some(103), Some("NAME")),
+    ("field too long through unmatched quotation", "fieldTooLong", 3, 1, Some(11), Some("NAME")),
+    ("malformed header", "unclosedQuotation", 1, 0, Some(10), None),
+    ("no content", "missingHeader", 1, 0, None, None),
+    ("io exception", "message", 0, 0, None, None)
   )
 
   private def generateErroneousCSV(testCase: String, separator: Char): Source = {

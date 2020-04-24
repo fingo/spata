@@ -4,7 +4,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   version := "0.5-SNAPSHOT",
-  scalaVersion := "2.13.1"
+  scalaVersion := "2.13.2"
 )
 
 lazy val root = (project in file("."))
@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
       "-language:implicitConversions", // Allow definition of implicit functions called views
       "-unchecked", // Enable additional warnings where generated code depends on assumptions.
       "-Xcheckinit", // Wrap field accessors to throw an exception on uninitialized access.
-      //"-Xfatal-warnings", // Fail the compilation if there are any warnings.
+      "-Xfatal-warnings", // Fail the compilation if there are any warnings.
       "-Xlint:adapted-args", // Warn if an argument list is modified to match the receiver.
       "-Xlint:constant", // Evaluation of a constant arithmetic expression results in an error.
       "-Xlint:delayedinit-select", // Selecting member of DelayedInit.

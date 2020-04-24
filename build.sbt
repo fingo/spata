@@ -1,15 +1,20 @@
 lazy val basicSettings = Seq(
   organization := "info.fingo",
-  organizationName := "FINGO",
+  organizationName := "FINGO sp. z o.o.",
+  startYear := Some(2020),
   name := "spata",
   version := "0.5-SNAPSHOT",
   scalaVersion := "2.13.1"
 )
 
 lazy val root = (project in file("."))
+  .enablePlugins(AutomateHeaderPlugin)
   .settings(basicSettings: _*)
   .settings(
     fork in run := true,
+    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
+    headerEmptyLine := false,
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "2.1.2",
       "co.fs2" %% "fs2-core" % "2.3.0",

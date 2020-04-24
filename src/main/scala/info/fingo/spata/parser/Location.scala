@@ -1,3 +1,8 @@
+/*
+ * Copyright 2020 FINGO sp. z o.o.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package info.fingo.spata.parser
 
 /* Location of read source data (character), used mainly to report place of failure.

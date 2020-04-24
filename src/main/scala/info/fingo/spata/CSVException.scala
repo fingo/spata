@@ -1,3 +1,8 @@
+/*
+ * Copyright 2020 FINGO sp. z o.o.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package info.fingo.spata
 
 /** Exception reported by CSV parser.  May be thrown or raised through [[fs2.Stream#raiseError]].

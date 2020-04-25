@@ -307,8 +307,14 @@ object StringParser {
     try code
     catch {
       case ex: DataParseException => throw ex
-      case ex: NumberFormatException => throw new DataParseException(content, Some("number"), Some(ex))
-      case ex: DateTimeParseException => throw new DataParseException(content, Some("date/time"), Some(ex))
-      case NonFatal(ex) => throw new DataParseException(content, None, Some(ex))
+      case NonFatal(ex) => throw new DataParseException(content, parseErrorTypeInfo(ex), Some(ex))
     }
+
+  /* Gets type of parsed value based on type of exception thrown while parsing. */
+  private[spata] def parseErrorTypeInfo(ex: Throwable): Option[String] = ex match {
+    case e: DataParseException => e.dataType
+    case _: NumberFormatException => Some("number")
+    case _: DateTimeParseException => Some("date/time")
+    case _ => None
+  }
 }

@@ -6,7 +6,6 @@
 package info.fingo.spata
 
 import java.io.IOException
-
 import scala.io.Source
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
@@ -85,9 +84,7 @@ class CSVReader(config: CSVConfig) {
   private def contentWithHeader(stream: Stream[IO, ParsingResult]) =
     stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
-      case None =>
-        val err = ParsingErrorCode.MissingHeader
-        Pull.raiseError[IO](new CSVStructureException(err.message, err.code, 1, 0))
+      case None => Pull.raiseError[IO](new CSVStructureException(ParsingErrorCode.MissingHeader, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */

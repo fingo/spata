@@ -5,6 +5,9 @@
  */
 package info.fingo.spata
 
+import info.fingo.spata.parser.ParsingErrorCode.ErrorCode
+import info.fingo.spata.text.StringParser
+
 /** Exception reported by CSV parser.  May be thrown or raised through [[fs2.Stream#raiseError]].
   *
   * For possible error codes see concrete classes implementations.
@@ -54,21 +57,35 @@ abstract class CSVException private[spata] (
   *
   * @see [[CSVException]] for description of fields providing error location.
   *
-  * @param message error message
-  * @param messageCode error code
+  * @param errorCode parsing error code
   * @param line source line at which error occurred, starting from 1
   * @param row row (record) at which error occurred, starting from 1 (`0` for header)
   * @param col column (character) at which error occurred
   * @param field field name at which error occurred
   */
 class CSVStructureException private[spata] (
-  message: String,
-  messageCode: String,
+  errorCode: ErrorCode,
   line: Int,
   row: Int,
   col: Option[Int] = None,
   field: Option[String] = None
-) extends CSVException(message, messageCode, line, row, col, field, None)
+) extends CSVException(
+    CSVStructureException.message(errorCode, line, row, col, field),
+    errorCode.code,
+    line,
+    row,
+    col,
+    field,
+    None
+  )
+
+private object CSVStructureException {
+  def message(errorCode: ErrorCode, line: Int, row: Int, col: Option[Int], field: Option[String]): String = {
+    val colInfo = col.map(c => s" and column $c").getOrElse("")
+    val fieldInfo = field.map(f => s" (field $f)").getOrElse("")
+    s"Error occurred at row $row (line $line)$colInfo$fieldInfo while parsing CSV source. ${errorCode.message}"
+  }
+}
 
 /** Exception reported for CSV data (content) errors, caused by string parsing.
   *
@@ -77,18 +94,38 @@ class CSVStructureException private[spata] (
   *
   * @see [[CSVException]] for description of fields providing error location.
   *
-  * @param message error message
-  * @param messageCode error code
   * @param line source line at which error occurred, starting from 1
   * @param row row (record) at which error occurred, starting from 1 (`0` for header)
   * @param field field name at which error occurred
   * @param cause the root exception
   */
 class CSVDataException private[spata] (
-  message: String,
-  messageCode: String,
+  value: String,
   line: Int,
   row: Int,
   field: String,
   cause: Throwable
-) extends CSVException(message, messageCode, line, row, None, Some(field), Some(cause))
+) extends CSVException(
+    CSVDataException.message(value, line, row, field, cause),
+    CSVDataException.messageCode,
+    line,
+    row,
+    None,
+    Some(field),
+    Some(cause)
+  )
+
+private object CSVDataException {
+  val messageCode = "wrongType"
+  val maxValueLength = 20
+  val valueCutSuffix = "..."
+
+  def message(value: String, line: Int, row: Int, field: String, cause: Throwable): String = {
+    val v =
+      if (value.length > maxValueLength)
+        value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
+      else value
+    val typeInfo = StringParser.parseErrorTypeInfo(cause).getOrElse("requested type")
+    s"Error occurred at row $row (line $line) while parsing CSV field '$field' with value [$v] to $typeInfo."
+  }
+}

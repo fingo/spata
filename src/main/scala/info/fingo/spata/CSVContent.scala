@@ -28,8 +28,7 @@ private[spata] class CSVContent private (
     case ParsingFailure(code, location, recordNum, fieldNum) =>
       Left(
         new CSVStructureException(
-          code.message,
-          code.toString,
+          code,
           location.line,
           recordNum - dataOffset,
           Some(location.position),
@@ -69,7 +68,7 @@ private[spata] object CSVContent {
     pr match {
       case RawRecord(captions, _, _) => Right(captions.map(hRemap(_, headerMap)).zipWithIndex.toMap)
       case ParsingFailure(code, location, _, _) =>
-        Left(new CSVStructureException(code.message, code.toString, location.line, 0, Some(location.position), None))
+        Left(new CSVStructureException(code, location.line, 0, Some(location.position), None))
     }
 
   /* Tuple-style header: _1, _2, _3 etc. (if not remapped). */

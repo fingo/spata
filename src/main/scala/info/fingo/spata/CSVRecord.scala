@@ -5,16 +5,13 @@
  */
 package info.fingo.spata
 
-import java.time.format.DateTimeParseException
 import java.util.NoSuchElementException
-
+import scala.util.control.NonFatal
+import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.CSVRecord.ToProduct
 import info.fingo.spata.converter.RecordToHList
 import info.fingo.spata.parser.ParsingErrorCode
-import info.fingo.spata.text.{DataParseException, FormattedStringParser, StringParser}
-import shapeless.{HList, LabelledGeneric}
-
-import scala.util.control.NonFatal
+import info.fingo.spata.text.{FormattedStringParser, StringParser}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -62,7 +59,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   def get[A: StringParser](key: String): A = {
     val value = row(header(key))
     val parser = implicitly[StringParser[A]]
-    wrapParseExc(key) { parser.parse(value) }
+    wrapParseExc(key, value) { parser.parse(value) }
   }
 
   /** Gets typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
@@ -202,21 +199,11 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   override def toString: String = row.mkString(",")
 
   /* Converts any parsing exception to CSVDataException to provide error position */
-  private def wrapParseExc[A](field: String)(code: => A): A =
+  private def wrapParseExc[A](field: String, value: String)(code: => A): A =
     try code
     catch {
-      case NonFatal(ex) => throw new CSVDataException(exceptionMsg(ex, field), "wrongType", lineNum, rowNum, field, ex)
+      case NonFatal(ex) => throw new CSVDataException(value, lineNum, rowNum, field, ex)
     }
-
-  private def exceptionMsg(ex: Throwable, field: String) = {
-    val typeInfo = ex match {
-      case e: DataParseException if e.dataType.isDefined => e.dataType.get
-      case _: NumberFormatException => "number"
-      case _: DateTimeParseException => "date/time"
-      case NonFatal(_) => "requested type"
-    }
-    s"Cannot parse field $field at record $rowNum to $typeInfo"
-  }
 
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     *
@@ -238,7 +225,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     @throws[CSVDataException]("if field cannot be parsed to requested type")
     def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val value = row(header(key))
-      wrapParseExc(key) { parser.parse(value, fmt) }
+      wrapParseExc(key, value) { parser.parse(value, fmt) }
     }
   }
 
@@ -262,7 +249,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
       */
     def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = maybe {
       val value = row(header(key))
-      wrapParseExc(key) { parser.parse(value, fmt) }
+      wrapParseExc(key, value) { parser.parse(value, fmt) }
     }
   }
 }
@@ -276,10 +263,8 @@ object CSVRecord {
   ): Either[CSVStructureException, CSVRecord] =
     if (row.size == header.size)
       Right(new CSVRecord(row, lineNum, rowNum)(header))
-    else {
-      val err = ParsingErrorCode.WrongNumberOfFields
-      Left(new CSVStructureException(err.message, err.code, lineNum, rowNum))
-    }
+    else
+      Left(new CSVStructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *

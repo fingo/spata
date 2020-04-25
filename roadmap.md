@@ -10,5 +10,6 @@ Planned development includes:
 * Providing logging.
 * Using FS2 I/O library in addition to Scala's `Source`.
 * Parsing chunks instead of single elements.
+* Generalize IO to polymorphic effect with tagless-final.
 * Declaring schema and providing its validation.
 

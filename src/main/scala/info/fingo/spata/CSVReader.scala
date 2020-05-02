@@ -6,6 +6,7 @@
 package info.fingo.spata
 
 import java.io.IOException
+
 import scala.io.Source
 import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
@@ -22,7 +23,7 @@ import info.fingo.spata.CSVReader.CSVCallback
   * {{{ val reader = CSVReader.config.fieldDelimiter(';').get }}}
   *
   * Actual parsing is done through one of the 3 groups methods:
-  *  - [[parse]] or [[pipe]] to get a stream of records and process data in a functional way,
+  *  - [[parse]], [[pipe]] or [[transform]] to get a stream of records and process data in a functional way,
   *    which is the recommended approach
   *  - [[load(source:scala\.io\.Source)* load]] to load whole source data at once into a list
   *  - [[process]] to deal with individual records through a callback function
@@ -55,15 +56,7 @@ class CSVReader(config: CSVConfig) {
     * @param source the source containing CSV content
     * @return the stream of records
     */
-  def parse(source: Source): Stream[IO, CSVRecord] = {
-    val cp = new CharParser(config.fieldDelimiter, config.recordDelimiter, config.quoteMark)
-    val fp = new FieldParser(config.fieldSizeLimit)
-    val rp = new RecordParser()
-    val stream =
-      Stream.fromIterator[IO][Char](source).through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
-    val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
-    pull.stream.rethrow.flatMap(_.toRecords)
-  }
+  def parse(source: Source): Stream[IO, CSVRecord] = fetch(source).through(transform)
 
   /** Converts a CSV source into records.
     * This is a wrapper of [[parse]] to use this reader with [[fs2.Stream.through]]:
@@ -79,6 +72,28 @@ class CSVReader(config: CSVConfig) {
     * @return a pipe to converter [[scala.io.Source]] into [[CSVRecord]]s
     */
   def pipe: Pipe[IO, Source, CSVRecord] = (in: Stream[IO, Source]) => in.flatMap(s => parse(s))
+
+  /** Transforms stream of characters into records.
+    * This function is intended to be used with [[fs2.Stream.through]].
+    *
+    * Transformation may cause 3 types of errors, to be handled with [[fs2.Stream.handleErrorWith]]:
+    *  - I/O related: [[IOException]]
+    *  - arisen from malformed source structure: [[CSVStructureException]],
+    *  - resulting from failed string parsing: [[CSVDataException]])
+    *
+    * @see [[https://fs2.io/ FS2]] documentation for further guidance.
+    * @return a pipe to converter [[scala.Char]]s into [[CSVRecord]]s
+    */
+  def transform: Pipe[IO, Char, CSVRecord] = (in: Stream[IO, Char]) => {
+    val cp = new CharParser(config.fieldDelimiter, config.recordDelimiter, config.quoteMark)
+    val fp = new FieldParser(config.fieldSizeLimit)
+    val rp = new RecordParser()
+    val stream = in.through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
+    val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
+    pull.stream.rethrow.flatMap(_.toRecords)
+  }
+
+  private def fetch(source: Source) = Stream.fromIterator[IO][Char](source)
 
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[IO, ParsingResult]) =

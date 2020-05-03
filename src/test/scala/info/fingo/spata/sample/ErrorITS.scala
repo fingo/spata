@@ -6,9 +6,11 @@
 package info.fingo.spata.sample
 
 import java.io.IOException
+
 import cats.effect.IO
 import fs2.Stream
-import info.fingo.spata.{CSVException, CSVReader}
+import info.fingo.spata.io.reader
+import info.fingo.spata.{CSVException, CSVParser}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -18,10 +20,11 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("spata allows consistently handling errors") {
     forAll(files) { (testCase: String, file: String, row: Int) =>
-      val reader = CSVReader.config.get
+      val parser = CSVParser.config.get
       val stream = Stream
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
-        .through(reader.pipe)
+        .flatMap(reader(_))
+        .through(parser.parse)
         .map(_.to[Book]())
         .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
       val result = stream.compile.toList.unsafeRunSync()

@@ -5,20 +5,24 @@
  */
 package info.fingo.spata
 
+import info.fingo.spata.io.reader
+
 import scala.io.Source
 import org.scalatest.funsuite.AnyFunSuite
 
-class CSVReaderPTS extends AnyFunSuite {
+class CSVParserPTS extends AnyFunSuite {
   val amount = 5_000
-  test("Reader should handle large data streams") {
+  test("reader should handle large data streams") {
     val separator = ','
-    val source = new TestSource(separator)
-    val reader = CSVReader.config.fieldDelimiter(separator).get
+    val parser = CSVParser.config.fieldDelimiter(separator).get
+    val data = reader(new TestSource(separator))
     var count = 0
-    reader.process(source) { _ =>
-      count += 1
-      true
-    }
+    parser
+      .process(data) { _ =>
+        count += 1
+        true
+      }
+      .unsafeRunSync()
     assert(count == amount)
   }
 

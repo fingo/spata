@@ -10,7 +10,8 @@ import java.time.LocalDate
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVReader
+import info.fingo.spata.CSVParser
+import info.fingo.spata.io.reader
 
 /* Samples which converter CSV records to case classes. */
 class ConvertITS extends AnyFunSuite {
@@ -19,10 +20,11 @@ class ConvertITS extends AnyFunSuite {
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
-    val reader = CSVReader.config.mapHeader(mh).get // reader with default configuration
+    val parser = CSVParser.config.mapHeader(mh).get // parser with default configuration
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(reader.pipe) // get stream of CSV records
+      .flatMap(reader(_))
+      .through(parser.parse) // get stream of CSV records
       .map(_.to[DayTemp]()) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
       .filter(_.date.getYear == 2016) // filter data for specific year

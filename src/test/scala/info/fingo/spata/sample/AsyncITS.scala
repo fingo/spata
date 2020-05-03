@@ -11,8 +11,9 @@ import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
 import scala.concurrent.ExecutionContext
 import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
-import info.fingo.spata.CSVReader
-import info.fingo.spata.CSVReader.CSVCallback
+import info.fingo.spata.CSVParser
+import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.io.reader
 import org.scalatest.funsuite.AnyFunSuite
 
 class AsyncITS extends AnyFunSuite {
@@ -23,12 +24,12 @@ class AsyncITS extends AnyFunSuite {
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
-    val reader = CSVReader.config.mapHeader(mh).get // reader with default configuration
+    val parser = CSVParser.config.mapHeader(mh).get // parser with default configuration
     val records = for {
       blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      recs <- reader.shifting(blocker).parse(source) // get stream of CSV records
+      recs <- reader.shifting(blocker).read(source).through(parser.parse) // get stream of CSV records
     } yield recs
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps
@@ -41,7 +42,7 @@ class AsyncITS extends AnyFunSuite {
   }
 
   test("spata allows asynchronous source processing") {
-    val reader = CSVReader.config.get
+    val parser = CSVParser.config.get
     val sum = new LongAdder()
     val count = new LongAdder()
     val cb: CSVCallback = row => {
@@ -60,7 +61,8 @@ class AsyncITS extends AnyFunSuite {
         fail()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-      reader.shifting.processAsync(source, result)(cb) // use internal blocker
+      val data = reader.shifting.read(source)
+      parser.async.processAsync(data)(cb).unsafeRunAsync(result) // use internal blocker
       assert(sum.intValue() < 1000)
       while (waiting.decrementAndGet() > 0) Thread.sleep(100)
       assert(sum.intValue() > 1000)

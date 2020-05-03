@@ -5,10 +5,10 @@
  */
 package info.fingo.spata
 
-/** CSV configuration used for creating [[CSVReader]].
+/** CSV configuration used for creating [[CSVParser]].
   *
-  * This config may be used as a builder to create a reader:
-  * {{{ val reader = CSVConfig.fieldSizeLimit(1000).noHeader().get }}}
+  * This config may be used as a builder to create a parser:
+  * {{{ val parser = CSVConfig.fieldSizeLimit(1000).noHeader().get }}}
   *
   * Field delimiter is `','` by default.
   *
@@ -70,6 +70,6 @@ case class CSVConfig private[spata] (
   /** Remap selected fields names. */
   def mapHeader(mh: S2S): CSVConfig = this.copy(mapHeader = mh)
 
-  /** Creates [[CSVReader]] from this config. */
-  def get: CSVReader = new CSVReader(this)
+  /** Creates [[CSVParser]] from this config. */
+  def get: CSVParser = new CSVParser(this)
 }

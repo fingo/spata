@@ -6,12 +6,14 @@
 package info.fingo.spata.sample
 
 import java.time.LocalDate
+
 import scala.util.control.NonFatal
 import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVReader
+import info.fingo.spata.CSVParser
+import info.fingo.spata.io.reader
 
 /* Samples which use console to output CSV processing results */
 class ConsoleITS extends AnyFunSuite {
@@ -19,11 +21,12 @@ class ConsoleITS extends AnyFunSuite {
 
   test("spata allows manipulate data using stream functionality") {
     case class YT(year: Int, temp: Double) // class to converter data to
-    val reader = CSVReader.config.get // reader with default configuration
+    val parser = CSVParser.config.get // parser with default configuration
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .flatMap(reader.parse)
+      .flatMap(reader(_))
+      .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val aggregates = records.filter { record =>
       record("max_temp") != "NaN"
@@ -55,18 +58,20 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val reader = CSVReader.config.get // reader with default configuration
+    val parser = CSVParser.config.get // parser with default configuration
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-        reader.process(source) { record =>
-          if (record.get[Double]("max_temp") > 0) {
-            println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
-            false
-          } else {
-            assert(record.rowNum < 500)
-            true
+        parser
+          .process(reader(source)) { record =>
+            if (record.get[Double]("max_temp") > 0) {
+              println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
+              false
+            } else {
+              assert(record.rowNum < 500)
+              true
+            }
           }
-        }
+          .unsafeRunSync()
       }
     } catch {
       case NonFatal(ex) =>
@@ -76,10 +81,11 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allow processing csv data as list") {
-    val reader = CSVReader.config.get // reader with default configuration
+    val parser = CSVParser.config.get // parser with default configuration
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-        val records = reader.load(source, 500) // load 500 first records
+        // get 500 first records
+        val records = parser.get(reader(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp") > 0)
         assert(over0.isDefined)
         for (r <- over0)

@@ -8,11 +8,13 @@ package info.fingo.spata
 import java.io.IOException
 
 import scala.io.Source
-import cats.effect.IO
+import cats.effect.{Blocker, ContextShift, IO, Resource}
 import fs2.{Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
 import info.fingo.spata.parser.RecordParser.ParsingResult
 import info.fingo.spata.CSVReader.CSVCallback
+
+import scala.util.Try
 
 /** A utility for parsing comma-separated values (CSV) sources.
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
@@ -168,6 +170,10 @@ class CSVReader(config: CSVConfig) {
   /* Callback function wrapper to enclose it in IO effect and letting the stream to evaluate it when run. */
   private def evalCallback(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
     _.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
+
+  def shifting(blocker: Blocker)(implicit cs: ContextShift[IO]): CSVReader.Shifting =
+    new CSVReader.Shifting(this, Some(blocker))(cs)
+  def shifting(implicit cs: ContextShift[IO]): CSVReader.Shifting = new CSVReader.Shifting(this, None)(cs)
 }
 
 /** [[CSVReader]] companion object with types definitions and convenience methods to create readers. */
@@ -181,4 +187,29 @@ object CSVReader {
 
   /** Provides default configuration, as defined in RFC 4180. */
   def config: CSVConfig = CSVConfig()
+
+  class Shifting private[CSVReader] (reader: CSVReader, blocker: Option[Blocker])(implicit cs: ContextShift[IO]) {
+    private def br = blocker.map(b => Resource(IO((b, IO.unit)))).getOrElse(Blocker[IO])
+    def parse(source: Source): Stream[IO, CSVRecord] = fetch(source).through(reader.transform)
+    private def fetch(source: Source) =
+      for {
+        b <- Stream.resource(br)
+        stream <- Stream.fromBlockingIterator[IO][Char](b, source)
+      } yield stream
+
+    def processAsync(source: Source, result: Either[Throwable, Unit] => Unit)(cb: CSVCallback): Unit = {
+      val effect = asyncCallback(cb)
+      val stream = parse(source).through(effect)
+      stream.compile.drain.unsafeRunAsync(result)
+    }
+
+    /* Callback function wrapper to enclose it in IO effect and letting the stream to evaluate it when run. */
+    private def asyncCallback(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
+      _.mapAsync(1) { pr => // TODO: parametrize number of concurrent calls
+        IO.async[Boolean] { call =>
+          val result = Try(cb(pr)).toEither
+          call(result)
+        }
+      }.takeWhile(_ == true)
+  }
 }

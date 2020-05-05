@@ -5,7 +5,6 @@
  */
 package info.fingo.spata.io
 
-import java.io.IOException
 import scala.io.Source
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import fs2.Stream
@@ -28,23 +27,20 @@ object reader {
     * I/O operations are executed on current thread, without execution context shifting.
     * To shift them to a blocking context, use [[shifting(blocker:cats\.effect\.Blocker)* shifting]].
     *
-    * Processing I/O errors, manifested through [[IOException]], should be handled with [[fs2.Stream.handleErrorWith]].
+    * Processing I/O errors, manifested through [[java.io.IOException]],
+    * should be handled with [[fs2.Stream.handleErrorWith]].
     * If not handled, they will propagate as exceptions.
     *
     * @param source the source containing CSV content
     * @return the stream of characters
-    * @throws IOException in case of any I/O error
     */
-  @throws[IOException]("in case of any I/O error")
   def read(source: Source): Stream[IO, Char] = Stream.fromIterator[IO][Char](source)
 
   /** Alias for [[read]].
     *
     * @param source the source containing CSV content
     * @return the stream of characters
-    * @throws IOException in case of any I/O error
     */
-  @throws[IOException]("in case of any I/O error")
   def apply(source: Source): Stream[IO, Char] = read(source)
 
   /** Provides reader with support of context shifting for I/O operations.
@@ -84,9 +80,7 @@ object reader {
       *
       * @param source the source containing CSV content
       * @return the stream of characters
-      * @throws IOException in case of any I/O error
       */
-    @throws[IOException]("in case of any I/O error")
     def read(source: Source): Stream[IO, Char] =
       for {
         b <- Stream.resource(br)
@@ -97,9 +91,7 @@ object reader {
       *
       * @param source the source containing CSV content
       * @return the stream of characters
-      * @throws IOException in case of any I/O error
       */
-    @throws[IOException]("in case of any I/O error")
     def apply(source: Source): Stream[IO, Char] = read(source)
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */

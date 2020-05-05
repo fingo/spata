@@ -5,9 +5,9 @@
  */
 package info.fingo.spata.sample
 
-import java.time.LocalDate
-import java.util.concurrent.atomic.{AtomicInteger, LongAdder}
-
+import java.time.{LocalDate, Month}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
+import java.util.concurrent.atomic.LongAdder
 import scala.concurrent.ExecutionContext
 import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
@@ -34,37 +34,42 @@ class AsyncITS extends AnyFunSuite {
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
-      .filter(_.date.getYear == 2016) // filter data for specific year
+      .filter(dt => dt.date.getYear == 2018 && dt.date.getMonth == Month.JANUARY) // filter data for specific month
+      .take(30)
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error
     val result = dayTemps.compile.toList.unsafeRunSync()
-    assert(result.length > 300 && result.length < 400)
-    assert(result.forall(_.date.getYear == 2016))
+    assert(result.length == 30)
+    assert(result.forall { dt =>
+      dt.date.isAfter(LocalDate.of(2017, 12, 31)) &&
+      dt.date.isBefore(LocalDate.of(2018, 2, 1))
+    })
   }
 
   test("spata allows asynchronous source processing") {
     val parser = CSVParser.config.get
     val sum = new LongAdder()
     val count = new LongAdder()
+
     val cb: CSVCallback = row => {
       count.increment()
       sum.add(row.get[Long]("max_temp") - row.get[Long]("min_temp"))
       row("month") == "Month 5"
     }
-    val waiting = new AtomicInteger(100)
+    val cdl = new CountDownLatch(1)
     val result: Either[Throwable, Unit] => Unit = {
       case Right(_) =>
         val avg = sum.doubleValue() / count.doubleValue()
         println(s"Average temperature during Month 5 was $avg")
-        waiting.set(0)
+        cdl.countDown()
       case _ =>
-        waiting.set(0)
-        fail()
+        println(s"Error occurred while processing data")
+        cdl.countDown()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
       val data = reader.shifting.read(source)
-      parser.async.processAsync(data)(cb).unsafeRunAsync(result) // use internal blocker
+      parser.async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
-      while (waiting.decrementAndGet() > 0) Thread.sleep(100)
+      cdl.await(3, TimeUnit.SECONDS)
       assert(sum.intValue() > 1000)
     }
   }

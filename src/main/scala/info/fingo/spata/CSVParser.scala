@@ -5,15 +5,12 @@
  */
 package info.fingo.spata
 
-import java.io.IOException
-
-import cats.effect.{ContextShift, IO}
+import scala.util.Try
+import cats.effect.{Concurrent, IO}
 import fs2.{Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
 import info.fingo.spata.parser.RecordParser.ParsingResult
 import info.fingo.spata.CSVParser.CSVCallback
-
-import scala.util.Try
 
 /** A utility for parsing comma-separated values (CSV) sources.
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
@@ -24,17 +21,26 @@ import scala.util.Try
   * {{{ val parser = CSVParser.config.fieldDelimiter(';').get }}}
   *
   * Actual parsing is done through one of the 3 groups methods:
-  *  - [[parse]] to get a stream of records and process data in a functional way,
+  *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
   *    which is the recommended approach
-  *  - [[get(stream:fs2\.Stream[cats\.effect\.IO,Char])* get]] to get whole source data at once into a list
-  *  - [[process]] to deal with individual records through a callback function
+  *  - [[get(stream:fs2\.Stream[cats\.effect\.IO,Char])* get]] to fetch whole source data at once into a list
+  *  - [[process]] to deal with individual records through a callback function.
+  *
+  * This parser is normally used with stream fetching data from some external source,
+  * so its computations are wrapped into [[cats.effect.IO]] for deferred evaluation.
+  * To trigger evaluation one of the `unsafe` operations on `IO`
+  * (e.g. [[cats.effect.IO.unsafeRunSync]]) has to be called.
+  *
+  * No method in this class does context shift and by default they execute synchronously on current thread.
+  * Concurrency or asynchronous execution may be introduced through various [[fs2.Stream]] methods.
+  * There is also supporting class [[CSVParser#Async]] available, which provides method for asynchronous callbacks.
   *
   * @constructor Creates parser with provided configuration.
   * @param config the configuration for CSV parsing (delimiters, header presence etc.)
   */
 class CSVParser(config: CSVConfig) {
 
-  /** Transforms stream of characters representing CSV data  into records.
+  /** Transforms into records stream of characters representing CSV data.
     * This function is intended to be used with [[fs2.Stream.through]].
     * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
@@ -47,11 +53,11 @@ class CSVParser(config: CSVConfig) {
     *   .through(parser.parse)
     * }}}
     *
-    * Transformation may cause 2 types of errors, to be handled with [[fs2.Stream.handleErrorWith]]:
-    *  - arisen from malformed source structure: [[CSVStructureException]],
-    *  - resulting from failed string parsing: [[CSVDataException]])
+    * Transformation may result in [[CSVStructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
+    * If not handled, the exception will be thrown.
     *
     * @see [[https://fs2.io/ FS2]] documentation for further guidance.
+    *
     * @return a pipe to converter [[scala.Char]]s into [[CSVRecord]]s
     */
   def parse: Pipe[IO, Char, CSVRecord] = (in: Stream[IO, Char]) => {
@@ -77,32 +83,28 @@ class CSVParser(config: CSVConfig) {
       case None => Pull.output1(CSVContent(0, stream, config.mapHeader))
     }
 
-  /** Loads whole source content into list of records.
+  /** Fetches whole source content into list of records.
     *
     * This function should be used only for small amounts of source data to avoid memory overflow.
     *
     * @param stream the source stream containing CSV content
     * @return the list of records
-    * @throws IOException in case of any I/O error
     * @throws CSVStructureException in case of flawed CSV structure
     */
-  @throws[IOException]("in case of any I/O error")
   @throws[CSVStructureException]("in case of flawed CSV structure")
   def get(stream: Stream[IO, Char]): IO[List[CSVRecord]] = get(stream, None)
 
-  /** Loads requested number of CSV records from source into a list.
+  /** Fetches requested number of CSV records into a list.
     *
     * This functions stops processing source data as soon as the limit is reached.
-    * It mustn't be called twice on the same source however - first call may consume more elements from iterable source
-    * than required and leave the pointer at unpredictable position in source structure.
+    * It mustn't be called twice for the same data source however - first call may consume more elements than requested,
+    * leaving the source pointer at an unpredictable position.
     *
     * @param stream the source stream containing CSV content
     * @param limit the number of records to get
     * @return the list of records
-    * @throws IOException in case of any I/O error
     * @throws CSVStructureException in case of flawed CSV structure
     */
-  @throws[IOException]("in case of any I/O error")
   @throws[CSVStructureException]("in case of flawed CSV structure")
   def get(stream: Stream[IO, Char], limit: Long): IO[List[CSVRecord]] = get(stream, Some(limit))
 
@@ -117,15 +119,14 @@ class CSVParser(config: CSVConfig) {
   }
 
   /** Processes each CSV record with provided callback functions to execute some side effects.
-    * Stops processing input as soon as the callback function returns false or end of data is reached.
+    * Stops processing input as soon as the callback function returns false or stream is exhausted.
     *
     * @param stream the source stream containing CSV content
     * @param cb the callback function to operate on each CSV record and produce some side effect.
     * It should return `true` to continue the process with next record or `false` to stop processing the source.
-    * @throws IOException in case of any I/O error
+    * @return
     * @throws CSVException in case of flawed CSV structure or field parsing errors
     */
-  @throws[IOException]("in case of any I/O error")
   @throws[CSVException]("in case of flawed CSV structure or field parsing errors")
   def process(stream: Stream[IO, Char])(cb: CSVCallback): IO[Unit] = {
     val effect = evalCallback(cb)
@@ -136,11 +137,15 @@ class CSVParser(config: CSVConfig) {
   private def evalCallback(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
     _.evalMap(pr => IO.delay(cb(pr))).takeWhile(_ == true)
 
-  // TODO: API doc
-  def async(implicit cs: ContextShift[IO]): CSVParser.Async = new CSVParser.Async(this)(cs)
+  /** Provides access to asynchronous parsing method.
+    *
+    * @param cc implicit instance of type class to provide support for concurrency
+    * @return helper class with asynchronous method
+    */
+  def async(implicit cc: Concurrent[IO]): CSVParser.Async = new CSVParser.Async(this)(cc)
 }
 
-/** [[CSVParser]] companion object with types definitions and convenience methods to create readers. */
+/** [[CSVParser]] companion object with types definitions and convenience methods to create parsers. */
 object CSVParser {
 
   /** Callback function type. */
@@ -152,16 +157,35 @@ object CSVParser {
   /** Provides default configuration, as defined in RFC 4180. */
   def config: CSVConfig = CSVConfig()
 
-  // TODO: API doc
-  final class Async private[CSVParser] (parser: CSVParser)(implicit cs: ContextShift[IO]) {
+  /** [[CSVParser]] helper with asynchronous parsing method.
+    *
+    * @param parser the regular parser
+    * @param cc implicit instance of type class to provide support for concurrency
+    */
+  final class Async private[CSVParser] (parser: CSVParser)(implicit cc: Concurrent[IO]) {
 
-    def processAsync(stream: Stream[IO, Char], maxConcurrent: Int = 1)(cb: CSVCallback): IO[Unit] = {
-      val effect = asyncCallback(maxConcurrent)(cb)
+    /** Processes each CSV record with provided callback functions to execute some side effects.
+      * Stops processing input as soon as the callback function returns false, stream is exhausted or exception thrown.
+      *
+      * This function process the callbacks asynchronously while retaining order of handled data.
+      * The callback are run concurrently according to `maxConcurrent` parameter.
+      *
+      * Processing success or failure may be checked by examining by callback to [[cats.effect.IO.unsafeRunAsync]]
+      * or handling error with [[cats.effect.IO.handleErrorWith]].
+      *
+      * @param stream the source stream containing CSV content
+      * @param maxConcurrent maximum number of concurrently evaluated effects
+      * @param cb the callback function to operate on each CSV record and produce some side effect.
+      * It should return `true` to continue with next record or `false` to stop processing the source.
+      * @return
+      */
+    def process(stream: Stream[IO, Char], maxConcurrent: Int = 1)(cb: CSVCallback): IO[Unit] = {
+      val effect = evalCallback(maxConcurrent)(cb)
       stream.through(parser.parse).through(effect).compile.drain
     }
 
-    /* Callback function wrapper to enclose it in IO effect and letting the stream to evaluate it when run. */
-    private def asyncCallback(maxConcurrent: Int)(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
+    /* Callback function wrapper to enclose it in IO effect and letting the stream to evaluate it asynchronously when run. */
+    private def evalCallback(maxConcurrent: Int)(cb: CSVCallback): Pipe[IO, CSVRecord, Boolean] =
       _.mapAsync(maxConcurrent) { pr =>
         IO.async[Boolean] { call =>
           val result = Try(cb(pr)).toEither

@@ -31,6 +31,8 @@ object reader {
     * should be handled with [[fs2.Stream.handleErrorWith]].
     * If not handled, they will propagate as exceptions.
     *
+    * Character encoding has to be handled while creating [[scala.io.Source]].
+    *
     * @param source the source containing CSV content
     * @return the stream of characters
     */

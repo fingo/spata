@@ -10,6 +10,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
+import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -19,14 +20,14 @@ import info.fingo.spata.CSVParser.CSVCallback
 import info.fingo.spata.io.reader
 import info.fingo.spata.text.StringParser
 
-import scala.concurrent.ExecutionContext
-
 class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   type StreamErrorHandler = Throwable => Stream[IO, Unit]
   type IOErrorHandler = Throwable => IO[Unit]
 
   private val separators = Table("separator", ',', ';', '\t')
   private val maxFieldSize = 100
+
+  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   test("parser should process basic csv data") {
     forAll(basicCases) {
@@ -156,7 +157,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("parser should allow loading limited number of records as list") {
+  test("parser should allow fetching limited number of records as list") {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get
@@ -251,14 +252,13 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
               case _ => true
             }
           }
-          implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-          parser.async.process(input)(cb).unsafeRunSync()
+          parser.async.process(input, 2)(cb).unsafeRunSync()
           assert(count.intValue() == 3)
         }
     }
   }
 
-  test("parser errors may be handled by examined by callback to final impure method") {
+  test("parser errors may be examined by callback passed to final impure method") {
     forAll(errorCases) {
       (
         testCase: String,
@@ -278,7 +278,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             result = r
             cdl.countDown()
           }
-          implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
           parser.async.process(input)(_ => true).unsafeRunAsync(rcb)
           cdl.await(100, TimeUnit.MILLISECONDS)
           assert(cdl.getCount == 0)

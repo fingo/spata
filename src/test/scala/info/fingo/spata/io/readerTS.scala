@@ -5,7 +5,8 @@
  */
 package info.fingo.spata.io
 
-import java.io.IOException
+import java.io.{ByteArrayInputStream, IOException}
+import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import cats.effect.{ContextShift, IO}
@@ -15,11 +16,13 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
+  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
+
   test("reader should properly load characters from source") {
     forAll(testCases) { (_: String, data: String) =>
-      val stream = reader(Source.fromString(data))
+      def stream = reader(Source.fromString(data))
       stream.zip(reader.read(Source.fromString(data))).map(p => assert(p._1 == p._2)).compile.drain.unsafeRunSync()
-      stream.compile.toList.unsafeRunSync() == data.toList
+      assert(stream.compile.toList.unsafeRunSync() == data.toList)
     }
   }
 
@@ -33,18 +36,34 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("reader should properly load characters from source while shifting IO operations to blocking context") {
-    implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
     forAll(testCases) { (_: String, data: String) =>
-      val stream = reader.shifting.read(Source.fromString(data))
+      def stream = reader.shifting.read(Source.fromString(data))
       stream.zip(reader(Source.fromString(data))).map(p => assert(p._1 == p._2)).compile.drain.unsafeRunSync()
-      stream.compile.toList.unsafeRunSync() == data.toList
+      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+    }
+  }
+
+  test("reader should properly read from InputSteam") {
+    forAll(testCases) { (_: String, data: String) =>
+      val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
+      val stream = reader.read(input)
+      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+    }
+  }
+
+  test("reader should properly read from InputSteam on blocking context") {
+    forAll(testCases) { (_: String, data: String) =>
+      val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
+      val stream = reader.shifting.read(input)
+      assert(stream.compile.toList.unsafeRunSync() == data.toList)
     }
   }
 
   private lazy val testCases = Table(
     ("testCase", "data"),
     ("simple", "some simple source"),
-    ("specialChars", s"source with\nspecial characters: łoś\t\r${8.toChar}片仮名"),
+    ("specialChars", s"source with special characters:\n---\t\r${8.toChar}łoś & 片仮名"),
+    ("long", "(very long string)" * 100),
     ("empty", "")
   )
 }

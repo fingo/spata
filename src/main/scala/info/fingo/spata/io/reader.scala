@@ -5,12 +5,16 @@
  */
 package info.fingo.spata.io
 
-import scala.io.Source
+import java.io.InputStream
+import scala.io.{BufferedSource, Source}
 import cats.effect.{Blocker, ContextShift, IO, Resource}
-import fs2.Stream
+import fs2.{io, text, Chunk, Stream}
 
 /** Utility to read external data and provide stream of characters. */
 object reader {
+
+  private val blockSize = 4096
+  private val autoClose = false
 
   /** Reads a CSV source and returns a stream of character.
     * The I/O operations are wrapped in [[cats.effect.IO]] allowing deferred computation.
@@ -38,7 +42,16 @@ object reader {
     */
   def read(source: Source): Stream[IO, Char] = Stream.fromIterator[IO][Char](source)
 
-  /** Alias for [[read]].
+  /** Reads a CSV source and returns a stream of character.
+    *
+    * @see [[read(source:scala\.io\.Source)* read]] for more information.
+    *
+    * @param is input stream containing CSV content
+    * @return the stream of characters
+    */
+  def read(is: InputStream): Stream[IO, Char] = read(new BufferedSource(is, blockSize))
+
+  /** Alias for [[read(source:scala\.io\.Source)* read]].
     *
     * @param source the source containing CSV content
     * @return the stream of characters
@@ -54,7 +67,7 @@ object reader {
     *   .through(reader.by)
     * }}}
     *
-    * @see [[read]] for more information.
+    * @see [[read(source:scala\.io\.Source)* read]] for more information.
     *
     * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
     */
@@ -89,11 +102,12 @@ object reader {
       *
       * I/O operations are shifted to an execution context provided by a [[cats.effect.Blocker]].
       *
-      * @note This function is much less efficient for most use cases than its non-shifting counterpart, [[reader.read]].
+      * @note This function is much less efficient for most use cases than its non-shifting counterpart,
+      * [[reader.read(source:scala\.io\.Source)* reader.read]].
       * This is due to [[scala.io.Source]] character-based iterator,
       * which causes context shift for each fetched character.
       *
-      * @see [[reader.read]] for more information.
+      * @see [[reader.read(source:scala\.io\.Source)* reader.read]] for more information.
       *
       * @param source the source containing CSV content
       * @return the stream of characters
@@ -104,7 +118,24 @@ object reader {
         stream <- Stream.fromBlockingIterator[IO][Char](b, source)
       } yield stream
 
-    /** Alias for [[read]].
+    /** Reads a CSV source and returns a stream of character.
+      *
+      * @see [[read(source:scala\.io\.Source)* read]] for more information.
+      *
+      * @param is input stream containing CSV content
+      * @return the stream of characters
+      */
+    def read(is: InputStream): Stream[IO, Char] =
+      for {
+        blocker <- Stream.resource(br)
+        chunk <- io
+          .readInputStream(IO(is), blockSize, blocker, autoClose)
+          .through(text.utf8Decode)
+          .map(s => Chunk.chars(s.toCharArray))
+        char <- Stream.chunk(chunk)
+      } yield char
+
+    /** Alias for [[read(source:scala\.io\.Source)* read]].
       *
       * @param source the source containing CSV content
       * @return the stream of characters
@@ -113,7 +144,7 @@ object reader {
 
     /** Pipe converting stream with CSV source to stream of characters.
       *
-      * @see [[read]] for more information.
+      * @see [[read(source:scala\.io\.Source)* read]] for more information.
       *
       * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
       */

@@ -25,7 +25,7 @@ val parser = CSVParser.config.get // parser with default configuration
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-  .flatMap(reader(_))
+  .flatMap(reader.read) // produce stream of chars from source
   .through(parser.parse)  // parse csv file and get csv records 
   .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
   .map(_.to[Data]()) // converter records to case class

@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.io.IOException
-
 import cats.effect.IO
 import fs2.Stream
 import info.fingo.spata.io.reader
@@ -23,7 +22,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
       val parser = CSVParser.config.get
       val stream = Stream
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
-        .flatMap(reader(_))
+        .flatMap(reader.read)
         .through(parser.parse)
         .map(_.to[Book]())
         .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either

@@ -16,7 +16,9 @@ import info.fingo.spata.CSVParser.CSVCallback
 import info.fingo.spata.io.reader
 import org.scalatest.funsuite.AnyFunSuite
 
+/* Samples which process the the data using blocking context or asynchronously */
 class AsyncITS extends AnyFunSuite {
+
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private def println(s: String): String = s // do nothing, don't pollute test output
 
@@ -29,8 +31,8 @@ class AsyncITS extends AnyFunSuite {
       blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      recs <- reader.shifting(blocker).read(source).through(parser.parse) // get stream of CSV records
-    } yield recs
+      record <- reader.shifting(blocker).read(source).through(parser.parse) // get stream of CSV records
+    } yield record
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error

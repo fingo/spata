@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.time.LocalDate
-
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,7 +22,7 @@ class ConvertITS extends AnyFunSuite {
     val parser = CSVParser.config.mapHeader(mh).get // parser with default configuration
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .flatMap(reader(_))
+      .through(reader.by)
       .through(parser.parse) // get stream of CSV records
       .map(_.to[DayTemp]()) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error

@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.time.LocalDate
-
 import scala.util.control.NonFatal
 import cats.effect.IO
 import cats.implicits._
@@ -17,6 +16,7 @@ import info.fingo.spata.io.reader
 
 /* Samples which use console to output CSV processing results */
 class ConsoleITS extends AnyFunSuite {
+
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows manipulate data using stream functionality") {
@@ -25,7 +25,7 @@ class ConsoleITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .flatMap(reader(_))
+      .through(reader.by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val aggregates = records.filter { record =>

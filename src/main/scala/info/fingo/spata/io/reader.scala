@@ -21,7 +21,7 @@ object reader {
     * {{{
     * val stream = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(reader(_))
+    *   .flatMap(reader.read)
     * }}}
     *
     * I/O operations are executed on current thread, without execution context shifting.
@@ -44,6 +44,21 @@ object reader {
     * @return the stream of characters
     */
   def apply(source: Source): Stream[IO, Char] = read(source)
+
+  /** Pipe converting stream with CSV source to stream of characters.
+    *
+    * @example
+    * {{{
+    * val stream = Stream
+    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .through(reader.by)
+    * }}}
+    *
+    * @see [[read]] for more information.
+    *
+    * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
+    */
+  def by: Stream[IO, Source] => Stream[IO, Char] = s => s.flatMap(read)
 
   /** Provides reader with support of context shifting for I/O operations.
     *
@@ -95,6 +110,14 @@ object reader {
       * @return the stream of characters
       */
     def apply(source: Source): Stream[IO, Char] = read(source)
+
+    /** Pipe converting stream with CSV source to stream of characters.
+      *
+      * @see [[read]] for more information.
+      *
+      * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
+      */
+    def by: Stream[IO, Source] => Stream[IO, Char] = s => s.flatMap(read)
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
     private def br = blocker.map(b => Resource(IO((b, IO.unit)))).getOrElse(Blocker[IO])

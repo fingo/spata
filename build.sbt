@@ -3,7 +3,7 @@ lazy val basicSettings = Seq(
   organizationName := "FINGO sp. z o.o.",
   startYear := Some(2020),
   name := "spata",
-  version := "0.6",
+  version := "0.7-SNAPSHOT",
   scalaVersion := "2.13.2"
 )
 

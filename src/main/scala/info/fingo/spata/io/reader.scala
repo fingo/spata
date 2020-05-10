@@ -29,7 +29,7 @@ object reader {
     * }}}
     *
     * I/O operations are executed on current thread, without execution context shifting.
-    * To shift them to a blocking context, use [[shifting(blocker:cats\.effect\.Blocker)* shifting]].
+    * To shift them to a blocking context, use [[withBlocker(blocker:cats\.effect\.Blocker)* shifting]].
     *
     * Processing I/O errors, manifested through [[java.io.IOException]],
     * should be handled with [[fs2.Stream.handleErrorWith]].
@@ -79,8 +79,8 @@ object reader {
     * @param cs the default execution environment for non-blocking operation
     * @return reader with support for context shifting
     */
-  def shifting(blocker: Blocker)(implicit cs: ContextShift[IO]): Shifting =
-    new Shifting(Some(blocker))(cs)
+  def withBlocker(blocker: Blocker)(implicit cs: ContextShift[IO]): WithBlocker =
+    new WithBlocker(Some(blocker))(cs)
 
   /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool.
@@ -88,7 +88,7 @@ object reader {
     * @param cs the default execution environment for non-blocking operation
     * @return reader with support for context shifting
     */
-  def shifting(implicit cs: ContextShift[IO]): Shifting = new Shifting(None)(cs)
+  def withBlocker(implicit cs: ContextShift[IO]): WithBlocker = new WithBlocker(None)(cs)
 
   /** Reader which shifts I/O operations to a execution context that is safe to use for blocking operations.
     * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
@@ -96,7 +96,7 @@ object reader {
     * @param blocker optional execution context to be used for blocking I/O operations
     * @param cs the default execution environment for non-blocking operation
     */
-  final class Shifting private[spata] (blocker: Option[Blocker])(implicit cs: ContextShift[IO]) {
+  final class WithBlocker private[spata] (blocker: Option[Blocker])(implicit cs: ContextShift[IO]) {
 
     /** Reads a CSV source and returns a stream of character.
       *

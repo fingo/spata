@@ -37,7 +37,7 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("reader should properly load characters from source while shifting IO operations to blocking context") {
     forAll(testCases) { (_: String, data: String) =>
-      def stream = reader.shifting.read(Source.fromString(data))
+      def stream = reader.withBlocker.read(Source.fromString(data))
       stream.zip(reader(Source.fromString(data))).map(p => assert(p._1 == p._2)).compile.drain.unsafeRunSync()
       assert(stream.compile.toList.unsafeRunSync() == data.toList)
     }
@@ -54,7 +54,7 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("reader should properly read from InputSteam on blocking context") {
     forAll(testCases) { (_: String, data: String) =>
       val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
-      val stream = reader.shifting.read(input)
+      val stream = reader.withBlocker.read(input)
       assert(stream.compile.toList.unsafeRunSync() == data.toList)
     }
   }

@@ -7,6 +7,8 @@ package info.fingo.spata.io
 
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Paths}
+
 import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import cats.effect.{ContextShift, IO}
@@ -57,6 +59,20 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val stream = reader.withBlocker.read(input)
       assert(stream.compile.toList.unsafeRunSync() == data.toList)
     }
+  }
+
+  test("reader should properly read from path") {
+    val path = Paths.get(getClass.getClassLoader.getResource("sample.csv").toURI)
+    val stream = reader.read(path)
+    val content = stream.compile.toList.unsafeRunSync()
+    assert(content.mkString == Files.readString(path))
+  }
+
+  test("reader should properly read from path using blocking context") {
+    val path = Paths.get(getClass.getClassLoader.getResource("sample.csv").toURI)
+    val stream = reader.withBlocker.read(path)
+    val content = stream.compile.toList.unsafeRunSync()
+    assert(content.mkString == Files.readString(path))
   }
 
   private lazy val testCases = Table(

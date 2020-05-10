@@ -6,10 +6,11 @@
 package info.fingo.spata.io
 
 import java.io.InputStream
+import java.nio.file.{Files, Path, StandardOpenOption}
 
 import scala.io.{BufferedSource, Source}
 import cats.effect.{Blocker, ContextShift, IO, Resource}
-import fs2.{io, text, Chunk, Stream}
+import fs2.{io, text, Chunk, Pipe, Stream}
 
 /** Utility to read external data and provide stream of characters. */
 object reader {
@@ -45,6 +46,8 @@ object reader {
 
   /** Reads a CSV source and returns a stream of character.
     *
+    * @note This function does not close provided input stream.
+    *
     * @see [[read(source:scala\.io\.Source)* read]] for more information.
     *
     * @param is input stream containing CSV content
@@ -52,19 +55,29 @@ object reader {
     */
   def read(is: InputStream): Stream[IO, Char] = read(new BufferedSource(is, blockSize))
 
-  /** Alias for [[read(source:scala\.io\.Source)* read]].
+  /** Reads a CSV file and returns a stream of character.
     *
-    * @param source the source containing CSV content
+    * @param path the path to source file
     * @return the stream of characters
     */
-  def apply(source: Source): Stream[IO, Char] = read(source)
+  def read(path: Path): Stream[IO, Char] =
+    Stream
+      .bracket(IO {
+        Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
+      })(source => IO { source.close() })
+      .flatMap(reader.read)
 
-  /** Alias for [[read(is:java\.io\.InputStream)* read]].
+  /** Alias for various `read` methods.
     *
-    * @param is input stream containing CSV content
+    * @param cvs the CSV data
+    * @tparam A type of source
     * @return the stream of characters
     */
-  def apply(is: InputStream): Stream[IO, Char] = read(is)
+  def apply[A: CSV](cvs: A): Stream[IO, Char] = cvs match {
+    case s: Source => read(s)
+    case is: InputStream => read(is)
+    case p: Path => read(p)
+  }
 
   /** Pipe converting stream with CSV source to stream of characters.
     *
@@ -77,9 +90,10 @@ object reader {
     *
     * @see [[read(source:scala\.io\.Source)* read]] for more information.
     *
-    * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
+    * @tparam A type oof source
+    * @return a pipe to converter CSV source into [[scala.Char]]s
     */
-  def by: Stream[IO, Source] => Stream[IO, Char] = s => s.flatMap(read)
+  def by[A: CSV]: Pipe[IO, A, Char] = _.flatMap(apply(_))
 
   /** Provides reader with support of context shifting for I/O operations.
     *
@@ -136,36 +150,66 @@ object reader {
     def read(is: InputStream): Stream[IO, Char] =
       for {
         blocker <- Stream.resource(br)
-        chunk <- io
+        char <- io
           .readInputStream(IO(is), blockSize, blocker, autoClose)
-          .through(text.utf8Decode)
-          .map(s => Chunk.chars(s.toCharArray))
-        char <- Stream.chunk(chunk)
+          .through(byte2char)
       } yield char
 
-    /** Alias for [[read(source:scala\.io\.Source)* read]].
+    /** Reads a CSV file and returns a stream of character.
       *
-      * @param source the source containing CSV content
+      * @param path the path to source file
       * @return the stream of characters
       */
-    def apply(source: Source): Stream[IO, Char] = read(source)
+    def read(path: Path): Stream[IO, Char] =
+      for {
+        blocker <- Stream.resource(br)
+        char <- io.file
+          .readAll[IO](path, blocker, blockSize)
+          .through(byte2char)
+      } yield char
 
-    /** Alias for [[read(is:java\.io\.InputStream)* read]].
+    /** Alias for various `read` methods.
       *
-      * @param is input stream containing CSV content
+      * @param cvs the CSV data
+      * @tparam A type of source
       * @return the stream of characters
       */
-    def apply(is: InputStream): Stream[IO, Char] = read(is)
+    def apply[A: CSV](cvs: A): Stream[IO, Char] = cvs match {
+      case s: Source => read(s)
+      case is: InputStream => read(is)
+      case p: Path => read(p)
+    }
 
     /** Pipe converting stream with CSV source to stream of characters.
       *
       * @see [[read(source:scala\.io\.Source)* read]] for more information.
       *
-      * @return a pipe to converter [[scala.io.Source]] into [[scala.Char]]s
+      * @tparam A type of source
+      * @return a pipe to converter CSV source into [[scala.Char]]s
       */
-    def by: Stream[IO, Source] => Stream[IO, Char] = s => s.flatMap(read)
+    def by[A: CSV]: Pipe[IO, A, Char] = _.flatMap(apply(_))
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
     private def br = blocker.map(b => Resource(IO((b, IO.unit)))).getOrElse(Blocker[IO])
+
+    private def byte2char: Pipe[IO, Byte, Char] =
+      _.through(text.utf8Decode).map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
+  }
+
+  /** Class representing CSV data source */
+  sealed trait CSV[-A]
+
+  /** Implicits to witness that given type is supported as CSV source for reader */
+  object CSV {
+
+    /** Witness that [[scala.io.Source]] may be used with reader functions */
+    implicit object sourceWitness extends CSV[Source]
+
+    /** Witness that [[java.io.InputStream]] may be used with reader functions */
+    implicit object inputStreamWitness extends CSV[InputStream]
+
+    /** Witness that [[java.nio.file.Path]] may be used with reader functions */
+    implicit object pathWitness extends CSV[Path]
+
   }
 }

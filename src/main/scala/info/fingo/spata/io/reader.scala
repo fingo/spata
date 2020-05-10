@@ -6,6 +6,7 @@
 package info.fingo.spata.io
 
 import java.io.InputStream
+
 import scala.io.{BufferedSource, Source}
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import fs2.{io, text, Chunk, Stream}
@@ -57,6 +58,13 @@ object reader {
     * @return the stream of characters
     */
   def apply(source: Source): Stream[IO, Char] = read(source)
+
+  /** Alias for [[read(is:java\.io\.InputStream)* read]].
+    *
+    * @param is input stream containing CSV content
+    * @return the stream of characters
+    */
+  def apply(is: InputStream): Stream[IO, Char] = read(is)
 
   /** Pipe converting stream with CSV source to stream of characters.
     *
@@ -141,6 +149,13 @@ object reader {
       * @return the stream of characters
       */
     def apply(source: Source): Stream[IO, Char] = read(source)
+
+    /** Alias for [[read(is:java\.io\.InputStream)* read]].
+      *
+      * @param is input stream containing CSV content
+      * @return the stream of characters
+      */
+    def apply(is: InputStream): Stream[IO, Char] = read(is)
 
     /** Pipe converting stream with CSV source to stream of characters.
       *

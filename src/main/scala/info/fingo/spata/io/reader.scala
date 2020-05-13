@@ -196,10 +196,10 @@ object reader {
       _.through(text.utf8Decode).map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
   }
 
-  /** Class representing CSV data source */
+  /** Representation of CSV data source */
   sealed trait CSV[-A]
 
-  /** Implicits to witness that given type is supported as CSV source for reader */
+  /** Implicits to witness that given type is supported by reader as CSV source */
   object CSV {
 
     /** Witness that [[scala.io.Source]] may be used with reader functions */

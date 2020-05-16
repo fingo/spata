@@ -11,51 +11,48 @@ import scala.concurrent.ExecutionContext
 import cats.effect.{ContextShift, IO}
 import fs2.Stream
 import info.fingo.spata.CSVParser
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalameter.{Bench, Gen}
+import org.scalameter.Key.exec
+import org.scalameter.picklers.noPickler._
 
-class readerPTS extends AnyFunSuite with TableDrivenPropertyChecks {
+/* Check performance of reader using different implementations.
+ * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
+ */
+object readerPTS extends Bench.LocalTime {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
   private val parser = CSVParser.config.get // parser with default configuration
 
-  test("reader should perform well in simple char-reading scenarios") {
-    forAll(testCases) { (testCase: String, f: Path => Stream[IO, Char]) =>
-      val (_, time) = elapsed(f(path).take(25_000).compile.drain.unsafeRunSync())
-      println(s"$testCase: $time")
-      assert(time < 1000)
+  case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
+    def apply(path: Path): Stream[IO, Char] = method(path)
+    override def toString: String = info
+  }
+
+  performance.of("reader").config(exec.maxWarmupRuns -> 3, exec.benchRuns -> 3) in {
+    measure.method("read") in {
+      using(methods) in { method =>
+        method(path).compile.drain.unsafeRunSync()
+      }
+    }
+    measure.method("read_and_parse") in {
+      using(methods) in { method =>
+        method(path).through(parser.parse).compile.drain.unsafeRunSync()
+      }
     }
   }
 
-  test("reader should perform well in parsing scenarios") {
-    forAll(testCases) { (testCase: String, f: Path => Stream[IO, Char]) =>
-      val (_, time) = elapsed(f(path).through(parser.parse).take(500).compile.drain.unsafeRunSync())
-      println(s"$testCase: $time")
-      assert(time < 1000)
-    }
-  }
-
-  private def elapsed[A](code: => A): (A, Long) = {
-    code // warm-up, fill caches
-    val start = System.nanoTime()
-    val ret = code
-    val end = System.nanoTime()
-    (ret, (end - start) / 1_000_000)
-  }
+  private lazy val methods = Gen.enumeration("method")(
+    ReadMethod("source", (path: Path) => bracket(source(path)).through(reader.by)),
+    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(reader.withBlocker.by)),
+    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(reader.by)),
+    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(reader.withBlocker.by)),
+    ReadMethod("path", (path: Path) => reader.read(path)),
+    ReadMethod("path-fs2io", (path: Path) => reader.withBlocker.read(path))
+  )
 
   private def inputStream(path: Path) = Files.newInputStream(path, StandardOpenOption.READ)
   private def source(path: Path) = Source.fromFile(path.toFile)
   private def bracket[A <: AutoCloseable](resource: A) =
     Stream.bracket(IO(resource))(resource => IO { resource.close() })
-
-  private lazy val testCases = Table(
-    ("testCase", "function"),
-    ("source", (path: Path) => bracket(source(path)).through(reader.by)),
-    ("source-fs2io", (path: Path) => bracket(source(path)).through(reader.withBlocker.by)),
-    ("is", (path: Path) => bracket(inputStream(path)).through(reader.by)),
-    ("is-fs2io", (path: Path) => bracket(inputStream(path)).through(reader.withBlocker.by)),
-    ("path", (path: Path) => reader.read(path)),
-    ("path-fs2io", (path: Path) => reader.withBlocker.read(path))
-  )
 }

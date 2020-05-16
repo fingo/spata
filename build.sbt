@@ -7,9 +7,14 @@ lazy val basicSettings = Seq(
   scalaVersion := "2.13.2"
 )
 
+lazy val PerformanceTest = config("perf").extend(Test)
+def perfFilter(name: String): Boolean = name.endsWith("PTS")
+def unitFilter(name: String): Boolean = name.endsWith("TS") && !perfFilter(name)
+
 lazy val root = (project in file("."))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(basicSettings: _*)
+  .configs(PerformanceTest)
   .settings(
     fork in run := true,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
@@ -20,8 +25,16 @@ lazy val root = (project in file("."))
       "co.fs2" %% "fs2-core" % "2.3.0",
       "co.fs2" %% "fs2-io" % "2.3.0",
       "com.chuusai" %% "shapeless" % "2.3.3",
-      "org.scalatest" %% "scalatest" % "3.1.1" % "test"
+      "org.scalatest" %% "scalatest" % "3.1.1" % "test",
+      "com.storm-enroute" %% "scalameter" % "0.19" % "test",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6" % "test"
     ),
+    testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
+    inConfig(PerformanceTest)(Defaults.testTasks),
+    Test / testOptions := Seq(Tests.Filter(unitFilter)),
+    PerformanceTest / testOptions := Seq(Tests.Filter(perfFilter)),
+    logBuffered in PerformanceTest := false,
+    parallelExecution in PerformanceTest := false,
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
       "-deprecation", // Emit warning and location for usages of deprecated APIs.
       "-explaintypes", // Explain type errors in more detail.

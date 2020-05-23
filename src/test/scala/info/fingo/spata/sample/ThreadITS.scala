@@ -17,7 +17,7 @@ import info.fingo.spata.io.reader
 import org.scalatest.funsuite.AnyFunSuite
 
 /* Samples which process the data asynchronously or using blocking context */
-class AsyncITS extends AnyFunSuite {
+class ThreadITS extends AnyFunSuite {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private def println(s: String): String = s // do nothing, don't pollute test output

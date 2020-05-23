@@ -3,20 +3,27 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+/*
+ * Part of this code (reader.WithBlocker.decode) is derived under Apache-2.0 license from http4s.
+ * Copyright 2013-2020 http4s.org
+ */
 package info.fingo.spata.io
 
 import java.io.InputStream
+import java.nio.charset.CharacterCodingException
+import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.file.{Files, Path, StandardOpenOption}
-
-import scala.io.{BufferedSource, Source}
+import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Blocker, ContextShift, IO, Resource}
-import fs2.{io, text, Chunk, Pipe, Stream}
+import fs2.{io, Chunk, Pipe, Pull, Stream}
 
 /** Utility to read external data and provide stream of characters. */
 object reader {
 
   private val blockSize = 4096
   private val autoClose = false
+  private val bom = "\uFEFF".head
+  private val UTFCharsetPrefix = "UTF-"
 
   /** Reads a CSV source and returns a stream of character.
     * The I/O operations are wrapped in [[cats.effect.IO]] allowing deferred computation.
@@ -42,7 +49,8 @@ object reader {
     * @param source the source containing CSV content
     * @return the stream of characters
     */
-  def read(source: Source): Stream[IO, Char] = Stream.fromIterator[IO][Char](source)
+  def read(source: Source): Stream[IO, Char] =
+    Stream.fromIterator[IO][Char](source).through(skipBom)
 
   /** Reads a CSV source and returns a stream of character.
     *
@@ -51,16 +59,18 @@ object reader {
     * @see [[read(source:scala\.io\.Source)* read]] for more information.
     *
     * @param is input stream containing CSV content
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return the stream of characters
     */
-  def read(is: InputStream): Stream[IO, Char] = read(new BufferedSource(is, blockSize))
+  def read(is: InputStream)(implicit codec: Codec): Stream[IO, Char] = read(new BufferedSource(is, blockSize))
 
   /** Reads a CSV file and returns a stream of character.
     *
     * @param path the path to source file
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return the stream of characters
     */
-  def read(path: Path): Stream[IO, Char] =
+  def read(path: Path)(implicit codec: Codec): Stream[IO, Char] =
     Stream
       .bracket(IO {
         Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
@@ -70,10 +80,11 @@ object reader {
   /** Alias for various `read` methods.
     *
     * @param cvs the CSV data
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @tparam A type of source
     * @return the stream of characters
     */
-  def apply[A: CSV](cvs: A): Stream[IO, Char] = cvs match {
+  def apply[A: CSV](cvs: A)(implicit codec: Codec): Stream[IO, Char] = cvs match {
     case s: Source => read(s)
     case is: InputStream => read(is)
     case p: Path => read(p)
@@ -90,10 +101,11 @@ object reader {
     *
     * @see [[read(source:scala\.io\.Source)* read]] for more information.
     *
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @tparam A type oof source
     * @return a pipe to converter CSV source into [[scala.Char]]s
     */
-  def by[A: CSV]: Pipe[IO, A, Char] = _.flatMap(apply(_))
+  def by[A: CSV](implicit codec: Codec): Pipe[IO, A, Char] = _.flatMap(apply(_))
 
   /** Provides reader with support of context shifting for I/O operations.
     *
@@ -111,6 +123,12 @@ object reader {
     * @return reader with support for context shifting
     */
   def withBlocker(implicit cs: ContextShift[IO]): WithBlocker = new WithBlocker(None)(cs)
+
+  /* Skip BOM from UTF encoded streams */
+  private def skipBom(implicit codec: Codec): Pipe[IO, Char, Char] =
+    stream =>
+      if (codec.charSet.name.startsWith(UTFCharsetPrefix)) stream.dropWhile(_ == bom)
+      else stream
 
   /** Reader which shifts I/O operations to a execution context that is safe to use for blocking operations.
     * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
@@ -137,17 +155,18 @@ object reader {
     def read(source: Source): Stream[IO, Char] =
       for {
         b <- Stream.resource(br)
-        stream <- Stream.fromBlockingIterator[IO][Char](b, source)
-      } yield stream
+        char <- Stream.fromBlockingIterator[IO][Char](b, source).through(reader.skipBom)
+      } yield char
 
     /** Reads a CSV source and returns a stream of character.
       *
       * @see [[read(source:scala\.io\.Source)* read]] for more information.
       *
       * @param is input stream containing CSV content
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @return the stream of characters
       */
-    def read(is: InputStream): Stream[IO, Char] =
+    def read(is: InputStream)(implicit codec: Codec): Stream[IO, Char] =
       for {
         blocker <- Stream.resource(br)
         char <- io
@@ -158,9 +177,10 @@ object reader {
     /** Reads a CSV file and returns a stream of character.
       *
       * @param path the path to source file
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @return the stream of characters
       */
-    def read(path: Path): Stream[IO, Char] =
+    def read(path: Path)(implicit codec: Codec): Stream[IO, Char] =
       for {
         blocker <- Stream.resource(br)
         char <- io.file
@@ -171,10 +191,11 @@ object reader {
     /** Alias for various `read` methods.
       *
       * @param cvs the CSV data
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @tparam A type of source
       * @return the stream of characters
       */
-    def apply[A: CSV](cvs: A): Stream[IO, Char] = cvs match {
+    def apply[A: CSV](cvs: A)(implicit codec: Codec): Stream[IO, Char] = cvs match {
       case s: Source => read(s)
       case is: InputStream => read(is)
       case p: Path => read(p)
@@ -184,16 +205,53 @@ object reader {
       *
       * @see [[read(source:scala\.io\.Source)* read]] for more information.
       *
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @tparam A type of source
       * @return a pipe to converter CSV source into [[scala.Char]]s
       */
-    def by[A: CSV]: Pipe[IO, A, Char] = _.flatMap(apply(_))
+    def by[A: CSV](implicit codec: Codec): Pipe[IO, A, Char] = _.flatMap(apply(_))
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
     private def br = blocker.map(b => Resource(IO((b, IO.unit)))).getOrElse(Blocker[IO])
 
-    private def byte2char: Pipe[IO, Byte, Char] =
-      _.through(text.utf8Decode).map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
+    private def byte2char(implicit codec: Codec): Pipe[IO, Byte, Char] =
+      _.through(decode(codec)).through(reader.skipBom)
+
+    /* Decode bytes to chars based on provided codec.
+     * This function is ported from org.http4s.util.decode with slight modifications */
+    private def decode(codec: Codec): Pipe[IO, Byte, Char] = {
+      val decoder = codec.charSet.newDecoder
+      val maxCharsPerByte = decoder.maxCharsPerByte().ceil.toInt
+      val avgBytesPerChar = (1.0 / decoder.averageCharsPerByte()).ceil.toInt
+      val charBufferSize = 128
+
+      def cb2cc(cb: CharBuffer): Chunk[Char] = Chunk.chars(cb.flip.toString.toCharArray)
+
+      _.repeatPull[Char] {
+        _.unconsN(charBufferSize * avgBytesPerChar, allowFewer = true).flatMap {
+          case Some((chunk, stream)) if chunk.nonEmpty =>
+            val bytes = chunk.toArray
+            val bb = ByteBuffer.wrap(bytes)
+            val cb = CharBuffer.allocate(bytes.length * maxCharsPerByte)
+            val cr = decoder.decode(bb, cb, false)
+            if (cr.isError) Pull.raiseError[IO](new CharacterCodingException)
+            else {
+              val nextStream = stream.consChunk(Chunk.byteBuffer(bb.slice()))
+              Pull.output(cb2cc(cb)).as(Some(nextStream))
+            }
+          case Some((_, stream)) =>
+            Pull.output(Chunk.empty[Char]).as(Some(stream))
+          case None =>
+            val cb = CharBuffer.allocate(1)
+            val cr = decoder.decode(ByteBuffer.allocate(0), cb, true)
+            if (cr.isError) Pull.raiseError[IO](new CharacterCodingException)
+            else {
+              decoder.flush(cb)
+              Pull.output(cb2cc(cb)).as(None)
+            }
+        }
+      }
+    }
   }
 
   /** Representation of CSV data source */

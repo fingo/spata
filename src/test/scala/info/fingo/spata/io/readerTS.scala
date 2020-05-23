@@ -6,11 +6,11 @@
 package info.fingo.spata.io
 
 import java.io.{ByteArrayInputStream, IOException}
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import scala.concurrent.ExecutionContext
-import scala.io.{BufferedSource, Source}
+import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{ContextShift, IO}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
@@ -73,6 +73,36 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val stream = reader.withBlocker.read(path)
     val content = stream.compile.toList.unsafeRunSync()
     assert(content.mkString == Files.readString(path))
+  }
+
+  test("reader should properly read UTF-8 files with BOM") {
+    val localChar = 'ł'
+    val path = Paths.get(getClass.getClassLoader.getResource("bom.csv").toURI)
+    val stream = reader.read(path)
+    val content = stream.compile.toList.unsafeRunSync()
+    assert(content.startsWith("author"))
+    assert(content.contains(localChar))
+  }
+
+  test("reader should properly read files with non-UTF encoding") {
+    val localChar = 'ł'
+    implicit val codec: Codec = new Codec(Charset.forName("windows-1250"))
+    val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
+    val stream = reader.read(path)
+    val content = stream.compile.toList.unsafeRunSync()
+    assert(content.startsWith("author"))
+    assert(content.contains(localChar))
+  }
+
+  test("reader should properly read files with non-UTF encoding using blocking context") {
+    val localChar = 'ł'
+    implicit val codec: Codec = new Codec(Charset.forName("windows-1250"))
+    val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
+    val is = Files.newInputStream(path, StandardOpenOption.READ)
+    val stream = Stream.bracket(IO(is))(resource => IO { resource.close() }).through(reader.withBlocker.by)
+    val content = stream.compile.toList.unsafeRunSync()
+    assert(content.startsWith("author"))
+    assert(content.contains(localChar))
   }
 
   private lazy val testCases = Table(

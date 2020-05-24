@@ -4,8 +4,8 @@ spata
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
-Main goal of the library is to provide handy API and precise information about errors in source data (their location)
-while keeping good performance.
+Main goal of the library is to provide handy, functional API and precise information about errors in source data
+(their location) while keeping good performance.
 
 The source data format is assumed to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt).
 It is possible however to configure the parser to accept separator and quote symbols - see CSVConfig for details.
@@ -31,6 +31,48 @@ val records = Stream
   .map(_.to[Data]()) // converter records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
+```
+
+Another example may be taken from [[https://fs2.io/ FS2 readme]] assuming and assuming,
+that the data is stored in CSV format with two fields, `date` and `temp`:
+```scala
+import java.nio.file.Paths
+import scala.io.Codec
+import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.implicits._
+import fs2.Stream
+import fs2.io
+import fs2.text
+import info.fingo.spata.CSVParser
+import info.fingo.spata.io.reader
+
+object Converter extends IOApp {
+
+  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
+    blocker =>
+      implicit val codec: Codec = Codec.UTF8
+      val parser: CSVParser = CSVParser.config.get
+      def fahrenheitToCelsius(f: Double): Double =
+        (f - 32.0) * (5.0 / 9.0)
+
+      reader
+        .withBlocker(blocker)
+        .read(Paths.get("testdata/fahrenheit.txt"))
+        .through(parser.parse)
+        .filter(r => !r("temp").isEmpty)
+        .map { r =>
+          val date = r("date")
+          val temp = fahrenheitToCelsius(r.get[Double]("temp"))
+          s"$date,$temp"
+        }
+        .intersperse("\n")
+        .through(text.utf8Encode)
+        .through(io.file.writeAll(Paths.get("testdata/celsius.txt"), blocker))
+  }
+
+  def run(args: List[String]): IO[ExitCode] =
+    converter.compile.drain.as(ExitCode.Success)
+}
 ```
 
 More examples how to use the library may be found in `src/test/scala/sample`.

@@ -37,7 +37,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Gets typed record value.
     *
-    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     *
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will throw an exception.
@@ -68,7 +68,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * allows value retrieval in following form:
     * {{{ val date: LocalDate = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types (as required by [[Field]]) are provided through [[text.StringParser StringParser]] object.
+    * Parsers for basic types (as required by [[Field]]) are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.
     *
     * To parse optional values provide `Option[_]` as type parameter.
@@ -83,7 +83,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely gets typed record value.
     *
-    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     *
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will result in an error.
@@ -108,7 +108,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * The combination of `get`, [[SafeField]] constructor and `apply` method allows value retrieval in following form:
     * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types are provided through [[text.StringParser StringParser]] object.
+    * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.
     *
     * To parse optional values provide `Option[_]` as type parameter.

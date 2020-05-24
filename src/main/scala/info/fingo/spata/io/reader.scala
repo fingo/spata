@@ -17,7 +17,30 @@ import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Blocker, ContextShift, IO, Resource}
 import fs2.{io, Chunk, Pipe, Pull, Stream}
 
-/** Utility to read external data and provide stream of characters. */
+/** Utility to read external data and provide stream of characters.
+  * It may be used directly or through the provided inner class [[reader.WithBlocker]],
+  * which supports context (thread) shifting for blocking operations
+  * (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
+  *
+  * The reading functions in [[reader.WithBlocker]], except the one reading from [[scala.io.Source]],
+  * use [[https://fs2.io/io.html fs2-io]] library and are generally more efficient than they "regular" counterparts.
+  * On the contrary, the function reading from `Source`
+  * [[reader.WithBlocker.read(source:scala\.io\.Source)* reader.withBlocker.read(source)]]
+  * is much less efficient in most scenarios and should be chosen deliberately.
+  *
+  * In every case, the caller of function taking resource ([[scala.io.Source]] or `java.io.InputStream`) as a parameter
+  * is responsible for its cleanup.
+  *
+  * Functions reading binary data (from `java.io.InputStream` or taking `java.nio.file.Path`)
+  * use implicit [[scala.io.Codec]] to decode input data. If not provided, the default JVM charset is used.
+  *
+  * For input data encoded in `UTF`, the byte order mark (BOM) is removed automatically.
+  * This is done even for functions reading from already decoded [[scala.io.Source]]
+  * as long as the implicit [[scala.io.Codec]] with `UTF` charset is provided.
+  *
+  * All of above applies not only to `read` function but also to [[reader.apply]] and [[reader.by]],
+  * which internally make use of `read`.
+  */
 object reader {
 
   private val blockSize = 4096
@@ -160,6 +183,8 @@ object reader {
 
     /** Reads a CSV source and returns a stream of character.
       *
+      * This function does not close the input stream after use, which is different from `fs2-io` default behavior.
+      *
       * @see [[read(source:scala\.io\.Source)* read]] for more information.
       *
       * @param is input stream containing CSV content
@@ -254,7 +279,9 @@ object reader {
     }
   }
 
-  /** Representation of CSV data source */
+  /** Representation of CSV data source, used to witness that certain sources may be used by read operations.
+    * @see [[CSV$ CSV]] object.
+    */
   sealed trait CSV[-A]
 
   /** Implicits to witness that given type is supported by reader as CSV source */

@@ -14,7 +14,7 @@ import info.fingo.spata.{maybe, Maybe}
 /** Parser from `String` to desired type.
   *
   * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
-  * used by `parse` function from `StringParser` object.
+  * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
   * To accept empty input `Option[_]` should be provided as type parameter.
@@ -43,7 +43,7 @@ trait StringParser[A] {
 /** Parser from `String` to desired type with support for different formats.
   *
   * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
-  * used by `parse` function from `StringParser` object.
+  * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
   * To accept empty input `Option[_]` should be provided as type parameter.

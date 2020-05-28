@@ -16,7 +16,7 @@ lazy val root = (project in file("."))
   .settings(basicSettings: _*)
   .configs(PerformanceTest)
   .settings(
-    fork in run := true,
+    fork := true,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
@@ -35,7 +35,9 @@ lazy val root = (project in file("."))
     PerformanceTest / testOptions := Seq(Tests.Filter(perfFilter)),
     logBuffered in PerformanceTest := false,
     parallelExecution in PerformanceTest := false,
+    javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
+      "-target:11",
       "-deprecation", // Emit warning and location for usages of deprecated APIs.
       "-explaintypes", // Explain type errors in more detail.
       "-feature", // Emit warning and location for usages of features that should be imported explicitly.

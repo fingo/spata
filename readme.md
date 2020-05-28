@@ -10,6 +10,8 @@ Main goal of the library is to provide handy, functional API and precise informa
 The source data format is assumed to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt).
 It is possible however to configure the parser to accept separator and quote symbols - see CSVConfig for details.
 
+spata requires Java 11.
+
 Usage
 -----
 Basic usage:

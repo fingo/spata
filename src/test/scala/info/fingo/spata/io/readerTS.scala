@@ -105,6 +105,16 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(content.contains(localChar))
   }
 
+  test("reader should properly handle charset conversion errors while using blocking context") {
+    val CAN = 0x18.toChar
+    implicit val codec: Codec = new Codec(StandardCharsets.UTF_8)
+    val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
+    val is = Files.newInputStream(path, StandardOpenOption.READ)
+    val stream = Stream.bracket(IO(is))(resource => IO { resource.close() }).through(reader.withBlocker.by)
+    val content = stream.handleErrorWith(_ => Stream.emit(CAN)).compile.toList.unsafeRunSync()
+    assert(content == List(CAN))
+  }
+
   private lazy val testCases = Table(
     ("testCase", "data"),
     ("simple", "some simple source"),

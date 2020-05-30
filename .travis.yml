@@ -1,0 +1,26 @@
+language: scala
+
+jdk:
+  - openjdk11
+
+jobs:
+  include:
+    - stage: style
+      name: "Code style"
+      script: sbt scalafmtCheck
+    - stage: test
+      name: "Tests"
+      script: sbt test
+    - stage: doc
+      name: "API documentation"
+      script: sbt doc
+
+cache:
+  directories:
+    - "$HOME/.ivy2/cache"
+    - "$HOME/.sbt"
+
+before_cache:
+  - rm -fv $HOME/.ivy2/.sbt.ivy.lock
+  - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
+  - find $HOME/.sbt        -name "*.lock"               -print -delete

@@ -1,5 +1,6 @@
 .*
 !.gitignore
 !.scalafmt.conf
+!.travis.yml
 target/
 project/target/

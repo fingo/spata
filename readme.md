@@ -37,7 +37,7 @@ val records = Stream
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
 ```
 
-Another example may be taken from [[https://fs2.io/ FS2 readme]] assuming and assuming,
+Another example may be taken from [[https://fs2.io/ FS2 readme]] assuming,
 that the data is stored in CSV format with two fields, `date` and `temp`:
 ```scala
 import java.nio.file.Paths

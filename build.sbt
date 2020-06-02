@@ -16,7 +16,6 @@ lazy val root = (project in file("."))
   .settings(basicSettings: _*)
   .configs(PerformanceTest)
   .settings(
-    fork := true,
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
@@ -32,9 +31,11 @@ lazy val root = (project in file("."))
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),
     Test / testOptions := Seq(Tests.Filter(unitFilter)),
+    Test / fork := true,
     PerformanceTest / testOptions := Seq(Tests.Filter(perfFilter)),
-    logBuffered in PerformanceTest := false,
-    parallelExecution in PerformanceTest := false,
+    PerformanceTest / fork := false,
+    PerformanceTest / logBuffered := false,
+    PerformanceTest / parallelExecution := false,
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
       "-target:11",

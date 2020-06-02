@@ -7,7 +7,6 @@ package info.fingo.spata
 
 import java.nio.file.Paths
 import java.time.LocalDate
-
 import scala.io.Source
 import info.fingo.spata.io.reader
 import org.scalameter.{Bench, Gen}
@@ -16,7 +15,7 @@ import org.scalameter.Key.exec
 /* Check performance of parser.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
-class CSVParserPTS extends Bench.LocalTime {
+object CSVParserPTS extends Bench.LocalTime {
 
   private val separator = ','
   private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)

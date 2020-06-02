@@ -1,3 +1,4 @@
+# Based on https://github.com/scalacenter/library-example
 language: scala
 
 jdk:
@@ -9,11 +10,17 @@ jobs:
       name: "Code style"
       script: sbt scalafmtCheck
     - stage: test
-      name: "Tests"
-      script: sbt test
+      name: "Unit tests"
+      script: sbt clean coverage test
+    - stage: performance
+      name: "Performance tests"
+      script: sbt perf:test
     - stage: doc
       name: "API documentation"
       script: sbt doc
+    - stage: report
+      name: "Coverage report"
+      script: sbt coverageReport
 
 cache:
   directories:
@@ -23,4 +30,4 @@ cache:
 before_cache:
   - rm -fv $HOME/.ivy2/.sbt.ivy.lock
   - find $HOME/.ivy2/cache -name "ivydata-*.properties" -print -delete
-  - find $HOME/.sbt        -name "*.lock"               -print -delete
+  - find $HOME/.sbt -name "*.lock" -print -delete

@@ -2,6 +2,7 @@ spata
 =====
 
 [![Build Status](https://travis-ci.org/fingo/spata.svg?branch=master)](https://travis-ci.org/fingo/spata)
+[![codecov](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
 
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).

@@ -11,19 +11,14 @@ jobs:
       script: sbt scalafmtCheck
     - stage: test
       name: "Unit tests"
-      script: sbt clean coverage test
+      script: sbt clean coverage test coverageReport
+      after_success: bash <(curl -s https://codecov.io/bash)
     - stage: performance
       name: "Performance tests"
       script: sbt perf:test
     - stage: doc
       name: "API documentation"
       script: sbt doc
-    - stage: report
-      name: "Coverage report"
-      script: sbt coverageReport
-    - stage: publish
-      name: "Publish coverage report"
-      script: bash <(curl -s https://codecov.io/bash)
 
 cache:
   directories:

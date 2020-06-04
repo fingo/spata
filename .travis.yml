@@ -21,6 +21,9 @@ jobs:
     - stage: report
       name: "Coverage report"
       script: sbt coverageReport
+    - stage: publish
+      name: "Publish coverage report"
+      script: bash <(curl -s https://codecov.io/bash)
 
 cache:
   directories:

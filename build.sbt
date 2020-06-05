@@ -47,6 +47,7 @@ lazy val publishSettings = Seq(
   releaseEarlyWith := SonatypePublisher,
   sonatypeProjectHosting := Some(GitHubHosting("fingo", "spata", "robert.marek@fingo.info")),
   publishMavenStyle := true,
+  publishTo := sonatypePublishToBundle.value,
   pgpPublicRing := file("ci/public-key.asc"),
   pgpSecretRing := file("ci/secret-key.asc"),
   developers := List(Developer("susuro", "Robert Marek", "robert.marek@fingo.info", url("https://github.com/susuro")))

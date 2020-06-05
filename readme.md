@@ -2,7 +2,8 @@ spata
 =====
 
 [![Build Status](https://travis-ci.org/fingo/spata.svg?branch=master)](https://travis-ci.org/fingo/spata)
-[![codecov](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
+[![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
+[![Maven central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg)](https://search.maven.org/artifact/info.fingo/spata_2.13)
 
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
@@ -96,6 +97,7 @@ Credits
 * [sbt](https://www.scala-sbt.org/) licensed under [BSD-2-Clause](https://www.lightbend.com/legal/licenses) /D
 * [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache 2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D
 * [sbt-header](https://github.com/sbt/sbt-header) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
+* [sbt-release-early](https://github.com/jvican/sbt-release-early) licensed under [MPL-2.0](https://github.com/jvican/sbt-release-early/blob/master/LICENSE.md) /D
 * [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache 2.0](https://github.com/scoverage/sbt-scoverage#license) /D
 * [Scala](https://www.scala-lang.org/download/) licensed under [Apache 2.0](https://www.scala-lang.org/license/) /R
 * [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache 2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
@@ -104,4 +106,4 @@ Credits
 * [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache 2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /R
 
 **/R** means runtime dependency, **/T** means test dependency, **/S** means source code derivative and **/D** means development tool.
-For libraries, only direct dependencies are presented on above list.
+Only direct dependencies are presented on above list.

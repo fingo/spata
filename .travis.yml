@@ -21,7 +21,7 @@ jobs:
       script: sbt doc
     - stage: publish
       name: "Publish"
-      if: type = push AND branch = master AND tag IS present
+      if: type = push AND tag =~ ^v
       before_install:
         - openssl aes-256-cbc -K $encrypted_33fe93068812_key -iv $encrypted_33fe93068812_iv
           -in ci/secret-key.asc.enc -out ci/secret-key.asc -d

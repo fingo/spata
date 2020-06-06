@@ -3,7 +3,8 @@ spata
 
 [![Build Status](https://travis-ci.org/fingo/spata.svg?branch=master)](https://travis-ci.org/fingo/spata)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
-[![Maven central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg)](https://search.maven.org/artifact/info.fingo/spata_2.13)
+[![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg)](https://search.maven.org/artifact/info.fingo/spata_2.13)
+[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_2.13/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_2.13)
 
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
@@ -96,9 +97,11 @@ Credits
 * [OpenJDK](https://adoptopenjdk.net/) licensed under [GPL-2.0 with CE](https://openjdk.java.net/legal/gplv2+ce.html) /R
 * [sbt](https://www.scala-sbt.org/) licensed under [BSD-2-Clause](https://www.lightbend.com/legal/licenses) /D
 * [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache 2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D
+* [sbt-dynver](https://github.com/dwijnand/sbt-dynver) licensed under [Apache 2.0](https://github.com/dwijnand/sbt-dynver/blob/master/LICENSE) /D
 * [sbt-header](https://github.com/sbt/sbt-header) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
-* [sbt-release-early](https://github.com/jvican/sbt-release-early) licensed under [MPL-2.0](https://github.com/jvican/sbt-release-early/blob/master/LICENSE.md) /D
+* [sbt-pgp](https://github.com/sbt/sbt-pgp) licensed under [BSD-3-Clause](https://github.com/sbt/sbt-pgp/blob/master/LICENSE) /D
 * [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache 2.0](https://github.com/scoverage/sbt-scoverage#license) /D
+* [sbt-sonatype](https://github.com/xerial/sbt-sonatype) licensed under [Apache 2.0](https://github.com/xerial/sbt-sonatype/blob/master/LICENSE.txt) /D
 * [Scala](https://www.scala-lang.org/download/) licensed under [Apache 2.0](https://www.scala-lang.org/license/) /R
 * [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache 2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
 * [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T

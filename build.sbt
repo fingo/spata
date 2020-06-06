@@ -44,7 +44,6 @@ lazy val root = (project in file("."))
 
 import xerial.sbt.Sonatype.GitHubHosting
 lazy val publishSettings = Seq(
-  releaseEarlyWith := SonatypePublisher,
   sonatypeProjectHosting := Some(GitHubHosting("fingo", "spata", "robert.marek@fingo.info")),
   publishMavenStyle := true,
   publishTo := sonatypePublishToBundle.value,

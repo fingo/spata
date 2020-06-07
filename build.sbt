@@ -1,8 +1,10 @@
 lazy val basicSettings = Seq(
   organization := "info.fingo",
   organizationName := "FINGO sp. z o.o.",
+  organizationHomepage := Some(url("http://fingo.info")),
   startYear := Some(2020),
   name := "spata",
+  description := "Functional, stream based Scala parser for CSV",
   scalaVersion := "2.13.2"
 )
 

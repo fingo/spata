@@ -21,7 +21,7 @@ class ConsoleITS extends AnyFunSuite {
 
   test("spata allows manipulate data using stream functionality") {
     case class YT(year: Int, temp: Double) // class to converter data to
-    val parser = CSVParser.config.get // parser with default configuration
+    val parser = CSVParser() // parser with default configuration
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
@@ -81,7 +81,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allow processing csv data as list") {
-    val parser = CSVParser.config.get // parser with default configuration
+    val parser = CSVParser() // parser with default configuration
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records

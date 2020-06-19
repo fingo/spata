@@ -23,7 +23,7 @@ class ThreadITS extends AnyFunSuite {
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows asynchronous source processing") {
-    val parser = CSVParser.config.get
+    val parser = CSVParser()
     val sum = new LongAdder()
     val count = new LongAdder()
 

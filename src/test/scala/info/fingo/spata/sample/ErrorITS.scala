@@ -19,7 +19,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("spata allows consistently handling errors") {
     forAll(files) { (testCase: String, file: String, row: Int) =>
-      val parser = CSVParser.config.get
+      val parser = CSVParser()
       val stream = Stream
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
         .flatMap(reader.read)

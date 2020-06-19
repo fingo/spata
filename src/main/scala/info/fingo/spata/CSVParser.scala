@@ -152,7 +152,7 @@ object CSVParser {
   type CSVCallback = CSVRecord => Boolean
 
   /** Creates a [[CSVParser]] with default configuration, as defined in RFC 4180. */
-  def apply: CSVParser = new CSVParser(config)
+  def apply(): CSVParser = new CSVParser(config)
 
   /** Provides default configuration, as defined in RFC 4180. */
   def config: CSVConfig = CSVConfig()

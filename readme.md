@@ -97,7 +97,7 @@ object Converter extends IOApp {
 }
 ```
 
-More examples how to use the library may be found in [test cases](../tree/master/src/test/scala/info/fingo/spata/sample).
+More examples how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
 
 Tutorial
 --------

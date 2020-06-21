@@ -22,11 +22,11 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.1.2",
-      "co.fs2" %% "fs2-core" % "2.3.0",
-      "co.fs2" %% "fs2-io" % "2.3.0",
+      "org.typelevel" %% "cats-effect" % "2.1.3",
+      "co.fs2" %% "fs2-core" % "2.4.2",
+      "co.fs2" %% "fs2-io" % "2.4.2",
       "com.chuusai" %% "shapeless" % "2.3.3",
-      "org.scalatest" %% "scalatest" % "3.1.1" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.0" % Test,
       "com.storm-enroute" %% "scalameter" % "0.19" % Test,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6" % Test
     ),

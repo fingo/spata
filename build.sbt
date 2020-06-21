@@ -8,6 +8,8 @@ lazy val basicSettings = Seq(
   scalaVersion := "2.13.2"
 )
 
+addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
+
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")
 def unitFilter(name: String): Boolean = name.endsWith("TS") && !perfFilter(name)
@@ -41,6 +43,8 @@ lazy val root = (project in file("."))
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     scalacOptions in (Compile, console) --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
+    semanticdbEnabled := true,
+    semanticdbVersion := scalafixSemanticdb.revision,
     autoAPIMappings := true
   )
 
@@ -96,6 +100,7 @@ lazy val scalacSettings = Seq( // based on https://nathankleyn.com/2019/05/13/re
   "-Ycache-plugin-class-loader:last-modified", // Enables caching of classloaders for compiler plugins
   "-Ycache-macro-class-loader:last-modified", // and macro definitions. This can lead to performance improvements.
   "-Yrangepos", // required by SemanticDB compiler plugin
+
   // sbt-api-mappings cannot link to Java API
   """-Wconf:cat=scaladoc&msg=(Could not find any member to link for "(Runtime|IO|NoSuchElement|IndexOutOfBounds)Exception"):s"""
 )

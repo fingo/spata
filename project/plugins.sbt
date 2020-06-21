@@ -1,3 +1,4 @@
+addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.9.17")
 addSbtPlugin("com.dwijnand" % "sbt-dynver" % "4.0.0")
 addSbtPlugin("com.jsuereth" % "sbt-pgp" % "2.0.1")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings" % "3.0.0+82-0dd0b4ec")

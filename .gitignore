@@ -1,6 +1,7 @@
 .*
 !.gitignore
 !.scalafmt.conf
+!.scalafix.conf
 !.travis.yml
 target/
 project/target/

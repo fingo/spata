@@ -524,6 +524,7 @@ Credits
 * [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache 2.0](https://github.com/scoverage/sbt-scoverage#license) /D
 * [sbt-sonatype](https://github.com/xerial/sbt-sonatype) licensed under [Apache 2.0](https://github.com/xerial/sbt-sonatype/blob/master/LICENSE.txt) /D
 * [Scala](https://www.scala-lang.org/download/) licensed under [Apache 2.0](https://www.scala-lang.org/license/) /C
+* [Scalafix](https://github.com/scalacenter/scalafix) licensed under [BSD-3-Clause](https://github.com/scalacenter/scalafix/blob/master/LICENSE.md) /D
 * [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache 2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
 * [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T
 * [ScalaTest](http://www.scalatest.org/) licensed under [Apache 2.0](http://www.scalatest.org/about) /T
@@ -531,5 +532,8 @@ Credits
 * [sonatype OSSRH](https://central.sonatype.org/) available under following [Terms of Service](https://central.sonatype.org/pages/central-repository-producer-terms.html) /D
 * [Travis CI](https://travis-ci.org/) available under following [Terms of Service](https://docs.travis-ci.com/legal/terms-of-service/) /D
 
-**/C** means compile/runtime dependency, **/T** means test dependency, **/S** means source code derivative and **/D** means development tool.
+**/C** means compile/runtime dependency,
+**/T** means test dependency,
+**/S** means source code derivative and
+**/D** means development tool.
 Only direct dependencies are presented on above list.

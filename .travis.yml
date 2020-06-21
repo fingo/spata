@@ -8,7 +8,7 @@ jobs:
   include:
     - stage: style
       name: "Code style"
-      script: sbt scalafmtCheck
+      script: sbt check
     - stage: test
       name: "Unit tests"
       script: sbt clean coverage test coverageReport

@@ -5,22 +5,21 @@
  */
 package info.fingo.spata.parser
 
-import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,
  * taking into consideration special meaning of some characters (e.g. separators), quoting and escaping.
  */
-private[spata] class CharParser(fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
+private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
   import CharParser._
   import CharParser.CharPosition._
 
   /* Transforms plain characters into context-dependent symbols by providing FS2 pipe. */
-  def toCharResults: Pipe[IO, Char, CharResult] = toCharResults(CharState(Left(STX), Start))
+  def toCharResults: Pipe[F, Char, CharResult] = toCharResults(CharState(Left(STX), Start))
 
-  private def toCharResults(state: CharState): Pipe[IO, Char, CharResult] = {
-    def loop(chars: Stream[IO, Char], state: CharState): Pull[IO, CharResult, Unit] =
+  private def toCharResults(state: CharState): Pipe[F, Char, CharResult] = {
+    def loop(chars: Stream[F, Char], state: CharState): Pull[F, CharResult, Unit] =
       chars.pull.uncons1.flatMap {
         case Some((h, t)) =>
           parseChar(h, state) match {

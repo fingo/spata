@@ -5,9 +5,10 @@
  */
 package info.fingo.spata.parser
 
+import cats.effect.IO
+import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import fs2.Stream
 import CharParser.CharResult
 import Config._
 import CharStates._
@@ -17,7 +18,7 @@ import FieldFailures._
 
 class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  private val parser = new FieldParser(Some(limit))
+  private val parser = new FieldParser[IO](Some(limit))
 
   test("Field parser should correctly parse provided input") {
     forAll(regularCases) { (_, input, output) =>

@@ -5,22 +5,21 @@
  */
 package info.fingo.spata
 
-import cats.effect.IO
-import fs2.Stream
+import fs2.{RaiseThrowable, Stream}
 import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to converter raw records into key-values indexed by header.
  * It converts additionally CSV parsing failures into stream error by raising CSVStructureException.
  */
-private[spata] class CSVContent private (
-  data: Stream[IO, ParsingResult],
+private[spata] class CSVContent[F[_]: RaiseThrowable] private (
+  data: Stream[F, ParsingResult],
   index: Map[String, Int],
   hasHeader: Boolean = true
 ) {
   private val reverseIndex = index.map(x => x._2 -> x._1)
 
   /* Converts RawRecord into CSVRecord and raise ParsingFailure as CSVStructureException */
-  def toRecords: Stream[IO, CSVRecord] = data.map(wrapRecord).rethrow
+  def toRecords: Stream[F, CSVRecord] = data.map(wrapRecord).rethrow
 
   private def wrapRecord(pr: ParsingResult): Either[CSVStructureException, CSVRecord] = pr match {
     case RawRecord(fields, location, recordNum) =>
@@ -45,22 +44,22 @@ private[spata] class CSVContent private (
 private[spata] object CSVContent {
 
   /* Creates CSVContent for data with header. May return CSVStructureException if no header is available (means empty source). */
-  def apply(
+  def apply[F[_]: RaiseThrowable](
     header: ParsingResult,
-    data: Stream[IO, ParsingResult],
+    data: Stream[F, ParsingResult],
     headerMap: S2S
-  ): Either[CSVStructureException, CSVContent] =
+  ): Either[CSVStructureException, CSVContent[F]] =
     buildHeaderIndex(header, headerMap) match {
       case Right(index) => Right(new CSVContent(data, index))
       case Left(e) => Left(e)
     }
 
   /* Creates CSVContent for data without header - builds a numeric header. */
-  def apply(
+  def apply[F[_]: RaiseThrowable](
     headerSize: Int,
-    data: Stream[IO, ParsingResult],
+    data: Stream[F, ParsingResult],
     headerMap: S2S
-  ): Either[CSVStructureException, CSVContent] =
+  ): Either[CSVStructureException, CSVContent[F]] =
     Right(new CSVContent(data, buildNumHeader(headerSize, headerMap), false))
 
   /* Build index for header with remapping selected header values. */

@@ -21,7 +21,7 @@ class ConsoleITS extends AnyFunSuite {
 
   test("spata allows manipulate data using stream functionality") {
     case class YT(year: Int, temp: Double) // class to converter data to
-    val parser = CSVParser() // parser with default configuration
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
@@ -58,7 +58,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val parser = CSVParser.config.get // parser with default configuration
+    val parser = CSVParser.config.get[IO] // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser
@@ -81,7 +81,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allow processing csv data as list") {
-    val parser = CSVParser() // parser with default configuration
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records

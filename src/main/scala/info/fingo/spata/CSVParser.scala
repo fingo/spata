@@ -204,7 +204,7 @@ object CSVParser {
     /* Callback function wrapper to enclose it in effect F and letting the stream to evaluate it asynchronously when run. */
     private def evalCallback(maxConcurrent: Int)(cb: CSVCallback): Pipe[F, CSVRecord, Boolean] =
       _.mapAsync(maxConcurrent) { pr =>
-        implicitly[Concurrent[F]].async[Boolean] { call =>
+        Concurrent[F].async[Boolean] { call =>
           val result = Try(cb(pr)).toEither
           call(result)
         }

@@ -196,9 +196,9 @@ object reader {
     /** @inheritdoc */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       Stream
-        .bracket(implicitly[Sync[F]].delay {
+        .bracket(Sync[F].delay {
           Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
-        })(source => implicitly[Sync[F]].delay { source.close() })
+        })(source => Sync[F].delay { source.close() })
         .flatMap(read)
   }
 
@@ -236,7 +236,7 @@ object reader {
       for {
         blocker <- Stream.resource(br)
         char <- io
-          .readInputStream(implicitly[Sync[F]].delay(is), blockSize, blocker, autoClose)
+          .readInputStream(Sync[F].delay(is), blockSize, blocker, autoClose)
           .through(byte2char)
       } yield char
 
@@ -258,7 +258,7 @@ object reader {
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
     private def br =
-      blocker.map(b => Resource(implicitly[Sync[F]].delay((b, implicitly[Sync[F]].unit)))).getOrElse(Blocker[F])
+      blocker.map(b => Resource(Sync[F].delay((b, Sync[F].unit)))).getOrElse(Blocker[F])
 
     private def byte2char(implicit codec: Codec): Pipe[F, Byte, Char] =
       _.through(decode(codec)).through(reader.skipBom)

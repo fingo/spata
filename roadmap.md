@@ -5,7 +5,6 @@ The library provides already a practical solution although with reasonable featu
 There are however many features which should made it even better.  
 Planned development includes:
 * Parsing chunks instead of single elements.
-* Generalize IO to polymorphic effect with tagless-final.
 * Providing logging.
 The above topics should conclude version 1.0
 

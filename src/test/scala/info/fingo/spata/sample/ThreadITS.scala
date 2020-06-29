@@ -43,7 +43,7 @@ class ThreadITS extends AnyFunSuite {
         cdl.countDown()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-      val data = reader.withBlocker.read(source)
+      val data = reader.shifting[IO].read(source)
       parser.async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)
@@ -60,7 +60,7 @@ class ThreadITS extends AnyFunSuite {
       blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      record <- reader.withBlocker(blocker).read(source).through(parser.parse) // get stream of CSV records
+      record <- reader.shifting[IO](blocker).read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps

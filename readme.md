@@ -78,7 +78,7 @@ object Converter extends IOApp {
         (f - 32.0) * (5.0 / 9.0)
 
       reader
-        .withBlocker(blocker)
+        .shifting(blocker)
         .read(Paths.get("testdata/fahrenheit.txt"))
         .through(parser.parse)
         .filter(r => !r("temp").isEmpty)
@@ -460,7 +460,7 @@ object Converter extends IOApp {
       val dst = Paths.get("testdata/celsius.txt")
 
       reader
-        .withBlocker(blocker)
+        .shifting(blocker)
         .read(src)
         .through(parser.parse)
         .filter(r => !r("temp").isEmpty)

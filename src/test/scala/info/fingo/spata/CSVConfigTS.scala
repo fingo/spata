@@ -22,7 +22,7 @@ class CSVConfigTS extends AnyFunSuite {
     val rs = 0x1E.toChar
     val content = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
     val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader()
-    val data = reader(Source.fromString(content))
+    val data = reader[IO].read(Source.fromString(content))
     val parser = config.get[IO]
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)

@@ -25,12 +25,13 @@ object CSVParserPTS extends Bench.LocalTime {
   performance.of("parser").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
     measure.method("parse_gen") in {
       using(amounts) in { amount =>
-        reader(new TestSource(separator, amount)).through(parser.parse).compile.drain.unsafeRunSync()
+        reader[IO].read(new TestSource(separator, amount)).through(parser.parse).compile.drain.unsafeRunSync()
       }
     }
     measure.method("parse_and_convert_gen") in {
       using(amounts) in { amount =>
-        reader(new TestSource(separator, amount))
+        reader[IO]
+          .read(new TestSource(separator, amount))
           .through(parser.parse)
           .map(_.to[(Double, Double, Double, Double, Double, Double, Double, Double, Double, String)])
           .compile
@@ -40,7 +41,8 @@ object CSVParserPTS extends Bench.LocalTime {
     }
     measure.method("parse_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
-        reader(path)
+        reader[IO]
+          .read(path)
           .through(parser.parse)
           .map(_.to[(Int, LocalDate, Int, Int, String, String, String, String, String, String)])
           .compile

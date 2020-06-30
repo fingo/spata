@@ -22,7 +22,7 @@ object readerPTS extends Bench.LocalTime {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
-  private val parser = CSVParser.config.get // parser with default configuration
+  private val parser = CSVParser.config.get[IO] // parser with default configuration
 
   case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
     def apply(path: Path): Stream[IO, Char] = method(path)
@@ -43,12 +43,12 @@ object readerPTS extends Bench.LocalTime {
   }
 
   private lazy val methods = Gen.enumeration("method")(
-    ReadMethod("source", (path: Path) => bracket(source(path)).through(reader.by)),
-    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(reader.withBlocker.by)),
-    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(reader.by)),
-    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(reader.withBlocker.by)),
-    ReadMethod("path", (path: Path) => reader.read(path)),
-    ReadMethod("path-fs2io", (path: Path) => reader.withBlocker.read(path))
+    ReadMethod("source", (path: Path) => bracket(source(path)).through(reader[IO].by)),
+    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(reader.shifting[IO].by)),
+    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(reader[IO].by)),
+    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(reader.shifting[IO].by)),
+    ReadMethod("path", (path: Path) => reader[IO].read(path)),
+    ReadMethod("path-fs2io", (path: Path) => reader.shifting[IO].read(path))
   )
 
   private def inputStream(path: Path) = Files.newInputStream(path, StandardOpenOption.READ)

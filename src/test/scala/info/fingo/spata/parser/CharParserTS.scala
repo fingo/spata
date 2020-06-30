@@ -5,16 +5,17 @@
  */
 package info.fingo.spata.parser
 
+import cats.effect.IO
+import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import fs2.Stream
 import Config._
 import CharStates._
 import CharFailures._
 
 class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  private val parser = new CharParser(sep, rs, qt)
+  private val parser = new CharParser[IO](sep, rs, qt)
 
   test("Char parser should correctly parse provided input") {
     forAll(regularCases) { (_, input, output) =>

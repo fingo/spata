@@ -6,19 +6,18 @@
 package info.fingo.spata.parser
 
 import scala.collection.immutable.VectorBuilder
-import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 
 /* Converter from CSV fields to records. */
-private[spata] class RecordParser {
+private[spata] class RecordParser[F[_]] {
 
   import RecordParser._
   import FieldParser._
 
   /* Transforms stream of fields into records by providing FS2 pipe. */
-  def toRecords: Pipe[IO, FieldResult, ParsingResult] = {
+  def toRecords: Pipe[F, FieldResult, ParsingResult] = {
 
-    def loop(fields: Stream[IO, FieldResult], vb: VectorBuilder[String], recNum: Int): Pull[IO, ParsingResult, Unit] =
+    def loop(fields: Stream[F, FieldResult], vb: VectorBuilder[String], recNum: Int): Pull[F, ParsingResult, Unit] =
       fields.pull.uncons1.flatMap {
         case Some((h, t)) =>
           h match {

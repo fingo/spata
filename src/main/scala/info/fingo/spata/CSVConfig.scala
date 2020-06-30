@@ -5,10 +5,12 @@
  */
 package info.fingo.spata
 
+import fs2.RaiseThrowable
+
 /** CSV configuration used for creating [[CSVParser]].
   *
   * This config may be used as a builder to create a parser:
-  * {{{ val parser = CSVConfig.fieldSizeLimit(1000).noHeader().get }}}
+  * {{{ val parser = CSVConfig.fieldSizeLimit(1000).noHeader().get[IO] }}}
   *
   * Field delimiter is `','` by default.
   *
@@ -70,6 +72,11 @@ case class CSVConfig private[spata] (
   /** Remap selected fields names. */
   def mapHeader(mh: S2S): CSVConfig = this.copy(mapHeader = mh)
 
-  /** Creates [[CSVParser]] from this config. */
-  def get: CSVParser = new CSVParser(this)
+  /** Creates [[CSVParser]] from this config.
+    *
+    * @tparam F the effect type, with a type class providing support for raising and handling errors
+    * (typically [[cats.effect.IO]])
+    * @return parser configured according to provided settings
+    */
+  def get[F[_]: RaiseThrowable]: CSVParser[F] = new CSVParser(this)
 }

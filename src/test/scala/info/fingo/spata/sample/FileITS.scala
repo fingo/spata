@@ -17,11 +17,11 @@ class FileITS extends AnyFunSuite {
 
   test("spata allows data conversion to another file") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
-    val parser = CSVParser() // parser with default configuration
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader.by)
+      .through(reader[IO].by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
@@ -56,13 +56,14 @@ class FileITS extends AnyFunSuite {
 
   test("spata allows data conversion to another file using for comprehension") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
-    val parser = CSVParser.config.get // parser with default configuration
+    val parser = CSVParser.config.get[IO] // parser with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val outcome = for {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       writer <- Stream.bracket(IO { new FileWriter(outFile) })(writer => IO { writer.close() })
-      record <- reader(source)
+      record <- reader[IO]
+        .read(source)
         .through(parser.parse)
         .filter { record =>
           record("max_temp") != "NaN" && record("min_temp") != "NaN"

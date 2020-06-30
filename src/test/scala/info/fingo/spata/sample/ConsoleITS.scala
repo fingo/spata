@@ -21,11 +21,11 @@ class ConsoleITS extends AnyFunSuite {
 
   test("spata allows manipulate data using stream functionality") {
     case class YT(year: Int, temp: Double) // class to converter data to
-    val parser = CSVParser() // parser with default configuration
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader.by)
+      .through(reader[IO].by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val aggregates = records.filter { record =>
@@ -58,11 +58,11 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val parser = CSVParser.config.get // parser with default configuration
+    val parser = CSVParser.config.get[IO] // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser
-          .process(reader(source)) { record =>
+          .process(reader[IO].read(source)) { record =>
             if (record.get[Double]("max_temp") > 0) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
@@ -81,11 +81,11 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allow processing csv data as list") {
-    val parser = CSVParser() // parser with default configuration
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
-        val records = parser.get(reader(source), 500).unsafeRunSync()
+        val records = parser.get(reader[IO].read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp") > 0)
         assert(over0.isDefined)
         for (r <- over0)

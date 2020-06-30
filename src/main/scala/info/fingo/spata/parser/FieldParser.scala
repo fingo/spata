@@ -5,27 +5,26 @@
  */
 package info.fingo.spata.parser
 
-import cats.effect.IO
 import fs2.{Pipe, Pull, Stream}
 import ParsingErrorCode._
 
 /* Converter from character symbols to CSV fields.
  * This class tracks source position while consuming symbols to report it precisely, especially in case of failure.
  */
-private[spata] class FieldParser(fieldSizeLimit: Option[Int]) {
+private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int]) {
   import FieldParser._
   import CharParser._
   import CharParser.CharPosition._
 
   /* Transforms stream of character symbols into fields by providing FS2 pipe. */
-  def toFields: Pipe[IO, CharResult, FieldResult] = {
+  def toFields: Pipe[F, CharResult, FieldResult] = {
 
     def loop(
-      chars: Stream[IO, CharResult],
+      chars: Stream[F, CharResult],
       sb: StringBuilder,
       counters: Location,
       lc: LocalCounts
-    ): Pull[IO, FieldResult, Unit] =
+    ): Pull[F, FieldResult, Unit] =
       if (fieldTooLong(lc))
         Pull.output1(fail(FieldTooLong, counters, lc)) >> Pull.done
       else

@@ -5,10 +5,10 @@
  */
 package info.fingo.spata
 
-import info.fingo.spata.io.reader
-
-import scala.io.Source
 import org.scalatest.funsuite.AnyFunSuite
+import scala.io.Source
+import cats.effect.IO
+import info.fingo.spata.io.reader
 
 class CSVConfigTS extends AnyFunSuite {
 
@@ -22,8 +22,8 @@ class CSVConfigTS extends AnyFunSuite {
     val rs = 0x1E.toChar
     val content = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
     val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader()
-    val data = reader(Source.fromString(content))
-    val parser = config.get
+    val data = reader[IO].read(Source.fromString(content))
+    val parser = config.get[IO]
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)
     assert(result.head.size == 2)

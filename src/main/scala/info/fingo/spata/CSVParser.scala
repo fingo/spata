@@ -22,8 +22,8 @@ import info.fingo.spata.CSVParser.CSVCallback
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
-  *    which is the recommended approach
-  *  - [[get(stream:fs2\.Stream[F,Char])* get]] to fetch whole source data at once into a list
+  *    which is the recommended approach,
+  *  - [[get(stream:fs2\.Stream[F,Char])* get]] to fetch whole source data at once into a list,
   *  - [[process]] to deal with individual records through a callback function.
   *
   * This parser is normally used with stream fetching data from some external source,
@@ -31,8 +31,8 @@ import info.fingo.spata.CSVParser.CSVCallback
   * Basic parsing does not impose any special requirements on `F`, except its support for raising and handling errors,
   * which requires implicit instance of [[fs2.RaiseThrowable]], meaning `ApplicativeError[F, Throwable]`
   * or `MonadError[F, Throwable]`.
-  * However convenience methods for loading data into list or processing through callbacks
-  * require more complex type classes.
+  * Nevertheless, convenience methods for loading data into list or processing through callbacks
+  * require presence of more complex type classes.
   *
   * To trigger evaluation, one of the `unsafe` operations on `F` has to be called.
   * Their exact form depends on actual effect in use (e.g. [[cats.effect.IO.unsafeRunSync]]).
@@ -48,7 +48,7 @@ import info.fingo.spata.CSVParser.CSVCallback
   */
 class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
 
-  /** Transforms into records stream of characters representing CSV data.
+  /** Transforms stream of characters representing CSV data into records.
     * This function is intended to be used with [[fs2.Stream.through]].
     * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
@@ -57,7 +57,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * val parser = CSVParser[IO]()
     * val stream: Stream[IO, CSVRecord] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(reader(_))
+    *   .flatMap(reader[IO].read)
     *   .through(parser.parse)
     * }}}
     *
@@ -93,7 +93,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
 
   /** Fetches whole source content into list of records.
     *
-    * This function should be used only for small amounts of source data to avoid memory overflow.
+    * This function should be used only for small source data sets to avoid memory overflow.
     *
     * @param stream the source stream containing CSV content
     * @param F a type class (monad) providing suspended execution
@@ -134,7 +134,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     *
     * @param stream the source stream containing CSV content
     * @param cb the callback function to operate on each CSV record and produce some side effect.
-    * It should return `true` to continue the process with next record or `false` to stop processing the source.
+    * It should return `true` to continue the process with next record or `false` to stop processing the input.
     * @param F a type class (monad) providing suspended execution
     * @return unit effect, used as a handle to trigger evaluation
     * @throws CSVException in case of flawed CSV structure or field parsing errors
@@ -145,7 +145,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     stream.through(parse).through(effect).compile.drain
   }
 
-  /* Callback function wrapper to enclose it in effect F and letting the stream to evaluate it when run. */
+  /* Callback function wrapper to enclose it in effect F and let the stream evaluate it when run. */
   private def evalCallback(cb: CSVCallback)(implicit F: Sync[F]): Pipe[F, CSVRecord, Boolean] =
     _.evalMap(pr => F.delay(cb(pr))).takeWhile(_ == true)
 
@@ -154,7 +154,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @param F type class (monad) providing support for concurrency
     * @return helper class with asynchronous method
     */
-  def async(implicit F: Concurrent[F]): CSVParser.Async[F] = new CSVParser.Async(this)(F)
+  def async(implicit F: Concurrent[F]): CSVParser.Async[F] = new CSVParser.Async(this)
 }
 
 /** [[CSVParser]] companion object with types definitions and convenience methods to create parsers. */
@@ -184,7 +184,7 @@ object CSVParser {
     /** Processes each CSV record with provided callback functions to execute some side effects.
       * Stops processing input as soon as the callback function returns false, stream is exhausted or exception thrown.
       *
-      * This function process the callbacks asynchronously while retaining order of handled data.
+      * This function processes the callbacks asynchronously while retaining order of handled data.
       * The callbacks are run concurrently according to `maxConcurrent` parameter.
       *
       * Processing success or failure may be checked by examining by callback to method triggering effect evaluation
@@ -192,8 +192,8 @@ object CSVParser {
       *
       * @param stream the source stream containing CSV content
       * @param maxConcurrent maximum number of concurrently evaluated effects
-      * @param cb the callback function to operate on each CSV record and produce some side effect.
-      * It should return `true` to continue with next record or `false` to stop processing the source.
+      * @param cb the callback function to operate on each CSV record and produce some side effect;
+      * it should return `true` to continue with next record or `false` to stop processing the source
       * @return unit effect, used as a handle to trigger evaluation
       */
     def process(stream: Stream[F, Char], maxConcurrent: Int = 1)(cb: CSVCallback): F[Unit] = {
@@ -201,7 +201,7 @@ object CSVParser {
       stream.through(parser.parse).through(effect).compile.drain
     }
 
-    /* Callback function wrapper to enclose it in effect F and letting the stream to evaluate it asynchronously when run. */
+    /* Callback function wrapper to enclose it in effect F and let the stream evaluate it asynchronously when run. */
     private def evalCallback(maxConcurrent: Int)(cb: CSVCallback): Pipe[F, CSVRecord, Boolean] =
       _.mapAsync(maxConcurrent) { pr =>
         Concurrent[F].async[Boolean] { call =>

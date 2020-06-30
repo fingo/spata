@@ -24,7 +24,7 @@ import fs2.{io, Chunk, Pipe, Pull, Stream}
   *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
   *
   * The reading functions in [[reader.Shifting]], except the one reading from [[scala.io.Source]],
-  * use [[https://fs2.io/io.html fs2-io]] library and are generally more efficient than they plain counterparts.
+  * use [[https://fs2.io/io.html fs2-io]] library and are generally more efficient than their plain counterparts.
   * On the contrary, the function reading from `Source`
   * [[reader.Shifting.read(source:scala\.io\.Source)* reader.shifting.read(source)]]
   * is much less efficient in most scenarios and should be chosen deliberately.
@@ -35,12 +35,11 @@ import fs2.{io, Chunk, Pipe, Pull, Stream}
   * Functions reading binary data (from `java.io.InputStream` or taking `java.nio.file.Path`)
   * use implicit [[scala.io.Codec]] to decode input data. If not provided, the default JVM charset is used.
   *
-  * For input data encoded in `UTF`, the byte order mark (BOM) is removed automatically.
+  * For input data encoded in `UTF`, the byte order mark (`BOM`) is removed automatically.
   * This is done even for functions reading from already decoded [[scala.io.Source]]
   * as long as the implicit [[scala.io.Codec]] with `UTF` charset is provided.
   *
-  * All of above applies not only to `read` function but also to [[reader.apply]] and reader.by,
-  * which internally make use of `read`.
+  * All of above applies not only to `read` functions but also to `apply` and `by`, which internally make use of `read`.
   */
 object reader {
 
@@ -67,7 +66,7 @@ object reader {
     *
     * @param blocker an execution context to be used for blocking I/O operations
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation
+    * and execution environment for non-blocking operation (to shift back to)
     * @return reader with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift](blocker: Blocker): Shifting[F] =
@@ -77,7 +76,7 @@ object reader {
     * Uses internal, default blocker backed by a new cached thread pool.
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation
+    * and execution environment for non-blocking operation (to shift back to)
     * @return reader with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift]: Shifting[F] = new Shifting[F](None)
@@ -89,13 +88,11 @@ object reader {
       else stream
 
   /** Reader interface with reading operations from various sources.
-    * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]) allowing deferred computation.
+    * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.
     * The returned [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
-    *
     * Processing I/O errors, manifested through [[java.io.IOException]],
-    * should be handled with [[fs2.Stream.handleErrorWith]].
-    * If not handled, they will propagate as exceptions.
+    * should be handled with [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
     *
     * @tparam F the effect type
     */
@@ -125,7 +122,7 @@ object reader {
       * @note This function does not close the input stream after use,
       * which is different from default behavior of `fs2-io` functions taking `InputStream` as parameter.
       *
-      * @see [[read(source:scala\.io\.Source)* read]] for more information.
+      * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
       *
       * @param is input stream containing CSV content
       * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
@@ -170,10 +167,8 @@ object reader {
       *   .through(reader[IO].by)
       * }}}
       *
-      * @see [[read(source:scala\.io\.Source)* read]] for more information.
-      *
       * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @tparam A type oof source
+      * @tparam A type of source
       * @return a pipe to converter CSV source into [[scala.Char]]s
       */
     def by[A: CSV](implicit codec: Codec): Pipe[F, A, Char] = _.flatMap(apply(_))
@@ -221,7 +216,7 @@ object reader {
       * }}}
       *
       * @note This function is much less efficient for most use cases than its non-shifting counterpart,
-      * reader.read(source:scala\.io\.Source)* reader.read.
+      * [[Plain.read(source:scala\.io\.Source)* Plain.read]].
       * This is due to [[scala.io.Source]] character-based iterator,
       * which causes context shift for each fetched character.
       */
@@ -241,6 +236,7 @@ object reader {
       } yield char
 
     /** @inheritdoc
+      *
       * @example
       * {{{
       * implicit val codec = new Codec(Charset.forName("ISO-8859-2"))

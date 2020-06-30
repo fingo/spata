@@ -8,7 +8,7 @@ spata
 [![Gitter](https://badges.gitter.im/fingo-spata/community.svg)](https://gitter.im/fingo-spata/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 **spata** is a functional Scala parser for tabular data (`CSV`).
-The library is based on [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
+The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
 Main goal of the library is to provide handy, functional, stream-based API with easy conversion to case classes and
 precise information about flaws in source data (their location) while keeping good performance.
@@ -55,8 +55,8 @@ val records = Stream
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
 ```
 
-Another example may be taken from [FS2 readme](https://fs2.io/) assuming,
-that the data is stored in CSV format with two fields, `date` and `temp`:
+Another example may be taken from [FS2 readme](https://fs2.io/),
+assuming that the data is stored in CSV format with two fields, `date` and `temp`:
 ```scala
 import java.nio.file.Paths
 import scala.io.Codec
@@ -109,15 +109,15 @@ This is available through `CSVParser.parse` function (supplying FS2 `Pipe`)
 and is probably the best way to include CSV parsing into any FS2 stream processing pipeline:
 ```scala
 val input: Stream[IO, Char] = ???
-val parser: CSVParser = CSVParser[IO]()
+val parser: CSVParser[IO] = CSVParser[IO]()
 val output: Stream[IO, CSVRecord] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
 (Cats [IO](https://typelevel.org/cats-effect/datatypes/io.html),
 Monix [Task](https://monix.io/docs/3x/eval/task.html)
 or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
-Type class dependencies are defined in term of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
-Please note however, that Cats Effect `IO` is the only effect implementation used for testing and presentation purposes. 
+Type class dependencies are defined in terms of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
+Please note however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
 
 Like in case of any other FS2 processing, spata consumes only as much of the source stream as required. 
 
@@ -137,10 +137,10 @@ In addition to `parse`, `CSVParser` provides other methods to read CSV data:
 * `async` to process data through a callback function in asynchronous way.
 
 The three above functions return the result (`List` or `Unit`) wrapped in an effect and require calling one of the
-"at the end-of-the-world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
+"at the end of the world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
 ```scala
 val stream: Stream[IO, Char] = ???
-val parser: CSVParser = CSVParser[IO]()
+val parser: CSVParser[IO] = CSVParser[IO]()
 val list: List[CSVRecord] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
@@ -178,7 +178,8 @@ date,max temparature,min temparature
 ```
 ```scala
 val stream: Stream[IO, Char] = ???
-val parser: CSVParser = CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]
+val parser: CSVParser[IO] =
+  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]
 val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp") < 0)
 ```
 It may be defined as well for more fields than present in any particular data source,
@@ -231,9 +232,8 @@ implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val stream: Stream[IO, Char] = reader.shifting[IO].read(Path.of("data.csv"))
 ```
 The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
-used for regular, non-blocking operation, after the blocking IO operation finishes.
-The `Blocker`, which provides thread pool for blocking I/O,
-may be passed to `withBlocker` or will be created internally. 
+used for regular, non-blocking operation, after the blocking I/O operation finishes.
+The `Blocker`, which provides thread pool for blocking I/O, may be passed to `shifting` or will be created internally. 
 
 Except of `Source`, which is already a character-based, other data sources require an implicit `Codec`
 to convert bytes into characters:
@@ -446,6 +446,7 @@ and propagates through the stream, further processing of input data is stopped, 
 Errors are raised and should be handled with [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
 FS2 captures exceptions reported explicitly with `raiseError` or thrown
 and in both cases is able to handle them with `handleErrorWith`.
+To fully support this, `CSVParser` requires the `RaiseThrowable` type class instance for its effect `F`.  
 
 The converter example presented in [Basic usage](#basic-usage) may be enriched with explicit error handling:
 ```scala

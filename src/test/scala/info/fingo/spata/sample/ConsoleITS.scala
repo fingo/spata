@@ -76,7 +76,7 @@ class ConsoleITS extends AnyFunSuite {
     } catch {
       case NonFatal(ex) =>
         println(ex.getMessage)
-        fail
+        fail()
     }
   }
 
@@ -94,7 +94,7 @@ class ConsoleITS extends AnyFunSuite {
     } catch {
       case NonFatal(ex) =>
         println(ex.getMessage)
-        fail
+        fail()
     }
   }
 }

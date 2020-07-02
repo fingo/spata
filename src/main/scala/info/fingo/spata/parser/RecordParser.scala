@@ -32,7 +32,7 @@ private[spata] class RecordParser[F[_]] {
               } else
                 loop(t, vb, recNum)
             case ff: FieldFailure =>
-              Pull.output1(ParsingFailure(ff.code, ff.counters, recNum, vb.result.size + 1)) >> Pull.done
+              Pull.output1(ParsingFailure(ff.code, ff.counters, recNum, vb.result().size + 1)) >> Pull.done
           }
         case None => Pull.done
       }

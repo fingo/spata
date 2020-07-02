@@ -32,7 +32,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
       errors.foreach {
         case e: CSVException => assert(e.getMessage.startsWith(s"Error occurred at row $row (line ${row + 1})"))
         case _: IOException => assert(testCase == "wrongFile")
-        case _ => fail
+        case _ => fail()
       }
     }
   }

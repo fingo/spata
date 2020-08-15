@@ -6,39 +6,49 @@
 package info.fingo.spata.parser
 
 import scala.collection.immutable.VectorBuilder
-import fs2.{Pipe, Pull, Stream}
+import scala.annotation.tailrec
+import fs2.{Chunk, Pipe}
+import RecordParser._
+import FieldParser._
+
+/* Carrier for record number, partial record content and information about finished parsing. */
+private[spata] case class StateRP(
+  recNum: Int = 1,
+  buffer: VectorBuilder[String] = new VectorBuilder[String](),
+  done: Boolean = false
+) extends State {
+  def finish(): StateRP = copy(done = true)
+}
 
 /* Converter from CSV fields to records. */
-private[spata] class RecordParser[F[_]] {
-
-  import RecordParser._
-  import FieldParser._
+private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult, ParsingResult, StateRP] {
 
   /* Transforms stream of fields into records by providing FS2 pipe. */
-  def toRecords: Pipe[F, FieldResult, ParsingResult] = {
+  def toRecords: Pipe[F, FieldResult, ParsingResult] = parse(StateRP())
 
-    def loop(fields: Stream[F, FieldResult], vb: VectorBuilder[String], recNum: Int): Pull[F, ParsingResult, Unit] =
-      fields.pull.uncons1.flatMap {
-        case Some((h, t)) =>
-          h match {
-            case rf: RawField =>
-              vb += rf.value
-              if (rf.endOfRecord) {
-                val rr = RawRecord(vb.result(), rf.counters, recNum)
-                if (rr.isEmpty)
-                  loop(t, new VectorBuilder[String], recNum)
-                else
-                  Pull.output1(rr) >> loop(t, new VectorBuilder[String], recNum + 1)
-              } else
-                loop(t, vb, recNum)
-            case ff: FieldFailure =>
-              Pull.output1(ParsingFailure(ff.code, ff.counters, recNum, vb.result().size + 1)) >> Pull.done
-          }
-        case None => Pull.done
-      }
-
-    fields => loop(fields, new VectorBuilder[String], 1).stream
-  }
+  @tailrec
+  final override def parseChunk(
+    input: List[FieldResult],
+    output: Vector[ParsingResult],
+    state: StateRP
+  ): (StateRP, Chunk[ParsingResult]) =
+    input match {
+      case (rf: RawField) :: tail if rf.endOfRecord =>
+        state.buffer += rf.value
+        val rr = RawRecord(state.buffer.result(), rf.counters, state.recNum)
+        if (rr.isEmpty)
+          parseChunk(tail, output, StateRP(state.recNum))
+        else
+          parseChunk(tail, output :+ rr, StateRP(state.recNum + 1))
+      case (rf: RawField) :: tail =>
+        state.buffer += rf.value
+        parseChunk(tail, output, StateRP(state.recNum, state.buffer))
+      case (ff: FieldFailure) :: _ =>
+        val fieldNum = state.buffer.result().size + 1
+        val chunk = Chunk.vector(output :+ ParsingFailure(ff.code, ff.counters, state.recNum, fieldNum))
+        (state.finish(), chunk)
+      case _ => (state, Chunk.vector(output))
+    }
 }
 
 private[spata] object RecordParser {

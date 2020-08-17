@@ -161,7 +161,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-        val source = Source.fromString(basicCSV(testCase, separator))
+        // make larger CSV to leave some data unread despite buffering
+        val source = Source.fromString(basicCSV(testCase, separator, 100))
         val input = reader[IO].read(source)
         val list = parser.get(input, 2).unsafeRunSync()
         assert(list.size == 2)
@@ -223,7 +224,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-        val source = Source.fromString(basicCSV(testCase, separator))
+        // make larger CSV to leave some data unread despite buffering
+        val source = Source.fromString(basicCSV(testCase, separator, 100))
         val input = reader[IO].read(source)
         parser.process(input)(cb).unsafeRunSync()
         assert(source.hasNext)
@@ -360,9 +362,9 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("empty lines", "Fanky Koval", "100.00", "Han Solo", "999.99")
   )
 
-  private def basicCSV(testCase: String, separator: Char): String = {
+  private def basicCSV(testCase: String, separator: Char, duplicate: Int = 1): String = {
     val header = basicHeader(separator)
-    val content = basicContent(testCase, separator)
+    val content = (basicContent(testCase, separator) + "\n") * duplicate
     s"$header\n$content"
   }
 

@@ -15,6 +15,7 @@ import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.syntax.all._
 import fs2.{io, Chunk, Pipe, Pull, Stream}
 
 /** Utility to read external data and provide stream of characters.
@@ -44,6 +45,7 @@ import fs2.{io, Chunk, Pipe, Pull, Stream}
 object reader {
 
   private val blockSize = 4096
+  private val chunkSize = 1024
   private val autoClose = false
   private val bom = "\uFEFF".head
   private val UTFCharsetPrefix = "UTF-"
@@ -172,6 +174,12 @@ object reader {
       * @return a pipe to converter CSV source into [[scala.Char]]s
       */
     def by[A: CSV](implicit codec: Codec): Pipe[F, A, Char] = _.flatMap(apply(_))
+
+    protected def bufferIterator[A](it: Iterator[A]): Seq[A] =
+      for (_ <- 1 to chunkSize if it.hasNext) yield it.next()
+
+    protected def chunkBufferedIterator[A](it: Iterator[A], seq: Seq[A]): Option[(Chunk[A], Iterator[A])] =
+      if (seq.isEmpty) None else Some((Chunk.seq(seq), it))
   }
 
   /** Reader which executes I/O operations on current thread, without context (thread) shifting.
@@ -182,7 +190,8 @@ object reader {
 
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
-      Stream.fromIterator[F][Char](source).through(skipBom)
+      //Stream.fromIterator[F][Char](source).through(skipBom)
+      fromIterator[Char](source).through(skipBom)
 
     /** @inheritdoc */
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
@@ -195,6 +204,12 @@ object reader {
           Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
         })(source => Sync[F].delay { source.close() })
         .flatMap(read)
+
+    private def getNextChunk[A](it: Iterator[A]): F[Option[(Chunk[A], Iterator[A])]] =
+      Sync[F].delay(bufferIterator(it)).map(s => chunkBufferedIterator(it, s))
+
+    private def fromIterator[A](it: Iterator[A]): Stream[F, A] =
+      Stream.unfoldChunkEval(it)(getNextChunk)
   }
 
   /** Reader which shifts I/O operations to a execution context provided for blocking operations.
@@ -223,7 +238,7 @@ object reader {
     def read(source: Source): Stream[F, Char] =
       for {
         b <- Stream.resource(br)
-        char <- Stream.fromBlockingIterator[F][Char](b, source).through(reader.skipBom)
+        char <- fromBlockingIterator[Char](source, b).through(reader.skipBom)
       } yield char
 
     /** @inheritdoc */
@@ -251,6 +266,12 @@ object reader {
           .readAll[F](path, blocker, blockSize)
           .through(byte2char)
       } yield char
+
+    private def getNextChunk[A](it: Iterator[A], blocker: Blocker): F[Option[(Chunk[A], Iterator[A])]] =
+      blocker.delay(bufferIterator(it)).map(s => chunkBufferedIterator(it, s))
+
+    private def fromBlockingIterator[A](it: Iterator[A], b: Blocker): Stream[F, A] =
+      Stream.unfoldChunkEval(it)(it => getNextChunk(it, b))
 
     /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
     private def br =

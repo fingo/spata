@@ -25,10 +25,7 @@ import fs2.{io, Chunk, Pipe, Pull, Stream}
   *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
   *
   * The reading functions in [[reader.Shifting]], except the one reading from [[scala.io.Source]],
-  * use [[https://fs2.io/io.html fs2-io]] library and are generally more efficient than their plain counterparts.
-  * On the contrary, the function reading from `Source`
-  * [[reader.Shifting.read(source:scala\.io\.Source)* reader.shifting.read(source)]]
-  * is much less efficient in most scenarios and should be chosen deliberately.
+  * use [[https://fs2.io/io.html fs2-io]] library.
   *
   * In every case, the caller of function taking resource ([[scala.io.Source]] or `java.io.InputStream`) as a parameter
   * is responsible for its cleanup.
@@ -44,44 +41,58 @@ import fs2.{io, Chunk, Pipe, Pull, Stream}
   */
 object reader {
 
-  private val blockSize = 4096
-  private val chunkSize = 1024
+  /** Default size of data chunk: 4096. Read more about chunks in see [[https://fs2.io/guide.html#chunks FS2 Guide]]. */
+  val defaultChunkSize = 4096
+
   private val autoClose = false
   private val bom = "\uFEFF".head
   private val UTFCharsetPrefix = "UTF-"
 
   /** Alias for [[plain]].
     *
+    * @param chunkSize size of data chunk - see [[https://fs2.io/guide.html#chunks FS2 Chunks]].
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * @return basic reader
     */
-  def apply[F[_]: Sync]: Plain[F] = plain
+  def apply[F[_]: Sync](chunkSize: Int = defaultChunkSize): Plain[F] = plain(chunkSize)
 
   /** Provides basic reader executing I/O on current thread.
     *
+    * @param chunkSize size of data chunk
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * @return basic reader
     */
-  def plain[F[_]: Sync]: Plain[F] = new Plain[F]
+  def plain[F[_]: Sync](chunkSize: Int = defaultChunkSize): Plain[F] = new Plain[F](chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     *
     * @param blocker an execution context to be used for blocking I/O operations
+    * @param chunkSize size of data chunk
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
     * and execution environment for non-blocking operation (to shift back to)
     * @return reader with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift](blocker: Blocker): Shifting[F] =
-    new Shifting[F](Some(blocker))
+  def shifting[F[_]: Sync: ContextShift](blocker: Blocker, chunkSize: Int = defaultChunkSize): Shifting[F] =
+    new Shifting[F](Some(blocker), chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool.
+    *
+    * @param chunkSize size of data chunk
+    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
+    * and execution environment for non-blocking operation (to shift back to)
+    * @return reader with support for context shifting
+    */
+  def shifting[F[_]: Sync: ContextShift](chunkSize: Int): Shifting[F] = new Shifting[F](None, chunkSize)
+
+  /** Provides reader with support of context shifting for I/O operations.
+    * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
     * and execution environment for non-blocking operation (to shift back to)
     * @return reader with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift]: Shifting[F] = new Shifting[F](None)
+  def shifting[F[_]: Sync: ContextShift](): Shifting[F] = new Shifting[F](None, defaultChunkSize)
 
   /* Skip BOM from UTF encoded streams */
   private def skipBom[F[_]](implicit codec: Codec): Pipe[F, Char, Char] =
@@ -100,6 +111,11 @@ object reader {
     */
   trait Reader[F[_]] {
 
+    /** Size of data chunk loaded at once when reading from source.
+      * See also [[https://fs2.io/guide.html#chunks FS2 Chunks]].
+      */
+    val chunkSize: Int
+
     /** Reads a CSV source and returns a stream of character.
       *
       * The caller of this function is responsible for proper resource acquisition and release.
@@ -111,7 +127,7 @@ object reader {
       * {{{
       * val stream = Stream
       *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .flatMap(reader[IO].read)
+      *   .flatMap(reader[IO]().read)
       * }}}
       *
       * @param source the source containing CSV content
@@ -138,7 +154,7 @@ object reader {
       * {{{
       * implicit val codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
-      * val stream = reader[IO].read(path)
+      * val stream = reader[IO](1024).read(path)
       * }}}
       *
       * @param path the path to source file
@@ -166,7 +182,7 @@ object reader {
       * {{{
       * val stream = Stream
       *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .through(reader[IO].by)
+      *   .through(reader[IO]().by)
       * }}}
       *
       * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
@@ -175,27 +191,28 @@ object reader {
       */
     def by[A: CSV](implicit codec: Codec): Pipe[F, A, Char] = _.flatMap(apply(_))
 
+    /* Read chunk of data from iterator and store in sequence. */
     protected def bufferIterator[A](it: Iterator[A]): Seq[A] =
       for (_ <- 1 to chunkSize if it.hasNext) yield it.next()
 
-    protected def chunkBufferedIterator[A](it: Iterator[A], seq: Seq[A]): Option[(Chunk[A], Iterator[A])] =
+    protected def chunkBufferedIterator[A](seq: Seq[A], it: Iterator[A]): Option[(Chunk[A], Iterator[A])] =
       if (seq.isEmpty) None else Some((Chunk.seq(seq), it))
   }
 
   /** Reader which executes I/O operations on current thread, without context (thread) shifting.
     *
+    * @param chunkSize size of data chunk
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     */
-  final class Plain[F[_]: Sync] private[spata] () extends Reader[F] {
+  final class Plain[F[_]: Sync] private[spata] (override val chunkSize: Int) extends Reader[F] {
 
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
-      //Stream.fromIterator[F][Char](source).through(skipBom)
       fromIterator[Char](source).through(skipBom)
 
     /** @inheritdoc */
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
-      read(new BufferedSource(is, blockSize))
+      read(new BufferedSource(is, chunkSize))
 
     /** @inheritdoc */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
@@ -205,9 +222,11 @@ object reader {
         })(source => Sync[F].delay { source.close() })
         .flatMap(read)
 
+    /* Load next data chunk from iterator. */
     private def getNextChunk[A](it: Iterator[A]): F[Option[(Chunk[A], Iterator[A])]] =
-      Sync[F].delay(bufferIterator(it)).map(s => chunkBufferedIterator(it, s))
+      Sync[F].delay(bufferIterator(it)).map(s => chunkBufferedIterator(s, it))
 
+    /* Creates stream from iterator. In contrast to Stream.fromIterator builds chunks of data. */
     private def fromIterator[A](it: Iterator[A]): Stream[F, A] =
       Stream.unfoldChunkEval(it)(getNextChunk)
   }
@@ -216,10 +235,12 @@ object reader {
     * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
     *
     * @param blocker optional execution context to be used for blocking I/O operations
+    * @param chunkSize size of data chunk
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
     * and execution environment for non-blocking operation ([[cats.effect.ContextShift]]).
     */
-  final class Shifting[F[_]: Sync: ContextShift] private[spata] (blocker: Option[Blocker]) extends Reader[F] {
+  final class Shifting[F[_]: Sync: ContextShift] private[spata] (blocker: Option[Blocker], override val chunkSize: Int)
+    extends Reader[F] {
 
     /** @inheritdoc
       *
@@ -246,7 +267,7 @@ object reader {
       for {
         blocker <- Stream.resource(br)
         char <- io
-          .readInputStream(Sync[F].delay(is), blockSize, blocker, autoClose)
+          .readInputStream(Sync[F].delay(is), chunkSize, blocker, autoClose)
           .through(byte2char)
       } yield char
 
@@ -256,20 +277,22 @@ object reader {
       * {{{
       * implicit val codec = new Codec(Charset.forName("ISO-8859-2"))
       * val path = Path.of("data.csv")
-      * val stream = reader.shifting[IO].read(path)
+      * val stream = reader.shifting[IO]().read(path)
       * }}}
       */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
         char <- io.file
-          .readAll[F](path, blocker, blockSize)
+          .readAll[F](path, blocker, chunkSize)
           .through(byte2char)
       } yield char
 
+    /* Load next data chunk from iterator shifting execution to blocker. */
     private def getNextChunk[A](it: Iterator[A], blocker: Blocker): F[Option[(Chunk[A], Iterator[A])]] =
-      blocker.delay(bufferIterator(it)).map(s => chunkBufferedIterator(it, s))
+      blocker.delay(bufferIterator(it)).map(s => chunkBufferedIterator(s, it))
 
+    /* Creates stream from iterator using blocker. In contrast to Stream.fromBlockingIterator builds chunks of data. */
     private def fromBlockingIterator[A](it: Iterator[A], b: Blocker): Stream[F, A] =
       Stream.unfoldChunkEval(it)(it => getNextChunk(it, b))
 

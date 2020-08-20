@@ -21,7 +21,7 @@ class FileITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader[IO].by)
+      .through(reader[IO]().by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
@@ -62,7 +62,7 @@ class FileITS extends AnyFunSuite {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       writer <- Stream.bracket(IO { new FileWriter(outFile) })(writer => IO { writer.close() })
-      record <- reader[IO]
+      record <- reader[IO]()
         .read(source)
         .through(parser.parse)
         .filter { record =>

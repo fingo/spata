@@ -43,7 +43,7 @@ class ThreadITS extends AnyFunSuite {
         cdl.countDown()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-      val data = reader.shifting[IO].read(source)
+      val data = reader.shifting[IO]().read(source)
       parser.async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)

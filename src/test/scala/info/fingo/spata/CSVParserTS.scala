@@ -26,6 +26,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private val separators = Table("separator", ',', ';', '\t')
   private val maxFieldSize = 100
+  // use smaller chunk size in tests than the default one to avoid having all data in single chunk
+  private val chunkSize = 16
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
@@ -107,7 +109,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         forAll(separators) { separator =>
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-          val input = reader[IO].read(generateErroneousCSV(testCase, separator))
+          val input = reader[IO](chunkSize).read(generateErroneousCSV(testCase, separator))
           val stream = input.through(parser.parse)
           val eh: StreamErrorHandler =
             ex => assertError(ex, errorCode, line, col, row, field)(Stream.emit(()))
@@ -128,7 +130,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         forAll(separators) { separator =>
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-          val input = reader[IO].read(generateErroneousCSV(testCase, separator))
+          val input = reader[IO](chunkSize).read(generateErroneousCSV(testCase, separator))
           val stream = input.through(parser.parse)
           val ex = intercept[Exception] {
             stream.compile.drain.unsafeRunSync()
@@ -161,9 +163,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-        // make larger CSV to leave some data unread despite buffering
-        val source = Source.fromString(basicCSV(testCase, separator, 100))
-        val input = reader[IO].read(source)
+        val source = Source.fromString(basicCSV(testCase, separator))
+        val input = reader[IO](chunkSize).read(source)
         val list = parser.get(input, 2).unsafeRunSync()
         assert(list.size == 2)
         assertListFirst(list, firstName, firstValue)
@@ -212,7 +213,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
         forAll(separators) { separator =>
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
           val source = generateErroneousCSV(testCase, separator)
-          val input = reader[IO].read(source)
+          val input = reader[IO](chunkSize).read(source)
           val eh: IOErrorHandler = ex => assertError(ex, errorCode, line, col, row, field)(IO.unit)
           parser.process(input)(_ => true).handleErrorWith(eh).unsafeRunSync()
         }
@@ -224,9 +225,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
-        // make larger CSV to leave some data unread despite buffering
-        val source = Source.fromString(basicCSV(testCase, separator, 100))
-        val input = reader[IO].read(source)
+        val source = Source.fromString(basicCSV(testCase, separator))
+        val input = reader[IO](chunkSize).read(source)
         parser.process(input)(cb).unsafeRunSync()
         assert(source.hasNext)
       }
@@ -273,7 +273,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
         forAll(separators) { separator =>
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]
           val source = generateErroneousCSV(testCase, separator)
-          val input = reader[IO].read(source)
+          val input = reader[IO](chunkSize).read(source)
           val cdl = new CountDownLatch(1)
           var result: Either[Throwable, Unit] = Right(())
           val rcb: Either[Throwable, Unit] => Unit = r => {
@@ -293,7 +293,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  private def csvStream(csvString: String) = reader[IO].read(Source.fromString(csvString))
+  private def csvStream(csvString: String) = reader[IO](chunkSize).read(Source.fromString(csvString))
 
   private def assertListFirst(list: List[CSVRecord], firstName: String, firstValue: String): Unit = {
     val first = list.head
@@ -362,9 +362,9 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("empty lines", "Fanky Koval", "100.00", "Han Solo", "999.99")
   )
 
-  private def basicCSV(testCase: String, separator: Char, duplicate: Int = 1): String = {
+  private def basicCSV(testCase: String, separator: Char): String = {
     val header = basicHeader(separator)
-    val content = (basicContent(testCase, separator) + "\n") * duplicate
+    val content = basicContent(testCase, separator)
     s"$header\n$content"
   }
 

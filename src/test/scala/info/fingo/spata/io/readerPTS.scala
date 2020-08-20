@@ -22,7 +22,7 @@ object readerPTS extends Bench.LocalTime {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
-  private val parser = CSVParser.config.get[IO] // parser with default configuration
+  private val parser = CSVParser.config.get[IO]() // parser with default configuration
 
   case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
     def apply(path: Path): Stream[IO, Char] = method(path)

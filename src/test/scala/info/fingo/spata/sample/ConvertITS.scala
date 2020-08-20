@@ -19,7 +19,7 @@ class ConvertITS extends AnyFunSuite {
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
-    val parser = CSVParser.config.mapHeader(mh).get[IO] // parser with IO effect
+    val parser = CSVParser.config.mapHeader(mh).get[IO]() // parser with IO effect
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
       .through(reader[IO]().by)

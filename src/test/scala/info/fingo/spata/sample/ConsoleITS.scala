@@ -58,7 +58,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val parser = CSVParser.config.get[IO] // parser with default configuration and IO effect
+    val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser

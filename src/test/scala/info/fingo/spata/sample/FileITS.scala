@@ -56,7 +56,7 @@ class FileITS extends AnyFunSuite {
 
   test("spata allows data conversion to another file using for comprehension") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
-    val parser = CSVParser.config.get[IO] // parser with default configuration and IO effect
+    val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val outcome = for {
       // get stream of CSV records while ensuring source cleanup

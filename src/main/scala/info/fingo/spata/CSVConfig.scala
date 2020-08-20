@@ -10,7 +10,7 @@ import fs2.RaiseThrowable
 /** CSV configuration used for creating [[CSVParser]].
   *
   * This config may be used as a builder to create a parser:
-  * {{{ val parser = CSVConfig.fieldSizeLimit(1000).noHeader().get[IO] }}}
+  * {{{ val parser = CSVConfig.fieldSizeLimit(1000).noHeader().get[IO]() }}}
   *
   * Field delimiter is `','` by default.
   *
@@ -78,5 +78,5 @@ case class CSVConfig private[spata] (
     * (typically [[cats.effect.IO]])
     * @return parser configured according to provided settings
     */
-  def get[F[_]: RaiseThrowable]: CSVParser[F] = new CSVParser(this)
+  def get[F[_]: RaiseThrowable](): CSVParser[F] = new CSVParser(this)
 }

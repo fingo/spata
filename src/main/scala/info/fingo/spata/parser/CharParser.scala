@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.parser
 
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import ParsingErrorCode._
 
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,
@@ -18,24 +18,44 @@ private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Cha
   /* Transforms plain characters into context-dependent symbols by providing FS2 pipe. */
   def toCharResults: Pipe[F, Char, CharResult] = toCharResults(CharState(Left(STX), Start))
 
+  /* Parse characters and covert them to CharResults based on previous state. Stop on first failure. */
   private def toCharResults(state: CharState): Pipe[F, Char, CharResult] = {
+
     def loop(chars: Stream[F, Char], state: CharState): Pull[F, CharResult, Unit] =
-      chars.pull.uncons1.flatMap {
+      chars.pull.unconsNonEmpty.flatMap {
         case Some((h, t)) =>
-          parseChar(h, state) match {
-            case cs: CharState => Pull.output1(cs) >> loop(t, cs)
-            case cf: CharFailure => Pull.output1(cf) >> Pull.done
+          val (nextState, resultChunk) = parseChunk(h, state)
+          nextState match {
+            case cs: CharState => Pull.output(resultChunk) >> loop(t, cs)
+            case cf: CharFailure => Pull.output(dropFailures(resultChunk)) >> Pull.output1(cf) >> Pull.done
           }
         case None => Pull.output1(endOfStream(state)) >> Pull.done
       }
+
     chars => loop(chars, state).stream
   }
+
+  /* Parse chunk of characters into chunk of CharResults. */
+  private def parseChunk(chunk: Chunk[Char], state: CharState) =
+    chunk.mapAccumulate(state: CharResult) { (s, c) =>
+      val nextState = s match {
+        case cs: CharState => parseChar(c, cs)
+        case cf: CharFailure => cf
+      }
+      (nextState, nextState)
+    }
 
   private def endOfStream(state: CharState): CharResult =
     state.position match {
       case Quoted => CharFailure(UnmatchedQuotation)
       case _ => CharState(Left(ETX), FinishedRecord)
     }
+
+  /* Keep only successful parsing results to output failure state once only. */
+  private def dropFailures(chunk: Chunk[CharResult]) = chunk.filter {
+    case _: CharState => true
+    case _ => false
+  }
 
   @inline
   private def isDelimiter(c: Char): Boolean = c == fieldDelimiter || c == recordDelimiter

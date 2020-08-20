@@ -11,13 +11,19 @@ spata
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
 Main goal of the library is to provide handy, functional, stream-based API with easy conversion to case classes and
-precise information about flaws in source data (their location) while keeping good performance.
+precise information about possible flaws in source data (their location) while keeping good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse well-formatted CSV file,
 but it could be a nightmare to locate the source of problem in case of any distortion in large data file.   
 
 The source data format is assumed basically to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt)
-but allows some variations - see `CSVConfig` for details.
+but allows some variations - see `CSVConfig` for details.   
+
+* [Getting started](#getting-started)
+* [Basic usage](#basic-usage)
+* [Tutorial](#tutorial)
+* [Alternatives](#alternatives)
+* [Credits](#credits)
 
 Getting started
 ---------------
@@ -47,7 +53,7 @@ val parser = CSVParser[IO]() // parser with default configuration
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-  .through(reader[IO].by) // produce stream of chars from source
+  .through(reader[IO]().by) // produce stream of chars from source
   .through(parser.parse)  // parse csv file and get csv records 
   .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
   .map(_.to[Data]()) // converter records to case class
@@ -73,7 +79,7 @@ object Converter extends IOApp {
   val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
     blocker =>
       implicit val codec: Codec = Codec.UTF8
-      val parser: CSVParser[IO] = CSVParser.config.get[IO]
+      val parser: CSVParser[IO] = CSVParser.config.get[IO]()
       def fahrenheitToCelsius(f: Double): Double =
         (f - 32.0) * (5.0 / 9.0)
 
@@ -102,6 +108,13 @@ More examples how to use the library may be found in `src/test/scala/info/fingo/
 Tutorial
 --------
 
+* [Parsing](#parsing)
+* [Configuration](#configuration)
+* [Reading source data](#reading-source-data)
+* [Getting actual data](#getting-actual-data)
+* [Text parsing](#text-parsing)
+* [Error handling](#error-handling)
+
 ### Parsing
 
 Core spata operation is a transformation from a stream of characters into a stream of `CSVRecords`.
@@ -119,7 +132,8 @@ or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
 Type class dependencies are defined in terms of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
 Please note however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
 
-Like in case of any other FS2 processing, spata consumes only as much of the source stream as required. 
+Like in case of any other FS2 processing, spata consumes only as much of the source stream as required,
+give or take chunk size. 
 
 Field and record delimiters are required to be single characters.
 There are however no other assumptions about them - particularly the record delimiter does not have to be a line break
@@ -146,8 +160,7 @@ val list: List[CSVRecord] = parser.get(stream).unsafeRunSync()
 Alternatively, instead of calling an unsafe function,
 whole processing may run through [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html).
 
-If we have to work with a stream of `String` (e.g. from FS2 `text.utf8Decode`)
-we may easily convert it to a character stream:
+If we have to work with a stream of `String` (e.g. from FS2 `text.utf8Decode`) we may convert it to a character stream:
 ```scala
 val ss: Stream[IO, String] = ???
 val sc: Stream[IO, Char] = ss.map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
@@ -161,7 +174,7 @@ See [Reading source data](#reading-source-data) for helper methods to get stream
 A more convenient way may be a builder-like method, which takes the defaults provided by `CSVParser` object
 and allows altering selected parameters:
 ```scala
-val parser = CSVReader.config.fieldDelimiter(';').noHeader().get[IO]
+val parser = CSVReader.config.fieldDelimiter(';').noHeader().get[IO]()
 ```
 
 Individual configuration parameters are described in
@@ -169,7 +182,7 @@ Individual configuration parameters are described in
 
 A specific setting is the header mapping, available through `CSVConfig.mapHeader`.
 It allows replacement of original header values with more convenient ones or even defining header if no one is present.
-The new values are then used in any operations referencing individual fields,
+The new values are then used in all operations referencing individual fields,
 including automatic conversion to case classes or tuples.
 Mapping may be defined only for a subset of fields, leaving the rest in original form.
 ```csv
@@ -179,7 +192,7 @@ date,max temparature,min temparature
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
-  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]
+  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]()
 val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp") < 0)
 ```
 It may be defined as well for more fields than present in any particular data source,
@@ -188,18 +201,18 @@ which allows using single parser for multiple data sets, with different headers.
 FS2 takes care of limiting the amount of processed data and consumed memory to the required level.
 This works well to restrict number of records, however each record has to be fully loaded into memory,
 no matter how large it is.
-This is not a  problem if everything goes well - individual records are not that large.
+This is not a  problem if everything goes well - individual records are typically not that large.
 A record can however grow uncontrollably in case of incorrect configuration (e.g. wrong record delimiter)
 or malformed structure (e.g. unclosed quotation).
 To prevent `OutOfMemoryError` in such situations,
 spata can be configured to limit maximum size of single field using `fieldSizeLimit`.
 If this limit is exceeded during parsing, the processing stops with error. 
-There is no limit by default.
+No limit is specified by default.
 
 ### Reading source data
 
 As mentioned earlier, `CSVParser` requires stream of characters as its input.
-To simplify working with common data sources, like files or sockets, spata provides a few convenience method,
+To simplify working with common data sources, like files or sockets, spata provides a few convenience methods,
 available through its `io.reader` object.
 
 There are two groups of `read` methods in `reader`:
@@ -211,31 +224,34 @@ It is recommended to use the thread shifting version, especially for long readin
 for better thread pools utilization.
 See [a post from Daniel Spiewak](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
 about thread pools configuration.
-Caution has to be taken however in case of thread shifting version of `read` method using Scala `Source`.
-Due to the `Source` being character-based iterator, the context switch in made for each character,
-which can be an order of magnitude slower than its regular, non-shifting counterpart - at least for common data sources.
-
 More information about threading may be found in
 [Cats Concurrency Basics](https://typelevel.org/cats-effect/concurrency/basics.html).
 
 The simplest way to read a file is:
 ```scala
-val stream: Stream[IO, Char] = reader.plain[IO].read(Path.of("data.csv"))
+val stream: Stream[IO, Char] = reader.plain[IO]().read(Path.of("data.csv"))
 ```
 or even:
 ```scala
-val stream: Stream[IO, Char] = reader[IO].read(Path.of("data.csv")) // reader.apply is an alias for reader.plain
+val stream: Stream[IO, Char] = reader[IO]().read(Path.of("data.csv")) // reader.apply is an alias for reader.plain
 ```
-The thread shifting reader provides similar method, by requires implicit `ContextShift`:
+The thread shifting reader provides similar method, but requires implicit `ContextShift`:
 ```scala
 implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-val stream: Stream[IO, Char] = reader.shifting[IO].read(Path.of("data.csv"))
+val stream: Stream[IO, Char] = reader.shifting[IO]().read(Path.of("data.csv"))
 ```
 The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
 used for regular, non-blocking operation, after the blocking I/O operation finishes.
-The `Blocker`, which provides thread pool for blocking I/O, may be passed to `shifting` or will be created internally. 
+The `Blocker`, which provides thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
 
-Except of `Source`, which is already a character-based, other data sources require an implicit `Codec`
+All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
+Chunk size may be supplied while creating a reader:
+```scala
+val stream: Stream[IO, Char] = reader.plain[IO](1024).read(Path.of("data.csv"))
+```
+If not provided explicitly, a default chunk size will be used.
+
+Except of `Source`, which is already character-based, other data sources require an implicit `Codec`
 to convert bytes into characters:
 ```scala
 implicit val codec: Codec = Codec.UTF8
@@ -246,7 +262,7 @@ is responsible for resource cleanup. This may be achieved through FS2 `Stream.br
 ```scala
 val stream: Stream[IO, Char] = for {
    source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-   char <- reader.shifting[IO].read(source)
+   char <- reader.shifting[IO]().read(source)
 } yield char
 ```
 Other methods of resource acquisition and releasing are described in
@@ -257,7 +273,7 @@ The above example may be rewritten using it to:
 ```scala
 val stream: Stream[IO, Char] = Stream
   .bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-  .through(reader.shifting[IO].by)
+  .through(reader.shifting[IO]().by)
 ```
 
 ### Getting actual data

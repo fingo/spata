@@ -18,7 +18,7 @@ import info.fingo.spata.CSVParser.CSVCallback
   *
   * The parser may be created by providing full configuration with [[CSVConfig]]
   * or through a helper [[CSVParser.config]] function from companion object, e.g.:
-  * {{{ val parser = CSVParser.config.fieldDelimiter(';').get[IO] }}}
+  * {{{ val parser = CSVParser.config.fieldDelimiter(';').get[IO]() }}}
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
@@ -172,7 +172,7 @@ object CSVParser {
   def apply[F[_]: RaiseThrowable](): CSVParser[F] = new CSVParser(config)
 
   /** Provides default configuration, as defined in RFC 4180. */
-  def config: CSVConfig = CSVConfig()
+  lazy val config: CSVConfig = CSVConfig()
 
   /** [[CSVParser]] helper with asynchronous parsing method.
     *

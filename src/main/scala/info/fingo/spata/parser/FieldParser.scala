@@ -5,54 +5,64 @@
  */
 package info.fingo.spata.parser
 
-import fs2.{Pipe, Pull, Stream}
+import scala.annotation.tailrec
+import fs2.{Chunk, Pipe}
 import ParsingErrorCode._
+import FieldParser._
+import CharParser.CharResult
+
+/* Carrier for counters, partial field content and information about finished parsing. */
+private[spata] case class StateFP(
+  counters: Location,
+  lc: LocalCounts,
+  buffer: StringBuilder = new StringBuilder,
+  done: Boolean = false
+) extends State {
+  def finish(): StateFP = copy(done = true)
+}
 
 /* Converter from character symbols to CSV fields.
  * This class tracks source position while consuming symbols to report it precisely, especially in case of failure.
  */
-private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int]) {
-  import FieldParser._
+private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
+  extends ChunkAwareParser[F, CharResult, FieldResult, StateFP] {
+
   import CharParser._
   import CharParser.CharPosition._
 
   /* Transforms stream of character symbols into fields by providing FS2 pipe. */
   def toFields: Pipe[F, CharResult, FieldResult] = {
-
-    def loop(
-      chars: Stream[F, CharResult],
-      sb: StringBuilder,
-      counters: Location,
-      lc: LocalCounts
-    ): Pull[F, FieldResult, Unit] =
-      if (fieldTooLong(lc))
-        Pull.output1(fail(FieldTooLong, counters, lc)) >> Pull.done
-      else
-        chars.pull.uncons1.flatMap {
-          case Some((h, t)) =>
-            h match {
-              case cs: CharState if cs.finished =>
-                val field = RawField(sb.toString().dropRight(lc.toTrim), counters, cs.position == FinishedRecord)
-                val newCounters = recalculateCounters(counters, cs)
-                Pull.output1(field) >> loop(
-                  t,
-                  new StringBuilder(),
-                  newCounters,
-                  LocalCounts(field.counters.nextPosition)
-                )
-              case cs: CharState =>
-                cs.char.map(sb.append)
-                val newCounters = recalculateCounters(counters, cs)
-                val newLC = recalculateLocalCounts(lc, cs)
-                loop(t, sb, newCounters, newLC)
-              case cf: CharFailure => Pull.output1(fail(cf.code, counters, lc)) >> Pull.done
-            }
-          case None => Pull.done
-        }
-
-    val sb = new StringBuilder()
-    chars => loop(chars, sb, Location(0), LocalCounts(Location(0))).stream
+    val start = Location(0)
+    parse(StateFP(start, LocalCounts(start)))
   }
+
+  /* Parse chunks of CharResults (converted to list) into chunks of FieldResults.
+   * The state value carries partial field content and counters. */
+  @tailrec
+  final override def parseChunk(
+    input: List[CharResult],
+    output: Vector[FieldResult],
+    state: StateFP
+  ): (StateFP, Chunk[FieldResult]) =
+    input match {
+      case _ if fieldTooLong(state.lc) =>
+        val chunk = Chunk.vector(output :+ fail(FieldTooLong, state.counters, state.lc))
+        (state.finish(), chunk)
+      case (cs: CharState) :: tail if cs.finished =>
+        val content = state.buffer.toString().dropRight(state.lc.toTrim)
+        val field = RawField(content, state.counters, cs.position == FinishedRecord)
+        val newCounters = recalculateCounters(state.counters, cs)
+        parseChunk(tail, output :+ field, StateFP(newCounters, LocalCounts(field.counters.nextPosition)))
+      case (cs: CharState) :: tail =>
+        cs.char.map(state.buffer.append)
+        val newCounters = recalculateCounters(state.counters, cs)
+        val newLC = recalculateLocalCounts(state.lc, cs)
+        parseChunk(tail, output, StateFP(newCounters, newLC, state.buffer))
+      case (cf: CharFailure) :: _ =>
+        val chunk = Chunk.vector(output :+ fail(cf.code, state.counters, state.lc))
+        (state.finish(), chunk)
+      case _ => (state, Chunk.vector(output))
+    }
 
   private def fail(error: ErrorCode, counters: Location, lc: LocalCounts): FieldFailure = {
     val rc = recalculateCountersAtFailure(error, counters, lc)

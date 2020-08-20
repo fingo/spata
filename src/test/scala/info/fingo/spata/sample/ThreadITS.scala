@@ -43,7 +43,7 @@ class ThreadITS extends AnyFunSuite {
         cdl.countDown()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-      val data = reader.shifting[IO].read(source)
+      val data = reader.shifting[IO]().read(source)
       parser.async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)
@@ -55,7 +55,7 @@ class ThreadITS extends AnyFunSuite {
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
-    val parser = CSVParser.config.mapHeader(mh).get[IO] // parser with IO effect
+    val parser = CSVParser.config.mapHeader(mh).get[IO]() // parser with IO effect
     val records = for {
       blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup

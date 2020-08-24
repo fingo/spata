@@ -43,7 +43,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     Test / compile / scalacOptions -= "-Wunused:locals", // false positives for implicits and Scalatest Table
-    Compile / console / scalacOptions --= Seq("-Ywarn-unused:imports", "-Xfatal-warnings"),
+    Compile / console / scalacOptions --= Seq("-Wunused:imports", "-Xfatal-warnings"),
     autoAPIMappings := true
   )
 

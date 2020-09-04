@@ -29,11 +29,9 @@ import info.fingo.spata.text.{FormattedStringParser, StringParser}
   * @param row core record data
   * @param lineNum last line number in source file this record is built from
   * @param rowNum row number in source file this record comes from
-  * @param header indexing header (keys)
+  * @param header indexing header (field names)
   */
-class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(
-  implicit header: Map[String, Int]
-) {
+class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(header: CSVHeader) {
 
   /** Gets typed record value.
     *
@@ -88,7 +86,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
-    * If wrong header is provided this function will return `Left[NoSuchElementException,_]`.
+    * If wrong header key is provided this function will return `Left[NoSuchElementException,_]`.
     * If parsing fails `Left[CSVDataException,_]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
@@ -185,11 +183,11 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Gets field value
     *
-    * @param idx the index of retrieved field, starting from `0`
+    * @param idx the header of retrieved field, starting from `0`
     * @return field value in original, string format
-    * @throws IndexOutOfBoundsException when incorrect `index` is provided
+    * @throws IndexOutOfBoundsException when incorrect `header` is provided
     */
-  @throws[IndexOutOfBoundsException]("when incorrect index is provided")
+  @throws[IndexOutOfBoundsException]("when incorrect header is provided")
   def apply(idx: Int): String = row(idx)
 
   /** Gets number of fields in record. */
@@ -238,7 +236,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
     /** Safely parses string to desired type based on provided format.
       *
-      * If wrong header is provided this function will return `Left[NoSuchElementException,_]`.
+      * If wrong header key is provided this function will return `Left[NoSuchElementException,_]`.
       * If parsing fails `Left[CSVDataException,_]` will be returned.
       *
       * @param key the key of retrieved field
@@ -259,7 +257,7 @@ object CSVRecord {
 
   /* Creates `CSVRecord`. See CSVRecord documentation for more information about parameters. */
   private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
-    implicit header: Map[String, Int]
+    header: CSVHeader
   ): Either[CSVStructureException, CSVRecord] =
     if (row.size == header.size)
       Right(new CSVRecord(row, lineNum, rowNum)(header))

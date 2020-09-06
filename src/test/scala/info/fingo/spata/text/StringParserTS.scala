@@ -241,7 +241,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       Some(LocalDateTime.of(2020, 2, 29, 12, 34)),
       Some(DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm a"))
     ),
-    (empty, "", None, None)
+    (empty, "", None, Some(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withLocale(locale)))
   )
 
   private lazy val booleans = Table(

@@ -10,14 +10,14 @@ spata
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
-Main goal of the library is to provide handy, functional, stream-based API with easy conversion to case classes and
-precise information about possible flaws in source data (their location) while keeping good performance.
+The main goal of the library is to provide handy, functional, stream-based API with easy conversion to case classes and
+precise information about possible flaws and their location in source data while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
-It is typically not that hard to parse well-formatted CSV file,
-but it could be a nightmare to locate the source of problem in case of any distortion in large data file.   
+It is typically not that hard to parse a well-formatted CSV file,
+but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.   
 
-The source data format is assumed basically to conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt)
-but allows some variations - see `CSVConfig` for details.   
+The source data format is assumed to basically conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
+but allows some variations - see `CSVConfig` for details.
 
 * [Getting started](#getting-started)
 * [Basic usage](#basic-usage)
@@ -103,7 +103,7 @@ object Converter extends IOApp {
 }
 ```
 
-More examples how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
+More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
 
 Tutorial
 --------
@@ -133,7 +133,7 @@ Type class dependencies are defined in terms of [Cats Effect](https://typelevel.
 Please note however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
 
 Like in case of any other FS2 processing, spata consumes only as much of the source stream as required,
-give or take chunk size. 
+give or take a chunk size. 
 
 Field and record delimiters are required to be single characters.
 There are however no other assumptions about them - particularly the record delimiter does not have to be a line break
@@ -147,7 +147,7 @@ As defined in RFC 4180, quotation marks in content have to be escaped through do
 
 In addition to `parse`, `CSVParser` provides other methods to read CSV data:
 * `get` to load data into `List[CSVRecord]`, which may be handy for small data sets,
-* `process` to deal with record by record through a callback function,
+* `process` to deal with data record by record through a callback function,
 * `async` to process data through a callback function in asynchronous way.
 
 The three above functions return the result (`List` or `Unit`) wrapped in an effect and require calling one of the
@@ -170,7 +170,7 @@ See [Reading source data](#reading-source-data) for helper methods to get stream
 
 ### Configuration
 
-`CSVParser` is configured through `CSVConfig` being parameter to its constructor.
+`CSVParser` is configured through `CSVConfig`, which is a parameter to its constructor.
 A more convenient way may be a builder-like method, which takes the defaults provided by `CSVParser` object
 and allows altering selected parameters:
 ```scala
@@ -184,7 +184,7 @@ A specific setting is the header mapping, available through `CSVConfig.mapHeader
 It allows replacement of original header values with more convenient ones or even defining header if no one is present.
 The new values are then used in all operations referencing individual fields,
 including automatic conversion to case classes or tuples.
-Mapping may be defined only for a subset of fields, leaving the rest in original form.
+Mapping may be defined only for a subset of fields, leaving the rest in their original form.
 ```csv
 date,max temparature,min temparature
 2020-02-02,13.7,-2.2
@@ -195,23 +195,23 @@ val parser: CSVParser[IO] =
   CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]()
 val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp") < 0)
 ```
-It may be defined as well for more fields than present in any particular data source,
-which allows using single parser for multiple data sets, with different headers.
+It may also be defined for more fields than there are present in any particular data source,
+which allows using a single parser for multiple data sets with different headers.
 
 FS2 takes care of limiting the amount of processed data and consumed memory to the required level.
-This works well to restrict number of records, however each record has to be fully loaded into memory,
+This works well to restrict the number of records, however each record has to be fully loaded into memory,
 no matter how large it is.
 This is not a  problem if everything goes well - individual records are typically not that large.
 A record can however grow uncontrollably in case of incorrect configuration (e.g. wrong record delimiter)
 or malformed structure (e.g. unclosed quotation).
 To prevent `OutOfMemoryError` in such situations,
-spata can be configured to limit maximum size of single field using `fieldSizeLimit`.
-If this limit is exceeded during parsing, the processing stops with error. 
-No limit is specified by default.
+spata can be configured to limit the maximum size of a single field using `fieldSizeLimit`.
+If this limit is exceeded during parsing, the processing stops with an error. 
+By default, no limit is specified.
 
 ### Reading source data
 
-As mentioned earlier, `CSVParser` requires stream of characters as its input.
+As mentioned earlier, `CSVParser` requires a stream of characters as its input.
 To simplify working with common data sources, like files or sockets, spata provides a few convenience methods,
 available through its `io.reader` object.
 
@@ -235,14 +235,14 @@ or even:
 ```scala
 val stream: Stream[IO, Char] = reader[IO]().read(Path.of("data.csv")) // reader.apply is an alias for reader.plain
 ```
-The thread shifting reader provides similar method, but requires implicit `ContextShift`:
+The thread shifting reader provides a similar method, but requires implicit `ContextShift`:
 ```scala
 implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val stream: Stream[IO, Char] = reader.shifting[IO]().read(Path.of("data.csv"))
 ```
 The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
 used for regular, non-blocking operation, after the blocking I/O operation finishes.
-The `Blocker`, which provides thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
+The `Blocker`, which provides the thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
 
 All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
 Chunk size may be supplied while creating a reader:
@@ -251,7 +251,7 @@ val stream: Stream[IO, Char] = reader.plain[IO](1024).read(Path.of("data.csv"))
 ```
 If not provided explicitly, a default chunk size will be used.
 
-Except of `Source`, which is already character-based, other data sources require an implicit `Codec`
+Except for `Source`, which is already character-based, other data sources require an implicit `Codec`
 to convert bytes into characters:
 ```scala
 implicit val codec: Codec = Codec.UTF8
@@ -269,7 +269,7 @@ Other methods of resource acquisition and releasing are described in
 [Cats Effect tutorial](https://typelevel.org/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources).
 
 In addition to the `read` function, `reader` provides a `by` function, to be used with `Stream.through`.
-The above example may be rewritten using it to:
+The above example may be rewritten by using `by` into:
 ```scala
 val stream: Stream[IO, Char] = Stream
   .bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
@@ -293,7 +293,7 @@ val value: String = record(0)
 
 `CSVRecord` supports retrieval of typed values.
 In simple cases, when the value is serialized in its canonical form,
-which does not require additional format information, like ISO format for dates,
+which does not require any additional format information, like ISO format for dates,
 this may be done with single-parameter `get` or `seek` functions:
 ```scala
 val record: CSVRecord = ???
@@ -303,39 +303,39 @@ val numM: Maybe[Double] = record.seek[Double]("123.45")
 `seek` is a safe version of `get` - it returns the result wrapped in `Maybe[A]`,
 which is an alias for `Either[Throwable, A]`.
 `get` may throw `CSVDataException`.
-Both functions require a `text.StringParser[A]`, which is described in [next chapter](#text-parsing).
+Both functions require a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
 
-Both, `get` and `seek` have overloaded versions which support formatting-aware parser:
+Both `get` and `seek` have overloaded versions, which support formatting-aware parsing:
 ```scala
 val record: CSVRecord = ???
 val df = new DecimalFormat("#,###")
 val num: Double = record.get[Double]("123,45", df)
 val numM: Maybe[Double] = record.seek[Double]("123,45", df)
 ```
-Both functions require a `text.FormattedStringParser[A, B]`, which is described in [next chapter](#text-parsing).
-(They use an intermediary classes `Field` and `SafeField` to provide nice syntax,
+Both functions require a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
+(They use intermediary classes `Field` and `SafeField` to provide a nice syntax,
 this should be however transparent in most cases).
 
-In addition to retrieval of single fields, `CSVRecord` may be converted to a case class or tuple.
-Assuming CSV data in following form:
+In addition to retrieval of single fields, `CSVRecord` may be converted to a case class or a tuple.
+Assuming CSV data in the following form:
 ```csv
 element,symnol,melting,boiling
 hydrogen,H,13.99,20.271
 helium,He,0.95,4.222
 lithium,Li,453.65,1603
 ```
-the data can be converted from a record directly to a case class:
+The data can be converted from a record directly into a case class:
 ```scala
 val record: CSVRecord = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
 val element: Maybe[Element] = record.to[Element]()
 ```
 Notice that not all source fields have to be used for conversion.
-The conversion is name-based - header strings have to match exactly case class field names, including case.
+The conversion is name-based - header strings have to match case class field names exactly, including case.
 We can use header mapping, described in [Configuration](#configuration), if they do not match.
 
 For tuples, the header has to match tuple field names (`_1`, `_2`, etc.)
-and is automatically generated in this form for data without header:
+and is automatically generated in this form for data without a header:
 ```csv
 hydrogen,H,13.99,20.271
 helium,He,0.95,4.222
@@ -346,12 +346,12 @@ val record: CSVRecord = ???
 type Element = (String, String, Double, Double)
 val element: Maybe[Element] = record.to[Element]()
 ```
-Notice that in this case the first column has been included in conversion to ensure header and tuple field matching.
+Notice that in this case the first column has been included in the conversion to ensure header and tuple field matching.
 
 Both forms of conversion require implicit `StringParser`.
 Parsers for common types and their default formats are provided through `StringParser` object
 and are automatically brought in scope.
-Because it is not possible to explicitly provide custom formatter while converting record to a case class,
+Because it is not possible to explicitly provide custom formatter while converting a record into a case class,
 an implicit `StringParser` has to be defined in case of specific formats or types:
 ```csv
 element,symnol,melting,boiling
@@ -371,7 +371,7 @@ val element: Maybe[Element] = record.to[Element]()
 
 CSV data is parsed as `String`s.
 We often need typed values, e.g. numbers or dates, for further processing.
-There is no standard, uniform interface available for Scala nor Java to parse strings to different types.
+There is no standard, uniform interface available for Scala or Java to parse strings to different types.
 Numbers may be parsed using `java.text.NumberFormat`.
 Dates and times through `parse` methods in `java.time.LocalDate` or `LocalTime`, providing format as parameter.
 This is awkward when providing single interface for various types, like `CSVRecord` does.
@@ -384,7 +384,7 @@ val numM: Maybe[Double] = StringParser.parseSafe[Double]("123.45")
 ```
 `parse` may throw `DataParseException` while `parseSafe` wraps the result in `Either[Throwable, A]`
 
-When specific format has to be provided, overloaded version of above methods are available: 
+When a specific format has to be provided, overloaded versions of above methods are available: 
 ```scala
 val df = new DecimalFormat("#,###")
 val num: Double = StringParser.parse[Double]("123,45", df)
@@ -404,13 +404,13 @@ import java.sql.Date
 import info.fingo.spata.text.StringParser
 implicit val sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
 ```
-we can use it as follows:
+We can use it as follows:
 ```scala
 val date = StringParser.parse[Date]("2020-02-02")
 val dateM = StringParser.parseSafe[Date]("2020-02-02")
 ```
 
-Defining parser with support for custom formatting requires implementation of `FormattedStringParser`:
+Defining a parser with support for custom formatting requires the implementation of `FormattedStringParser`:
 ```scala
 import java.sql.Date
 import java.text.DateFormat
@@ -422,7 +422,7 @@ implicit val sdf: FormattedStringParser[Date, DateFormat] =
       override def parse(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
   }
 ```
-and can be used as follows:
+And can be used as follows:
 ```scala
 import info.fingo.spata.text.StringParser
 import java.util.Locale
@@ -431,36 +431,36 @@ val df = DateFormat.getDateInstance(DateFormat.SHORT, new Locale("pl", "PL"))
 val date = StringParser.parse[Date]("02.02.2020", df)
 val dateM = StringParser.parseSafe[Date]("02.02.2020", df)
 ```
-Please notice that this sample implementation accepts partial string parsing,
+Please note that this sample implementation accepts partial string parsing,
 e.g. `"02.02.2020xyz"` will successfully parse to `2020-02-02`.
 This is different from the built-in parsing behaviour for `LocalDate`,
 where the entire string has to conform to the format. 
 
-Parsing implementation are expected to throw specific runtime exceptions when parsing fails.
+Parsing implementations are expected to throw specific runtime exceptions when parsing fails.
 This is converted to `DataParseException` in `StringParser` object's `parse` method,
-while keeping original exception in `cause` field.
+while keeping the original exception in `cause` field.
 
 ### Error handling
 
 There are three types of errors which may arise while parsing CSV:
 * Various I/O errors, including but not limited to `IOException`.
-They are not directly related to parsing logic but CSV is typically read from some external, unreliable source.
+They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
 They may be raised by `reader` operations.
 * Errors caused by malformed CSV structure, reported as `CSVStructureException`.
 They may be caused by `CSVParser`'s methods.
 * Errors caused by unexpected / incorrect data in record fields, reported as `CSVDataException`.
-They may result from interaction with `CVSRecord`.
+They may result from interactions with `CVSRecord`.
 
 The two first error categories are unrecoverable and stop stream processing.
-For the `CSVStructureException` errors we are able to precisely identify the place which caused the problem.
+For the `CSVStructureException` errors we are able to precisely identify the place that caused the problem.
 See Scaladoc for `CSVException` for further information about error location.
 
-The last category in reported on the record level and allows for different handling policies.
+The last category is reported on the record level and allows for different handling policies.
 Please notice however, that if the error is not handled locally (using safe functions returning `Maybe`)
-and propagates through the stream, further processing of input data is stopped, like for above error categories.  
+and propagates through the stream, further processing of input data is stopped, like for the above error categories.  
 
-Errors are raised and should be handled with [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
-FS2 captures exceptions reported explicitly with `raiseError` or thrown
+Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
+FS2 captures exceptions thrown or reported explicitly with `raiseError`
 and in both cases is able to handle them with `handleErrorWith`.
 To fully support this, `CSVParser` requires the `RaiseThrowable` type class instance for its effect `F`.  
 
@@ -516,14 +516,14 @@ object Converter extends IOApp {
 If some operations return `Either` (e.g. when `r.seek` would be used instead of `r.get` in above code)
 and we would like to handle errors wrapped in `Left` together with raised ones, we may call `rethrow` on the stream. 
 
-Sometimes we would like to convert stream to a collection.
-We should wrap result in `Either` in such situations to distinguish successful processing from erroneous one.
-See first code snippet in [Basic usage](#basic-usage) for sample.
+Sometimes we would like to convert a stream to a collection.
+We should wrap the result in `Either` in such situations to distinguish successful processing from erroneous one.
+See the first code snippet in [Basic usage](#basic-usage) for sample.
 
 Alternatives
 ------------
 
-For those, who needs different characteristic of a CSV library, there are a few alternatives available for Scala:
+For those who need a different characteristic of a CSV library, there are a few alternatives available for Scala:
 * [Itto-CSV](https://github.com/gekomad/itto-csv) - CSV handling library based on FS2 and Cats with support for case class conversion.
 * [fs2  data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including CSV.
 * [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented CSV parser/serializer with support for different parsing engines.
@@ -532,7 +532,7 @@ For those, who needs different characteristic of a CSV library, there are a few 
 Credits
 -------
 
-**spata** makes use of following tools, languages, frameworks, libraries and data sets (in alphabetical order):
+**spata** makes use of the following tools, languages, frameworks, libraries and data sets (in alphabetical order):
 * [Cats Effect](https://typelevel.org/cats-effect/) licensed under [Apache 2.0](https://github.com/typelevel/cats-effect/blob/master/LICENSE.txt) /C
 * [Codecov](https://codecov.io/) available under following [Terms of Use](https://codecov.io/terms) /D
 * [FS2](https://fs2.io/) licensed under [MIT](https://github.com/functional-streams-for-scala/fs2/blob/master/LICENSE) /C
@@ -564,4 +564,4 @@ Credits
 **/T** means test dependency,
 **/S** means source code derivative and
 **/D** means development tool.
-Only direct dependencies are presented on above list.
+Only direct dependencies are presented in the above list.

@@ -173,15 +173,15 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val basicCases = Table(
     ("testCase", "name", "sDate", "sValue"),
-    ("basic", "Fanky Koval", "2020-02-22", "9999.99"),
-    ("lineBreaks", "Fanky\nKoval", "2020-02-22", "9999.99"),
-    ("spaces", "Fanky Koval", " 2020-02-22 ", " 9999.99 ")
+    ("basic", "Funky Koval", "2020-02-22", "9999.99"),
+    ("lineBreaks", "Funky\nKoval", "2020-02-22", "9999.99"),
+    ("spaces", "Funky Koval", " 2020-02-22 ", " 9999.99 ")
   )
 
   private lazy val optionals = Table(
     ("testCase", "name", "sDate", "sValue"),
-    ("basic", "Fanky Koval", "2020-02-22", "9999.99"),
-    ("spaces", "Fanky Koval", " ", " "),
+    ("basic", "Funky Koval", "2020-02-22", "9999.99"),
+    ("spaces", "Funky Koval", " ", " "),
     ("empty", "", "", "")
   )
 
@@ -218,8 +218,8 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val incorrect = Table(
     ("testCase", "name", "sDate", "sValue"),
-    ("wrongFormat", "Fanky Koval", "2020-02-30", "9999,99"),
-    ("wrongType", "2020-02-22", "Fanky Koval", "true"),
+    ("wrongFormat", "Funky Koval", "2020-02-30", "9999,99"),
+    ("wrongType", "2020-02-22", "Funky Koval", "true"),
     ("missingValue", "", "", "")
   )
 }

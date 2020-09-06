@@ -20,7 +20,7 @@ private[spata] class CSVHeader private (names: IndexedSeq[String]) {
 /* CSVHeader companion */
 private[spata] object CSVHeader {
 
-  /* Create regular headerfrom provided values */
+  /* Create regular header from provided values */
   def apply(names: String*): CSVHeader = new CSVHeader(names.toIndexedSeq)
 
   /* Create regular header and remap it */

@@ -72,7 +72,7 @@ private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Cha
       case `fieldDelimiter` => CharState(Left(char), FinishedField)
       case `recordDelimiter` => CharState(Left(char), FinishedRecord)
       case c if c.isWhitespace && state.atBoundary => CharState(Left(char), state.position)
-      case c if c.isWhitespace && state.position == FinishedField => CharState(Left(char), Start)
+      case c if c.isWhitespace && state.finished => CharState(Left(char), Start)
       case c if c.isWhitespace && state.position == Escape => CharState(Left(char), End)
       case c if c.isWhitespace && state.isSimple => CharState(Right(c), Trailing)
       case _ if state.position == Escape || state.position == End => CharFailure(UnescapedQuotation)

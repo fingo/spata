@@ -88,7 +88,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
   private def contentWithoutHeader(stream: Stream[F, ParsingResult]) =
     stream.pull.peek1.flatMap {
       case Some((h, s)) => Pull.output1(CSVContent(h.fieldNum, s, config.mapHeader))
-      case None => Pull.output1(CSVContent(0, stream, config.mapHeader))
+      case None => Pull.output1(CSVContent(0, Stream.empty[F], config.mapHeader))
     }
 
   /** Fetches whole source content into list of records.

@@ -97,6 +97,15 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("parser should process empty csv data without header record") {
+    forAll(emptyCases) { (_: String, content: String) =>
+      val parser = CSVParser.config.noHeader().get[IO]()
+      val stream = csvStream(content).through(parser.parse)
+      val list = stream.compile.toList.unsafeRunSync()
+      assert(list.isEmpty)
+    }
+  }
+
   test("parser should clearly report errors in source data while handling them") {
     forAll(errorCases) {
       (
@@ -352,14 +361,14 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val basicCases = Table(
     ("testCase", "firstName", "firstValue", "lastName", "lastValue"),
-    ("basic", "Fanky Koval", "100.00", "Han Solo", "999.99"),
-    ("basic quoted", "Koval, Fanky", "100.00", "Solo, Han", "999.99"),
-    ("mixed", "Fanky Koval", "100.00", "Solo, Han", "999.99"),
-    ("spaces", " Fanky Koval ", " ", "Han Solo", " 999.99 "),
+    ("basic", "Funky Koval", "100.00", "Han Solo", "999.99"),
+    ("basic quoted", "Koval, Funky", "100.00", "Solo, Han", "999.99"),
+    ("mixed", "Funky Koval", "100.00", "Solo, Han", "999.99"),
+    ("spaces", " Funky Koval ", " ", "Han Solo", " 999.99 "),
     ("empty values", "", "", "", ""),
-    ("double quotes", "\"Fanky\" Koval", "\"100.00\"", "Solo, \"Han\"", "999\".\"99"),
-    ("line breaks", "Fanky\nKoval", "100.00", "\nHan Solo", "999.99\n"),
-    ("empty lines", "Fanky Koval", "100.00", "Han Solo", "999.99")
+    ("double quotes", "\"Funky\" Koval", "\"100.00\"", "Solo, \"Han\"", "999\".\"99"),
+    ("line breaks", "Funky\nKoval", "100.00", "\nHan Solo", "999.99\n"),
+    ("empty lines", "Funky Koval", "100.00", "Han Solo", "999.99")
   )
 
   private def basicCSV(testCase: String, separator: Char): String = {
@@ -377,36 +386,36 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val s = separator
     testCase match {
       case "basic" =>
-        s"""1${s}Fanky Koval${s}01.01.2001${s}100.00
+        s"""1${s}Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "basic quoted" =>
-        s""""1"$s"Koval, Fanky"$s"01.01.2001"$s"100.00"
+        s""""1"$s"Koval, Funky"$s"01.01.2001"$s"100.00"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, Han"$s"09.09.1999"$s"999.99"""".stripMargin
       case "mixed" =>
-        s""""1"${s}Fanky Koval${s}01.01.2001$s"100.00"
+        s""""1"${s}Funky Koval${s}01.01.2001$s"100.00"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, Han"${s}09.09.1999${s}999.99""".stripMargin
       case "spaces" =>
-        s""""1"$s" Fanky Koval "${s}01.01.2001$s" "
-           |"2"$s Eva Solo ${s}31.12.2012${s}123.45
+        s""""1"$s" Funky Koval "${s}01.01.2001$s" "
+           | 2$s Eva Solo ${s}31.12.2012${s}123.45
            |"3"$s  Han Solo  ${s}09.09.1999$s" 999.99 """".stripMargin
       case "empty values" =>
         s""""1"$s${s}01.01.2001$s
            |"2"${s}Eva Solo${s}31.12.2012${s}123.45
            |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "double quotes" =>
-        s""""1"$s"^Fanky^ Koval"$s"01.01.2001"$s"^100.00^"
+        s""""1"$s"^Funky^ Koval"$s"01.01.2001"$s"^100.00^"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
            |"3"$s"Solo, ^Han^"$s"09.09.1999"$s"999^.^99"""".stripMargin.replace("^", "\"\"")
       case "line breaks" =>
-        s"""1$s"Fanky\nKoval"${s}01.01.2001${s}100.00
+        s"""1$s"Funky\nKoval"${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
       case "empty lines" =>
         s"""
-           |1${s}Fanky Koval${s}01.01.2001${s}100.00
+           |1${s}Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99
            |""".stripMargin
@@ -437,64 +446,64 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val csv = testCase match {
       case "missing value" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Fanky Koval${s}100.00
+           |1${s}Funky Koval${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "missing value with empty lines" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
            |
-           |1${s}Fanky Koval${s}100.00
+           |1${s}Funky Koval${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "too many values" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Fanky Koval${s}XYZ${s}01.01.2001${s}100.00
+           |1${s}Funky Koval${s}XYZ${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Fanky" Koval${s}01.01.2001${s}100.00
+           |1${s}Funky" Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed quotation with empty lines" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
            |
-           |1${s}Fanky" Koval${s}01.01.2001${s}100.00
+           |1${s}Funky" Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unescaped quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Fanky" Koval"${s}01.01.2001${s}100.00
+           |1$s"Funky" Koval"${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unmatched quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Fanky Koval${s}01.01.2001${s}100.00
+           |1$s"Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unmatched quotation with trailing spaces" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s  "Fanky Koval${s}01.01.2001${s}100.00
+           |1$s  "Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unmatched quotation with escaped one" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Fanky Koval""${s}01.01.2001${s}100.00
+           |1$s"Funky Koval""${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "field too long" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval${s}01.01.2001${s}100.00
+           |1${s}Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "field too long through unmatched quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval Fanky Koval${s}01.01.2001${s}100.00
+           |1$s"Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "malformed header" =>
         s"""ID${s}NAME${s}D"ATE${s}VALUE
-           |1${s}Fanky Koval${s}01.01.2001${s}100.00
+           |1${s}Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "no content" => ""
@@ -505,4 +514,15 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private class ExceptionSource extends BufferedSource(() => throw new IOException("message"))
+
+  private lazy val emptyCases = Table(
+    ("testCase", "content"),
+    ("empty", ""),
+    ("space", " "),
+    ("spaces", "   "),
+    ("new line", "\n"),
+    ("new lines", "\n\n\n"),
+    ("new lines and spaces", " \n \n \n"),
+    ("mixed new lines and spaces", "  \n \n\n   \n ")
+  )
 }

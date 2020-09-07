@@ -15,8 +15,6 @@ private[spata] object ParsingErrorCode {
       val first = name.take(1)
       name.replaceFirst(first, first.toLowerCase)
     }
-
-    override def toString: String = code
   }
 
   case object UnclosedQuotation extends ErrorCode("Bad format: not enclosed quotation")

@@ -90,7 +90,7 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("reader should properly read UTF-8 files with BOM") {
     val localChar = 'ł'
     val path = Paths.get(getClass.getClassLoader.getResource("bom.csv").toURI)
-    val stream = reader[IO](chunkSize).read(path)
+    val stream = reader[IO](chunkSize).apply(path)
     val content = stream.compile.toList.unsafeRunSync()
     assert(content.startsWith("author"))
     assert(content.contains(localChar))

@@ -1,12 +1,16 @@
+Versioning
+----------
+
+**spata** is versioned in accordance with [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+
 Development plans
 -----------------
 
-The library provides already a fully functional solution.
-There are however still some open points to conclude version 1.0:
-* Tidying / small refactorings.
-* Providing logging.
+Although the library already provides a fully functional solution,
+there are plans on how to make it even more versatile and useful.
 
 Future versions may include:
-* Declaring schema and providing its validation.
-* CSV writer.
-
+* logging,
+* schema and its validation,
+* CSV writer,
+* support for Scala 3.

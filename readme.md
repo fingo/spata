@@ -543,6 +543,7 @@ Credits
 * [IntelliJ IDEA CE](https://www.jetbrains.com/idea/) licensed under [Apache 2.0](https://www.jetbrains.com/idea/download/) /D
 * [javadoc.io](https://www.javadoc.io/) licensed under [apache  2.0](https://github.com/maxcellent/javadoc.io/blob/master/LICENSE) /D
 * [Mars weather data](https://github.com/the-pudding/data/tree/master/mars-weather) made publicly available by [NASA](https://pds.nasa.gov/) and [CAB](https://cab.inta-csic.es/rems/en) /T
+* [Metals](https://scalameta.org/metals/) licensed under [Apache 2.0](https://github.com/scalameta/metals/blob/main/LICENSE) /D
 * [OpenJDK](https://adoptopenjdk.net/) licensed under [GPL-2.0 with CE](https://openjdk.java.net/legal/gplv2+ce.html) /C
 * [sbt](https://www.scala-sbt.org/) licensed under [BSD-2-Clause](https://www.lightbend.com/legal/licenses) /D
 * [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache 2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D

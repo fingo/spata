@@ -222,6 +222,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "name", "sDate", "sValue"),
     ("wrongFormat", "Funky Koval", "2020-02-30", "9999,99"),
     ("wrongType", "2020-02-22", "Funky Koval", "true"),
+    ("mixedData", "Funky Koval", "2020-02-30 foo", "9999.99 foo"),
     ("missingValue", "", "", "")
   )
 }

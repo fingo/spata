@@ -13,6 +13,9 @@ jobs:
       name: "Unit tests"
       script: sbt clean coverage test coverageReport
       after_success: bash <(curl -s https://codecov.io/bash)
+    - stage: compatibility
+      name: "Binary compatibility"
+      script: sbt mimaReportBinaryIssues
     - stage: performance
       name: "Performance tests"
       script: sbt perf:test

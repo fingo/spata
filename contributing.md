@@ -52,11 +52,13 @@ Performance tests may be run with `sbt perf:test`.
 There is no automatic regression verification for performance test,
 however it is still worth running them before and after implementing changes and comparing results.
 
+To check binary compatibility with a previous stable version, please run `sbt mimaReportBinaryIssues`.
+
 API documentation is built with `sbt doc`.
 
 Full project verification before a pull request should be done with:
 ```
-sbt -mem 2048 clean check doc test perf:test
+sbt -mem 2048 clean check doc test mimaReportBinaryIssues perf:test
 ```
 
 Grant of license

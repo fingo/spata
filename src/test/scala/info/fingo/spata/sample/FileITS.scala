@@ -28,8 +28,8 @@ class FileITS extends AnyFunSuite {
       record("max_temp") != "NaN" && record("min_temp") != "NaN"
     }.map { record =>
       val day = record("sol")
-      val max = record.get[Double]("max_temp")
-      val min = record.get[Double]("min_temp")
+      val max = record.at[Double]("max_temp")
+      val min = record.at[Double]("min_temp")
       DTV(day, max - min)
     }
     // write data to output file
@@ -70,8 +70,8 @@ class FileITS extends AnyFunSuite {
         }
       // converter and aggregate data, get stream of YTs
       day = record("sol")
-      max = record.get[Double]("max_temp")
-      min = record.get[Double]("min_temp")
+      max = record.at[Double]("max_temp")
+      min = record.at[Double]("min_temp")
       dtv = DTV(day, max - min)
       // write data to output file
       out <- Stream

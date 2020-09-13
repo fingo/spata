@@ -31,8 +31,8 @@ class ConsoleITS extends AnyFunSuite {
     val aggregates = records.filter { record =>
       record("max_temp") != "NaN"
     }.map { record =>
-      val year = record.get[LocalDate]("terrestrial_date").getYear
-      val temp = record.get[Double]("max_temp")
+      val year = record.at[LocalDate]("terrestrial_date").getYear
+      val temp = record.at[Double]("max_temp")
       YT(year, temp)
     }.filter { yt =>
       yt.year > 2012 && yt.year < 2018
@@ -63,7 +63,7 @@ class ConsoleITS extends AnyFunSuite {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser
           .process(reader[IO]().read(source)) { record =>
-            if (record.get[Double]("max_temp") > 0) {
+            if (record.at[Double]("max_temp") > 0) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
             } else {
@@ -86,7 +86,7 @@ class ConsoleITS extends AnyFunSuite {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
         val records = parser.get(reader[IO]().read(source), 500).unsafeRunSync()
-        val over0 = records.find(_.get[Double]("max_temp") > 0)
+        val over0 = records.find(_.at[Double]("max_temp") > 0)
         assert(over0.isDefined)
         for (r <- over0)
           println(s"Over 0 temperature found on ${r("terrestrial_date")}")

@@ -55,7 +55,7 @@ val records = Stream
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(reader[IO]().by) // produce stream of chars from source
   .through(parser.parse)  // parse csv file and get csv records 
-  .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
+  .filter(_.at[Double]("value") > 1000)  // do some operations using Stream API
   .map(_.to[Data]()) // converter records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
@@ -90,7 +90,7 @@ object Converter extends IOApp {
         .filter(r => !r("temp").isEmpty)
         .map { r =>
           val date = r("date")
-          val temp = fahrenheitToCelsius(r.get[Double]("temp"))
+          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
           s"$date,$temp"
         }
         .intersperse("\n")
@@ -494,7 +494,7 @@ object Converter extends IOApp {
         .filter(r => !r("temp").isEmpty)
         .map { r =>
           val date = r("date")
-          val temp = fahrenheitToCelsius(r.get[Double]("temp"))
+          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
           s"$date,$temp"
         }
         .intersperse("\n")

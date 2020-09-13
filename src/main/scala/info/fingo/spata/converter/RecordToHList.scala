@@ -49,7 +49,7 @@ object RecordToHList {
   ): RecordToHList[FieldType[K, V] :: T] =
     record =>
       for {
-        value <- record.seek(witness.value.name)
+        value <- record.get(witness.value.name)
         tail <- rToHL.value(record)
       } yield field[K][V](value) :: tail
 }

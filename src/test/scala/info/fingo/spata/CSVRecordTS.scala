@@ -31,12 +31,12 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(record.toString == s"$name,$sDate,$sValue")
       assert(record("name") == name)
       assert(record(0) == name)
-      assert(record.get[String]("name") == name)
-      assert(record.seek[String]("name").contains(name))
-      assert(record.get[LocalDate]("date") == date)
-      assert(record.seek[LocalDate]("date").contains(date))
-      assert(record.get[BigDecimal]("value") == value)
-      assert(record.get[Double]("value") == value.doubleValue)
+      assert(record.at[String]("name") == name)
+      assert(record.get[String]("name").contains(name))
+      assert(record.at[LocalDate]("date") == date)
+      assert(record.get[LocalDate]("date").contains(date))
+      assert(record.at[BigDecimal]("value") == value)
+      assert(record.at[Double]("value") == value.doubleValue)
     }
   }
 
@@ -46,12 +46,12 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
-      assert(record.get[Option[String]]("name").forall(_ == name))
-      assert(record.get[Option[LocalDate]]("date").forall(_ == date))
-      assert(record.get[Option[BigDecimal]]("value").forall(_ == value))
-      assert(record.seek[Option[BigDecimal]]("value").exists(_.forall(_ == value)))
-      assert(record.get[Option[Double]]("value").forall(_ == value.doubleValue))
-      assert(record.seek[Option[Double]]("value").exists(_.forall(_ == value.doubleValue)))
+      assert(record.at[Option[String]]("name").forall(_ == name))
+      assert(record.at[Option[LocalDate]]("date").forall(_ == date))
+      assert(record.at[Option[BigDecimal]]("value").forall(_ == value))
+      assert(record.get[Option[BigDecimal]]("value").exists(_.forall(_ == value)))
+      assert(record.at[Option[Double]]("value").forall(_ == value.doubleValue))
+      assert(record.get[Option[Double]]("value").exists(_.forall(_ == value.doubleValue)))
     }
   }
 
@@ -68,10 +68,10 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         val header = CSVHeader("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
-        assert(record.get[Long]("num", numFmt) == num)
-        assert(record.seek[Long]("num", numFmt).contains(num))
-        assert(record.get[LocalDate]("date", dateFmt) == date)
-        assert(record.get[BigDecimal]("value", valueFmt) == value)
+        assert(record.at[Long]("num", numFmt) == num)
+        assert(record.get[Long]("num", numFmt).contains(num))
+        assert(record.at[LocalDate]("date", dateFmt) == date)
+        assert(record.at[BigDecimal]("value", valueFmt) == value)
     }
   }
 
@@ -81,19 +81,19 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val record = createRecord(name, sDate, sValue)(header)
       val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
-        assert(record.get[String]("name") == name)
+        assert(record.at[String]("name") == name)
       else {
-        assert(record.get[String]("name") == "")
-        assert(record.get[Option[String]]("name").isEmpty)
-        assert(record.get[Option[LocalDate]]("date").isEmpty)
-        assert(record.get[Option[BigDecimal]]("value").isEmpty)
+        assert(record.at[String]("name") == "")
+        assert(record.at[Option[String]]("name").isEmpty)
+        assert(record.at[Option[LocalDate]]("date").isEmpty)
+        assert(record.at[Option[BigDecimal]]("value").isEmpty)
       }
-      assertThrows[CSVDataException] { record.get[LocalDate]("date") }
-      assert(record.seek[LocalDate]("date").isLeft)
-      assert(record.seek[LocalDate]("wrong").isLeft)
-      assert(record.seek[LocalDate]("date", dtf).isLeft)
-      assert(record.seek[LocalDate]("wrong", dtf).isLeft)
-      assertThrows[CSVDataException] { record.get[BigDecimal]("value") }
+      assertThrows[CSVDataException] { record.at[LocalDate]("date") }
+      assert(record.get[LocalDate]("date").isLeft)
+      assert(record.get[LocalDate]("wrong").isLeft)
+      assert(record.get[LocalDate]("date", dtf).isLeft)
+      assert(record.get[LocalDate]("wrong", dtf).isLeft)
+      assertThrows[CSVDataException] { record.at[BigDecimal]("value") }
     }
   }
 

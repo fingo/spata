@@ -63,7 +63,7 @@ class ConsoleITS extends AnyFunSuite {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser
           .process(reader[IO]().read(source)) { record =>
-            if (record.at[Double]("max_temp") > 0) {
+            if (record.get[Double]("max_temp").exists(_ > 0)) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
             } else {
@@ -86,7 +86,7 @@ class ConsoleITS extends AnyFunSuite {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
         val records = parser.get(reader[IO]().read(source), 500).unsafeRunSync()
-        val over0 = records.find(_.at[Double]("max_temp") > 0)
+        val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
         for (r <- over0)
           println(s"Over 0 temperature found on ${r("terrestrial_date")}")

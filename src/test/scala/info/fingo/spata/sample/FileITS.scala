@@ -6,10 +6,11 @@
 package info.fingo.spata.sample
 
 import java.io.FileWriter
+
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVParser
+import info.fingo.spata.{CSVParser, CSVRecord}
 import info.fingo.spata.io.reader
 
 /* Samples which write processing results to another CSV file */
@@ -17,6 +18,14 @@ class FileITS extends AnyFunSuite {
 
   test("spata allows data conversion to another file") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
+
+    def dtvFromRecord(record: CSVRecord) =
+      for {
+        day <- record.get[String]("sol")
+        max <- record.get[Double]("max_temp")
+        min <- record.get[Double]("min_temp")
+      } yield DTV(day, max - min)
+
     val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
@@ -26,12 +35,7 @@ class FileITS extends AnyFunSuite {
     // converter and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
       record("max_temp") != "NaN" && record("min_temp") != "NaN"
-    }.map { record =>
-      val day = record("sol")
-      val max = record.at[Double]("max_temp")
-      val min = record.at[Double]("min_temp")
-      DTV(day, max - min)
-    }
+    }.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
     // write data to output file
     val outFile = SampleTH.getTempFile
     val output = Stream
@@ -56,6 +60,15 @@ class FileITS extends AnyFunSuite {
 
   test("spata allows data conversion to another file using for comprehension") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
+
+    // this method may throw exception
+    def dtvFromRecordUnsafe(record: CSVRecord) = {
+      val day = record("sol")
+      val max = record.at[Double]("max_temp")
+      val min = record.at[Double]("min_temp")
+      DTV(day, max - min)
+    }
+
     val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val outcome = for {
@@ -68,11 +81,8 @@ class FileITS extends AnyFunSuite {
         .filter { record =>
           record("max_temp") != "NaN" && record("min_temp") != "NaN"
         }
-      // converter and aggregate data, get stream of YTs
-      day = record("sol")
-      max = record.at[Double]("max_temp")
-      min = record.at[Double]("min_temp")
-      dtv = DTV(day, max - min)
+      // converter and aggregate data, get stream of YTs (this may throw exception to be handled by handleErrorWith)
+      dtv = dtvFromRecordUnsafe(record)
       // write data to output file
       out <- Stream
         .eval(IO(writer.write(s"${dtv.day},${dtv.tempVar}\n")))

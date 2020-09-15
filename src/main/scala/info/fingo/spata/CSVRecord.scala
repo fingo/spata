@@ -99,8 +99,8 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely gets typed record value.
     *
-    * The combination of `at`, [[SafeField]] constructor and `apply` method allows value retrieval in following form:
-    * {{{ val date: Maybe[LocalDate] = record.at[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
+    * The combination of `get`, [[SafeField]] constructor and `apply` method allows value retrieval in following form:
+    * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
     * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.

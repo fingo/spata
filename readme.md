@@ -55,7 +55,7 @@ val records = Stream
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(reader[IO]().by) // produce stream of chars from source
   .through(parser.parse)  // parse csv file and get csv records 
-  .filter(_.get[Double]("value") > 1000)  // do some operations using Stream API
+  .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
   .map(_.to[Data]()) // converter records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
@@ -90,7 +90,7 @@ object Converter extends IOApp {
         .filter(r => !r("temp").isEmpty)
         .map { r =>
           val date = r("date")
-          val temp = fahrenheitToCelsius(r.get[Double]("temp"))
+          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
           s"$date,$temp"
         }
         .intersperse("\n")
@@ -193,7 +193,7 @@ date,max temparature,min temparature
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
   CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]()
-val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp") < 0)
+val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
 ```
 It may also be defined for more fields than there are present in any particular data source,
 which allows using a single parser for multiple data sets with different headers.
@@ -294,23 +294,23 @@ val value: String = record(0)
 `CSVRecord` supports retrieval of typed values.
 In simple cases, when the value is serialized in its canonical form,
 which does not require any additional format information, like ISO format for dates,
-this may be done with single-parameter `get` or `seek` functions:
+this may be done with single-parameter `at` or `get` functions:
 ```scala
 val record: CSVRecord = ???
-val num: Double = record.get[Double]("123.45")
-val numM: Maybe[Double] = record.seek[Double]("123.45")
+val num: Double = record.at[Double]("123.45")
+val numM: Maybe[Double] = record.get[Double]("123.45")
 ```
-`seek` is a safe version of `get` - it returns the result wrapped in `Maybe[A]`,
+`get` is a safe version of `at` - it returns the result wrapped in `Maybe[A]`,
 which is an alias for `Either[Throwable, A]`.
-`get` may throw `CSVDataException`.
+`at` may throw `CSVDataException`.
 Both functions require a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
 
-Both `get` and `seek` have overloaded versions, which support formatting-aware parsing:
+Both `at` and `get` have overloaded versions, which support formatting-aware parsing:
 ```scala
 val record: CSVRecord = ???
 val df = new DecimalFormat("#,###")
-val num: Double = record.get[Double]("123,45", df)
-val numM: Maybe[Double] = record.seek[Double]("123,45", df)
+val num: Double = record.at[Double]("123,45", df)
+val numM: Maybe[Double] = record.get[Double]("123,45", df)
 ```
 Both functions require a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
 (They use intermediary classes `Field` and `SafeField` to provide a nice syntax,
@@ -494,7 +494,7 @@ object Converter extends IOApp {
         .filter(r => !r("temp").isEmpty)
         .map { r =>
           val date = r("date")
-          val temp = fahrenheitToCelsius(r.get[Double]("temp"))
+          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
           s"$date,$temp"
         }
         .intersperse("\n")
@@ -513,7 +513,7 @@ object Converter extends IOApp {
 }
 ```
 
-If some operations return `Either` (e.g. when `r.seek` would be used instead of `r.get` in above code)
+If some operations return `Either` (e.g. when `r.get` would be used instead of `r.at` in above code)
 and we would like to handle errors wrapped in `Left` together with raised ones, we may call `rethrow` on the stream. 
 
 Sometimes we would like to convert a stream to a collection.

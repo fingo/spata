@@ -29,7 +29,11 @@ class ThreadITS extends AnyFunSuite {
 
     val cb: CSVCallback = row => {
       count.increment()
-      sum.add(row.get[Long]("max_temp") - row.get[Long]("min_temp"))
+      val diff = for {
+        max <- row.get[Long]("max_temp")
+        min <- row.get[Long]("min_temp")
+      } yield max - min
+      sum.add(diff.getOrElse(0))
       row("month") == "Month 5"
     }
     val cdl = new CountDownLatch(1)

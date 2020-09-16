@@ -41,11 +41,9 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * Parsing empty value to simple type will throw an exception.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @note This function assumes "standard" string formatting, without any locale support,
-    * e.g. point as decimal separator or ISO date and time formats.
-    * Use [[get[A]:* get]] if more control over source format is required.
-    *
+    *       e.g. point as decimal separator or ISO date and time formats.
+    *       Use [[at[A]:* at]] if more control over source format is required.
     * @tparam A type to parse the field to
     * @param key the key of retrieved field
     * @return parsed value
@@ -54,7 +52,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     */
   @throws[NoSuchElementException]("when incorrect key is provided")
   @throws[CSVDataException]("if field cannot be parsed to requested type")
-  def get[A: StringParser](key: String): A = {
+  def at[A: StringParser](key: String): A = {
     val value = row(header(key))
     val parser = implicitly[StringParser[A]]
     wrapParseExc(key, value) { parser.parse(value) }
@@ -62,9 +60,9 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Gets typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
     *
-    * The combination of `get`, [[Field]] constructor and `apply` method
+    * The combination of `at`, [[Field]] constructor and `apply` method
     * allows value retrieval in following form:
-    * {{{ val date: LocalDate = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
+    * {{{ val date: LocalDate = record.at[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
     * Parsers for basic types (as required by [[Field]]) are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.
@@ -77,7 +75,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
     */
-  def get[A]: Field[A] = new Field[A]
+  def at[A]: Field[A] = new Field[A]
 
   /** Safely gets typed record value.
     *
@@ -90,16 +88,14 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * If parsing fails `Left[CSVDataException,_]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @note This function assumes "standard" string formatting, without any locale support,
-    * e.g. point as decimal separator or ISO date and time formats.
-    * Use [[seek[A]:* seek]] if more control over source format is required.
-    *
+    *       e.g. point as decimal separator or ISO date and time formats.
+    *       Use [[get[A]:* get]] if more control over source format is required.
     * @tparam A type to parse the field to
     * @param key the key of retrieved field
     * @return either parsed value or an exception
     */
-  def seek[A: StringParser](key: String): Maybe[A] = maybe(get[A](key))
+  def get[A: StringParser](key: String): Maybe[A] = maybe(at[A](key))
 
   /** Safely gets typed record value.
     *
@@ -117,7 +113,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
     */
-  def seek[A]: SafeField[A] = new SafeField[A]
+  def get[A]: SafeField[A] = new SafeField[A]
 
   /** Gets field value.
     *
@@ -159,7 +155,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * each product field has to be retrieved from single CSV field through [[text.StringParser StringParser]].
     *
     * Because conversion to product requires parsing of all fields through [[text.StringParser StringParser]],
-    * there is no way to provide custom formatter, like while using [[get[A]:* get]] or [[seek[A]:* seek]] methods.
+    * there is no way to provide custom formatter, like while using [[at[A]:* at]] or [[get[A]:* get]] methods.
     * If other then the default formatting has to be handled, a custom implicit `stringParser` has to be provided:
     * {{{
     * // assumming following CSV source

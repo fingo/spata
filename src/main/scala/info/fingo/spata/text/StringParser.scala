@@ -9,7 +9,6 @@ import java.text.{DecimalFormat, NumberFormat, ParseException, ParsePosition}
 import java.time.format.{DateTimeFormatter, DateTimeParseException}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import scala.util.control.NonFatal
-import info.fingo.spata.{maybe, Maybe}
 
 /** Parser from `String` to desired type.
   *
@@ -26,7 +25,7 @@ trait StringParser[A] {
   /** Parses string to desired type.
     *
     * If parsing fails this function should throw [[DataParseException]], possibly wrapping root exception.
-    * This is further handled by [[StringParser#parseSafe[A](* parseSafe]] to allow for exception-free, functional code.
+    * This is further handled by [[StringParser#parse[A](* parse]] to allow for exception-free, functional code.
     *
     * @note This function assumes "standard" string formatting,
     * e.g. point as decimal separator or ISO date and time formats, without any locale support.
@@ -56,7 +55,7 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
   /** Parses string to desired type based on provided format.
     *
     * If parsing fails this function should throw [[DataParseException]], possibly wrapping root exception.
-    * This is further handled by [[StringParser#parseSafe[A]:* parseSafe]] to allow for exception-free, functional code.
+    * This is further handled by [[StringParser#parse[A]:* parse]] to allow for exception-free, functional code.
     *
     * @param str the input string
     * @param fmt formatter, specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -80,58 +79,13 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
 object StringParser {
 
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
-    *
-    * When adding parsing function to an entity, instead of providing
-    * {{{def parse[A, B](input: A, format: B)(implicit parser: FormattedStringParser[A, B]): A}}}
-    * which requires then to use it as
-    * {{{entity.parse[Double, NumberFormat]("123,45", numberFormat)}}}
-    * one can provide function to get this `Pattern`
-    * {{{def parse[A]: Pattern[A]}}}
-    * and use it with nicer syntax
-    * {{{entity.parse[Double]("123,45", numberFormat)}}}
-    *
-    * If there is a need the formatter to additionally retrieve or converter the string to be parsed,
-    * e.g. get value from a map based on key, it is possible to do it through the `get` parameter function,
-    * still keeping above shorter syntax of parsing call:
-    * {{{
-    * import info.fingo.spata.text.StringParser._
-    * val map = Map("v1" -> "123,45", "v2" -> "543,21")
-    * def retrieve[A]: Pattern[A] = new Pattern[A](s => map(s))
-    * val locale = new java.util.Locale("pl", "PL")
-    * val fmt = java.text.NumberFormat.getInstance(locale).asInstanceOf[java.text.DecimalFormat]
-    * val result1 = retrieve[Double]("v1", fmt)
-    * val result2 = retrieve[Double]("v2", fmt)
-    * }}}
-    *
-    * @param get the function to retrieve string to be parsed - identity by default
-    * @tparam A target type for parsing
-    */
-  class Pattern[A](get: String => String = identity) {
-
-    /** Parses string to desired type based on provided format.
-      *
-      * @param str the input string to parse
-      * @param fmt concrete formatter, specific for particular result type, e.g. `DateTimeFormatter` for dates and times
-      * @param parser the parser for specific target type
-      * @tparam B type of concrete formatter
-      * @return parsed value
-      * @throws DataParseException if text cannot be parsed to requested type
-      */
-    @throws[DataParseException]("if text cannot be parsed to requested type")
-    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
-      val s = get(str)
-      wrapExc(str) { parser.parse(s, fmt) }
-    }
-  }
-
-  /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     * Provide exception-free parsing method.
     *
     * @see [[Pattern]] for more information and example usage.
     * @param get the function to retrieve string to be parsed - identity by default
     * @tparam A target type for parsing
     */
-  class SafePattern[A](get: String => String = identity) {
+  class Pattern[A]() {
 
     /** Safely parses string to desired type based on provided format.
       *
@@ -141,44 +95,9 @@ object StringParser {
       * @tparam B type of formatter
       * @return either parsed value or an exception
       */
-    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = maybe {
-      val s = get(str)
-      wrapExc(str) { parser.parse(s, fmt) }
-    }
+    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): ValueOrError[A] =
+      wrapExc(str) { parser.parse(str, fmt) }
   }
-
-  /** Parses string to desired type.
-    *
-    * @example {{{
-    * import info.fingo.spata.text.StringParser._
-    * val x = parse[Double]("123.45")
-    * val y = parse[Option[Double]]("123.45").getOrElse(0)
-    * }}}
-    *
-    * @param str the input string
-    * @param parser the parser for specific target type
-    * @tparam A target type for parsing
-    * @return parsed value
-    * @throws DataParseException if text cannot be parsed to requested type
-    */
-  @throws[DataParseException]("if text cannot be parsed to requested type")
-  def parse[A](str: String)(implicit parser: StringParser[A]): A = wrapExc(str) { parser.parse(str) }
-
-  /** Parses string to desired type based on provided format.
-    *
-    * Delegates actual parsing to [[Pattern#apply]] method.
-    *
-    * @example {{{
-    * import info.fingo.spata.text.StringParser._
-    * val locale = new java.util.Locale("pl", "PL")
-    * val fmt = java.text.NumberFormat.getInstance(locale).asInstanceOf[java.text.DecimalFormat]
-    * val result1 = parse[Double]("123,45", fmt)
-    * }}}
-    *
-    * @tparam A target type for parsing
-    * @return intermediary to retrieve value according to custom format
-    */
-  def parse[A]: Pattern[A] = new Pattern[A]
 
   /** Safely parses string to desired type.
     *
@@ -189,19 +108,18 @@ object StringParser {
     * @tparam A target type for parsing
     * @return either parsed value or an [[DataParseException]]
     */
-  def parseSafe[A](str: String)(implicit parser: StringParser[A]): Maybe[A] =
-    maybe(wrapExc(str) { parser.parse(str) })
+  def parse[A](str: String)(implicit parser: StringParser[A]): ValueOrError[A] =
+    wrapExc(str) { parser.parse(str) }
 
   /** Parses string to desired type based on provided format.
     *
-    * Delegates actual parsing to [[SafePattern#apply]] method.
+    * Delegates actual parsing to [[Pattern#apply]] method.
     *
     * @see [[parse[A]:* parse]] for sample usage.
-    *
     * @tparam A target type for parsing
     * @return intermediary to retrieve value according to custom format
     */
-  def parseSafe[A]: SafePattern[A] = new SafePattern[A]
+  def parse[A]: Pattern[A] = new Pattern[A]
 
   /** Parser for optional values.
     * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
@@ -303,11 +221,11 @@ object StringParser {
   }
 
   /* Wraps any parsing exception in DataParseException. */
-  private def wrapExc[A](content: String)(code: => A): A =
-    try code
+  private def wrapExc[A](content: String)(code: => A): ValueOrError[A] =
+    try Right(code)
     catch {
-      case ex: DataParseException => throw ex
-      case NonFatal(ex) => throw new DataParseException(content, parseErrorTypeInfo(ex), Some(ex))
+      case ex: DataParseException => Left(ex)
+      case NonFatal(ex) => Left(new DataParseException(content, parseErrorTypeInfo(ex), Some(ex)))
     }
 
   /* Gets type of parsed value based on type of exception thrown while parsing. */

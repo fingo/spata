@@ -313,7 +313,7 @@ val num: Double = record.at[Double]("123,45", df)
 val numM: Maybe[Double] = record.get[Double]("123,45", df)
 ```
 Both functions require a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
-(They use intermediary classes `Field` and `SafeField` to provide a nice syntax,
+(They use intermediary classes `UnsafeField` and `Field` to provide a nice syntax,
 this should be however transparent in most cases).
 
 In addition to retrieval of single fields, `CSVRecord` may be converted to a case class or a tuple.

@@ -60,22 +60,22 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Gets typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
     *
-    * The combination of `at`, [[Field]] constructor and `apply` method
+    * The combination of `at`, [[UnsafeField]] constructor and `apply` method
     * allows value retrieval in following form:
     * {{{ val date: LocalDate = record.at[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
-    * Parsers for basic types (as required by [[Field]]) are provided through [[text.StringParser$ StringParser]] object.
+    * Parsers for basic types (as required by [[UnsafeField]])
+    * are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.
     *
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will throw an exception.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
     */
-  def at[A]: Field[A] = new Field[A]
+  def at[A]: UnsafeField[A] = new UnsafeField[A]
 
   /** Safely gets typed record value.
     *
@@ -99,7 +99,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Safely gets typed record value.
     *
-    * The combination of `get`, [[SafeField]] constructor and `apply` method allows value retrieval in following form:
+    * The combination of `get`, [[Field]] constructor and `apply` method allows value retrieval in following form:
     * {{{ val date: Maybe[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     *
     * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
@@ -109,11 +109,10 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * Parsing empty value to simple type will result in an error.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    *
     * @tparam A type to parse the field to
     * @return intermediary to retrieve value according to custom format
     */
-  def get[A]: SafeField[A] = new SafeField[A]
+  def get[A]: Field[A] = new Field[A]
 
   /** Gets field value.
     *
@@ -203,7 +202,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     *
     * @tparam A target type for parsing
     */
-  class Field[A] {
+  class UnsafeField[A] {
 
     /** Parses field to desired type based on provided format.
       *
@@ -228,7 +227,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     *
     * @tparam A target type for parsing
     */
-  class SafeField[A] {
+  class Field[A] {
 
     /** Safely parses string to desired type based on provided format.
       *

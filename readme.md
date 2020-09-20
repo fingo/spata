@@ -379,14 +379,14 @@ This is the place where spata's `text.StringParser` comes in handy.
 
 `StringParser` object provides methods for parsing strings with default format:
 ```scala
-val num: ValueOrError[Double] = StringParser.parse[Double]("123.45")
+val num: ParseResult[Double] = StringParser.parse[Double]("123.45")
 ```
-where `ValueOrError[A]` is just an alias for `Either[DataParseException, A]`
+where `ParseResult[A]` is just an alias for `Either[ParseError, A]`
 
 When a specific format has to be provided, an overloaded version of above method is available: 
 ```scala
 val df = new DecimalFormat("#,###")
-val num: ValueOrError[Double] = StringParser.parse[Double]("123,45", df)
+val num: ParseResult[Double] = StringParser.parse[Double]("123,45", df)
 ```
 (They use intermediary classes `Pattern` to provide nice syntax,
 this should be however transparent in most cases).
@@ -434,7 +434,7 @@ This is different from the built-in parsing behaviour for `LocalDate`,
 where the entire string has to conform to the format. 
 
 Parsing implementations are expected to throw specific runtime exceptions when parsing fails.
-This is converted to `DataParseException` in `StringParser` object's `parse` method,
+This is converted to `ParseError` in `StringParser` object's `parse` method,
 while keeping the original exception in `cause` field.
 
 Although this design decision might be seen as questionable,

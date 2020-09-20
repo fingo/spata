@@ -36,13 +36,13 @@ class BooleanFormatter(tt: String, ft: String, locale: Locale) {
     *
     * @param string the text to parse
     * @return `true` or `false`
-    * @throws DataParseException if text cannot be parsed to boolean
+    * @throws ParseError if text cannot be parsed to boolean
     */
-  @throws[DataParseException]("if text cannot be parsed to boolean")
+  @throws[ParseError]("if text cannot be parsed to boolean")
   def parse(string: String): Boolean = string.strip().toLowerCase(locale) match {
     case `trueTerm` => true
     case `falseTerm` => false
-    case _ => throw new DataParseException(string, Some("boolean"))
+    case _ => throw new ParseError(string, Some("boolean"))
   }
 }
 

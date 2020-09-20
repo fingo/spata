@@ -26,10 +26,10 @@ class BooleanFormatterTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(!formatter.parse(ft))
     }
   }
-  test("Boolean formatter should throw DataParseException when parsing incorrect input") {
+  test("Boolean formatter should throw ParseError when parsing incorrect input") {
     forAll(formatters) { (_: String, _: String, _: String, formatter: BooleanFormatter) =>
-      assertThrows[DataParseException] { formatter.parse("wrong") }
-      assertThrows[DataParseException] { formatter.parse("y") }
+      assertThrows[ParseError] { formatter.parse("wrong") }
+      assertThrows[ParseError] { formatter.parse("y") }
     }
   }
 

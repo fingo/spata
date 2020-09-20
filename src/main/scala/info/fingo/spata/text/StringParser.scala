@@ -54,7 +54,7 @@ trait FormattedStringParser[A, B] extends StringParser[A] {
 
   /** Parses string to desired type based on provided format.
     *
-    * If parsing fails this function should throw [[DataParseException]], possibly wrapping root exception.
+    * If parsing fails this function should throw [[ParseError]], possibly wrapping root exception.
     * This is further handled by [[StringParser#parse[A]:* parse]] to allow for exception-free, functional code.
     *
     * @param str the input string
@@ -81,7 +81,7 @@ object StringParser {
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     *
     * When adding parsing function to an entity, instead of providing
-    * {{{def parse[A, B](input: A, format: B)(implicit parser: FormattedStringParser[A, B]): ValueOrError[A]}}}
+    * {{{def parse[A, B](input: A, format: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A]}}}
     * which requires then to use it as
     * {{{entity.parse[Double, NumberFormat]("123,45", numberFormat)}}}
     * one can provide function to get this `Pattern`
@@ -93,7 +93,7 @@ object StringParser {
     */
   class Pattern[A]() {
 
-    /** Safely parses string to desired type based on provided format.
+    /** Parses string to desired type based on provided format.
       *
       * @param str the input string to parse
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -101,7 +101,7 @@ object StringParser {
       * @tparam B type of formatter
       * @return either parsed value or an exception
       */
-    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): ValueOrError[A] =
+    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A] =
       wrapExc(str) { parser(str, fmt) }
   }
 
@@ -112,13 +112,12 @@ object StringParser {
     * val x = parse[Double]("123.45").getOrElse(Double.NaN)
     * val y = parse[Option[Double]]("123.45").map(_.getOrElse(0.0)).getOrElse(Double.NaN)
     * }}}
-    *
     * @param str the input string
     * @param parser the parser for specific target type
     * @tparam A target type for parsing
-    * @return either parsed value or an [[DataParseException]]
+    * @return either parsed value or an [[ParseError]]
     */
-  def parse[A](str: String)(implicit parser: StringParser[A]): ValueOrError[A] =
+  def parse[A](str: String)(implicit parser: StringParser[A]): ParseResult[A] =
     wrapExc(str) { parser(str) }
 
   /** Parses string to desired type based on provided format.
@@ -222,7 +221,7 @@ object StringParser {
     val s = str.strip
     val num = fmt.parse(s, pos)
     if (pos.getIndex != s.length)
-      throw new DataParseException(
+      throw new ParseError(
         str,
         Some("number"),
         Some(new ParseException(s"Cannot parse $str as number", pos.getIndex))
@@ -230,17 +229,17 @@ object StringParser {
     num
   }
 
-  /* Wraps any parsing exception in DataParseException. */
-  private def wrapExc[A](content: String)(code: => A): ValueOrError[A] =
+  /* Wraps any parsing exception in ParseError. */
+  private def wrapExc[A](content: String)(code: => A): ParseResult[A] =
     try Right(code)
     catch {
-      case ex: DataParseException => Left(ex)
-      case NonFatal(ex) => Left(new DataParseException(content, parseErrorTypeInfo(ex), Some(ex)))
+      case pe: ParseError => Left(pe)
+      case NonFatal(ex) => Left(new ParseError(content, parseErrorTypeInfo(ex), Some(ex)))
     }
 
   /* Gets type of parsed value based on type of exception thrown while parsing. */
   private[spata] def parseErrorTypeInfo(ex: Throwable): Option[String] = ex match {
-    case e: DataParseException => e.dataType
+    case e: ParseError => e.dataType
     case _: NumberFormatException => Some("number")
     case _: DateTimeParseException => Some("date/time")
     case _ => None

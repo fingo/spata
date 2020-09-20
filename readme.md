@@ -400,6 +400,7 @@ Let's take `java.sql.Date` as an example. Having implemented `StringParser[Date]
 ```scala
 import java.sql.Date
 import info.fingo.spata.text.StringParser
+
 implicit val sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
 ```
 We can use it as follows:
@@ -415,8 +416,8 @@ import info.fingo.spata.text.FormattedStringParser
 
 implicit val sdf: FormattedStringParser[Date, DateFormat] =
   new FormattedStringParser[Date, DateFormat] {
-      override def parse(str: String): Date = Date.valueOf(str.strip)
-      override def parse(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
+      override def apply(str: String): Date = Date.valueOf(str.strip)
+      override def apply(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
   }
 ```
 And can be used as follows:
@@ -435,6 +436,12 @@ where the entire string has to conform to the format.
 Parsing implementations are expected to throw specific runtime exceptions when parsing fails.
 This is converted to `DataParseException` in `StringParser` object's `parse` method,
 while keeping the original exception in `cause` field.
+
+Although this design decision might be seen as questionable,
+as returning `Either` instead of throwing an exception could be the better choice,
+it is made deliberately - all available Java parsing methods throw an exception,
+so it is more convenient to use them directly while implementing `StringParser` traits,
+leaving all exception handling in a single place, i.e. the `StringParser.parse` method.  
 
 ### Error handling
 

@@ -12,17 +12,17 @@ import info.fingo.spata.parser.RecordParser._
  * It converts additionally CSV parsing failures into stream error by raising CSVStructureException.
  */
 private[spata] class CSVContent[F[_]: RaiseThrowable] private (
-  data: Stream[F, ParsingResult],
+  data: Stream[F, RecordResult],
   header: CSVHeader,
   hasHeaderRecord: Boolean = true
 ) {
-  /* Converts RawRecord into CSVRecord and raise ParsingFailure as CSVStructureException */
+  /* Converts RawRecord into CSVRecord and raise RecordFailure as CSVStructureException */
   def toRecords: Stream[F, CSVRecord] = data.map(wrapRecord).rethrow
 
-  private def wrapRecord(pr: ParsingResult): Either[CSVStructureException, CSVRecord] = pr match {
+  private def wrapRecord(rr: RecordResult): Either[CSVStructureException, CSVRecord] = rr match {
     case RawRecord(fields, location, recordNum) =>
       CSVRecord(fields, location.line, recordNum - dataOffset)(header)
-    case ParsingFailure(code, location, recordNum, fieldNum) =>
+    case RecordFailure(code, location, recordNum, fieldNum) =>
       Left(
         new CSVStructureException(
           code,
@@ -43,8 +43,8 @@ private[spata] object CSVContent {
 
   /* Creates CSVContent for data with header. May return CSVStructureException if no header is available (means empty source). */
   def apply[F[_]: RaiseThrowable](
-    headerRecord: ParsingResult,
-    data: Stream[F, ParsingResult],
+    headerRecord: RecordResult,
+    data: Stream[F, RecordResult],
     headerMap: S2S
   ): Either[CSVStructureException, CSVContent[F]] =
     createHeader(headerRecord, headerMap) match {
@@ -55,16 +55,16 @@ private[spata] object CSVContent {
   /* Creates CSVContent for data without header record - builds a numeric header. */
   def apply[F[_]: RaiseThrowable](
     headerSize: Int,
-    data: Stream[F, ParsingResult],
+    data: Stream[F, RecordResult],
     headerMap: S2S
   ): Either[CSVStructureException, CSVContent[F]] =
     Right(new CSVContent(data, CSVHeader(headerSize, headerMap), false))
 
   /* Build header for based on header record, remapping selected header values. */
-  private def createHeader(pr: ParsingResult, headerMap: S2S): Either[CSVStructureException, CSVHeader] =
-    pr match {
+  private def createHeader(rr: RecordResult, headerMap: S2S): Either[CSVStructureException, CSVHeader] =
+    rr match {
       case RawRecord(captions, _, _) => Right(CSVHeader(captions, headerMap))
-      case ParsingFailure(code, location, _, _) =>
+      case RecordFailure(code, location, _, _) =>
         Left(new CSVStructureException(code, location.line, 0, Some(location.position), None))
     }
 }

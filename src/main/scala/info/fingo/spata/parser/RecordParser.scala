@@ -21,17 +21,17 @@ private[spata] case class StateRP(
 }
 
 /* Converter from CSV fields to records. */
-private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult, ParsingResult, StateRP] {
+private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult, RecordResult, StateRP] {
 
   /* Transforms stream of fields into records by providing FS2 pipe. */
-  def toRecords: Pipe[F, FieldResult, ParsingResult] = parse(StateRP())
+  def toRecords: Pipe[F, FieldResult, RecordResult] = parse(StateRP())
 
   @tailrec
   final override def parseChunk(
     input: List[FieldResult],
-    output: Vector[ParsingResult],
+    output: Vector[RecordResult],
     state: StateRP
-  ): (StateRP, Chunk[ParsingResult]) =
+  ): (StateRP, Chunk[RecordResult]) =
     input match {
       case (rf: RawField) :: tail if rf.endOfRecord =>
         state.buffer += rf.value
@@ -45,7 +45,7 @@ private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult,
         parseChunk(tail, output, StateRP(state.recNum, state.buffer))
       case (ff: FieldFailure) :: _ =>
         val fieldNum = state.buffer.result().size + 1
-        val chunk = Chunk.vector(output :+ ParsingFailure(ff.code, ff.counters, state.recNum, fieldNum))
+        val chunk = Chunk.vector(output :+ RecordFailure(ff.code, ff.counters, state.recNum, fieldNum))
         (state.finish(), chunk)
       case _ => (state, Chunk.vector(output))
     }
@@ -54,15 +54,15 @@ private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult,
 private[spata] object RecordParser {
   import ParsingErrorCode._
 
-  sealed trait ParsingResult {
+  sealed trait RecordResult {
     def location: Location
     def recordNum: Int
     def fieldNum: Int
   }
 
-  case class ParsingFailure(code: ErrorCode, location: Location, recordNum: Int, fieldNum: Int) extends ParsingResult
+  case class RecordFailure(code: ErrorCode, location: Location, recordNum: Int, fieldNum: Int) extends RecordResult
 
-  case class RawRecord(fields: IndexedSeq[String], location: Location, recordNum: Int) extends ParsingResult {
+  case class RawRecord(fields: IndexedSeq[String], location: Location, recordNum: Int) extends RecordResult {
     def isEmpty: Boolean = fields.isEmpty || fields.size == 1 && fields.head.isEmpty
     def fieldNum: Int = fields.size
   }

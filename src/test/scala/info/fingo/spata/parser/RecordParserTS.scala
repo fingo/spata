@@ -12,7 +12,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import Config._
 import RawFields._
 import FieldFailures._
-import ParsingResults._
+import RecordResults._
 import ParsingErrorCode._
 import FieldParser.FieldResult
 
@@ -63,8 +63,8 @@ class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val failureCases = Table(
     ("testCase", "input", "output"),
-    ("errorOnly", List(ffcq(3)), List(pf(UnclosedQuotation, 3))),
-    ("fieldAndError", List(rf("abc", 3), ffeq(7)), List(pf(UnescapedQuotation, 7, 1, 1, 2))),
-    ("recordAndError", List(rfe("abc", 3), ffeq(3, 2)), List(rr("abc")(3), pf(UnescapedQuotation, 3, 2, 2)))
+    ("errorOnly", List(ffcq(3)), List(rfl(UnclosedQuotation, 3))),
+    ("fieldAndError", List(rf("abc", 3), ffeq(7)), List(rfl(UnescapedQuotation, 7, 1, 1, 2))),
+    ("recordAndError", List(rfe("abc", 3), ffeq(3, 2)), List(rr("abc")(3), rfl(UnescapedQuotation, 3, 2, 2)))
   )
 }

@@ -9,7 +9,7 @@ import scala.util.Try
 import cats.effect.{Concurrent, Sync}
 import fs2.{Pipe, Pull, RaiseThrowable, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
-import info.fingo.spata.parser.RecordParser.ParsingResult
+import info.fingo.spata.parser.RecordParser.RecordResult
 import info.fingo.spata.CSVParser.CSVCallback
 
 /** A utility for parsing comma-separated values (CSV) sources.
@@ -78,14 +78,14 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
   }
 
   /* Splits source data into header and actual content. */
-  private def contentWithHeader(stream: Stream[F, ParsingResult]) =
+  private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
       case None => Pull.raiseError[F](new CSVStructureException(ParsingErrorCode.MissingHeader, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
-  private def contentWithoutHeader(stream: Stream[F, ParsingResult]) =
+  private def contentWithoutHeader(stream: Stream[F, RecordResult]) =
     stream.pull.peek1.flatMap {
       case Some((h, s)) => Pull.output1(CSVContent(h.fieldNum, s, config.mapHeader))
       case None => Pull.output1(CSVContent(0, Stream.empty[F], config.mapHeader))

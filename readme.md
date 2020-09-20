@@ -379,18 +379,16 @@ This is the place where spata's `text.StringParser` comes in handy.
 
 `StringParser` object provides methods for parsing strings with default format:
 ```scala
-val num: Double = StringParser.parse[Double]("123.45")
-val numM: Maybe[Double] = StringParser.parseSafe[Double]("123.45")
+val num: ValueOrError[Double] = StringParser.parse[Double]("123.45")
 ```
-`parse` may throw `DataParseException` while `parseSafe` wraps the result in `Either[Throwable, A]`
+where `ValueOrError[A]` is just an alias for `Either[DataParseException, A]`
 
-When a specific format has to be provided, overloaded versions of above methods are available: 
+When a specific format has to be provided, an overloaded version of above method is available: 
 ```scala
 val df = new DecimalFormat("#,###")
-val num: Double = StringParser.parse[Double]("123,45", df)
-val numM: Maybe[Double] = StringParser.parseSafe[Double]("123,45", df)
+val num: ValueOrError[Double] = StringParser.parse[Double]("123,45", df)
 ```
-(They use intermediary classes `Pattern` and `SafePattern` to provide nice syntax,
+(They use intermediary classes `Pattern` to provide nice syntax,
 this should be however transparent in most cases).
 
 These functions require implicit `StringParser` or `FormattedStringParser` respectively.
@@ -402,12 +400,12 @@ Let's take `java.sql.Date` as an example. Having implemented `StringParser[Date]
 ```scala
 import java.sql.Date
 import info.fingo.spata.text.StringParser
+
 implicit val sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
 ```
 We can use it as follows:
 ```scala
 val date = StringParser.parse[Date]("2020-02-02")
-val dateM = StringParser.parseSafe[Date]("2020-02-02")
 ```
 
 Defining a parser with support for custom formatting requires the implementation of `FormattedStringParser`:
@@ -418,8 +416,8 @@ import info.fingo.spata.text.FormattedStringParser
 
 implicit val sdf: FormattedStringParser[Date, DateFormat] =
   new FormattedStringParser[Date, DateFormat] {
-      override def parse(str: String): Date = Date.valueOf(str.strip)
-      override def parse(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
+      override def apply(str: String): Date = Date.valueOf(str.strip)
+      override def apply(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
   }
 ```
 And can be used as follows:
@@ -429,7 +427,6 @@ import java.util.Locale
 
 val df = DateFormat.getDateInstance(DateFormat.SHORT, new Locale("pl", "PL"))
 val date = StringParser.parse[Date]("02.02.2020", df)
-val dateM = StringParser.parseSafe[Date]("02.02.2020", df)
 ```
 Please note that this sample implementation accepts partial string parsing,
 e.g. `"02.02.2020xyz"` will successfully parse to `2020-02-02`.
@@ -439,6 +436,12 @@ where the entire string has to conform to the format.
 Parsing implementations are expected to throw specific runtime exceptions when parsing fails.
 This is converted to `DataParseException` in `StringParser` object's `parse` method,
 while keeping the original exception in `cause` field.
+
+Although this design decision might be seen as questionable,
+as returning `Either` instead of throwing an exception could be the better choice,
+it is made deliberately - all available Java parsing methods throw an exception,
+so it is more convenient to use them directly while implementing `StringParser` traits,
+leaving all exception handling in a single place, i.e. the `StringParser.parse` method.  
 
 ### Error handling
 

@@ -10,7 +10,6 @@ import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.Locale
 
-import info.fingo.spata.Maybe
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -23,24 +22,19 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("StringParser should correctly parse strings") {
     forAll(strings) { (tc: String, str: String, string: Option[String]) =>
-      assert(parse[Option[String]](str) == string)
-      assert(parseSafe[Option[String]](str).contains(string))
-      if (tc != empty) {
-        assert(string.contains(parse[String](str)))
-        assert(parseSafe[String](str).toOption == string)
-      }
+      assert(parse[Option[String]](str).contains(string))
+      if (tc != empty)
+        assert(parse[String](str).toOption == string)
     }
   }
 
   test("StringParser should correctly parse ints") {
     forAll(ints) { (tc: String, str: String, int: Option[Int]) =>
-      assert(parse[Option[Int]](str) == int)
-      assert(parseSafe[Option[Int]](str).contains(int))
-      if (tc != empty) {
-        assert(int.contains(parse[Int](str)))
-        assert(parseSafe[Int](str).toOption == int)
-      } else
-        assert(parseSafe[Int](str).isLeft)
+      assert(parse[Option[Int]](str).contains(int))
+      if (tc != empty)
+        assert(parse[Int](str).toOption == int)
+      else
+        assert(parse[Int](str).isLeft)
     }
   }
 
@@ -89,58 +83,38 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
     implicit p: FormattedStringParser[A, B]
   ) = {
-    val result: Option[A] = fmt match {
+    val maybeO: ValueOrError[Option[A]] = fmt match {
       case Some(f) => parse[Option[A]](str, f)
       case _ => parse[Option[A]](str)
     }
-    assert(result == expected)
-    val maybeO: Maybe[Option[A]] = fmt match {
-      case Some(f) => parseSafe[Option[A]](str, f)
-      case _ => parseSafe[Option[A]](str)
-    }
     assert(maybeO.contains(expected))
-    if (tc != empty) {
-      val result: A = fmt match {
-        case Some(f) => parse[A](str, f)
-        case _ => parse[A](str)
-      }
-      assert(expected.contains(result))
+    val maybe: ValueOrError[A] = fmt match {
+      case Some(f) => parse[A](str, f)
+      case _ => parse[A](str)
     }
-    val maybe: Maybe[A] = fmt match {
-      case Some(f) => parseSafe[A](str, f)
-      case _ => parseSafe[A](str)
-    }
+    if (tc != empty)
+      assert(maybe.toOption == expected)
     assert(maybe.toOption == expected)
   }
 
-  test("String parser should throw exception on incorrect input") {
-    assertThrows[DataParseException] { parse[Int]("wrong") }
-    val exInt = intercept[DataParseException] { parse[Int]("12345678901234567890") }
-    assert(exInt.dataType.contains("number"))
-    assertThrows[DataParseException] { parse[Long]("wrong") }
-    assertThrows[DataParseException] { parse[Long]("123:456:789", NumberFormat.getInstance(locale)) }
-    val exDouble = intercept[DataParseException] { parse[Double]("123e1e2") }
-    assert(exDouble.dataType.contains("number"))
-    assertThrows[DataParseException] {
-      parse[Double]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
-    }
-    assertThrows[DataParseException] {
-      parse[BigDecimal]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat])
-    }
-    val exDate = intercept[DataParseException] { parse[LocalDate]("2020-02-30") }
-    assert(exDate.dataType.contains("date/time"))
-    assert(exDate.getCause.isInstanceOf[DateTimeParseException])
-    assertThrows[DataParseException] {
-      parse[LocalDate]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-    }
-    assertThrows[DataParseException] { parse[LocalTime]("24:24") }
-    assertThrows[DataParseException] { parse[LocalDateTime]("wrong") }
-    assertThrows[DataParseException] { parse[Boolean]("yes") }
-    val exBool = intercept[DataParseException] { parse[Boolean]("yes", BooleanFormatter("y", "n")) }
-    assert(exBool.dataType.contains("boolean"))
-    assert(exBool.content == "yes")
-    val exMessage = intercept[DataParseException] { parse[Int]("1234567890" * 10) }
-    assert(exMessage.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as requested number"))
+  test("String parser should return error on incorrect input") {
+    assert(parse[Int]("wrong").isLeft)
+    assert(parse[Int]("12345678901234567890").left.exists(_.dataType.contains("number")))
+    assert(parse[Long]("wrong").isLeft)
+    assert(parse[Long]("123:456:789", NumberFormat.getInstance(locale)).isLeft)
+    assert(parse[Double]("123e1e2").left.exists(_.dataType.contains("number")))
+    assert(parse[Double]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]).isLeft)
+    assert(parse[BigDecimal]("123,456.789", NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]).isLeft)
+    val eDate = parse[LocalDate]("2020-02-30")
+    assert(eDate.left.exists(e => e.dataType.contains("date/time") && e.getCause.isInstanceOf[DateTimeParseException]))
+    assert(parse[LocalDate]("2020-02-28", DateTimeFormatter.ofPattern("dd/MM/yyyy")).isLeft)
+    assert(parse[LocalTime]("24:24").isLeft)
+    assert(parse[LocalDateTime]("wrong").isLeft)
+    assert(parse[Boolean]("yes").isLeft)
+    val eBool = parse[Boolean]("yes", BooleanFormatter("y", "n"))
+    assert(eBool.left.exists(e => e.dataType.contains("boolean") && e.content == "yes"))
+    val eInt = parse[Int]("1234567890" * 10)
+    assert(eInt.left.exists(_.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as requested number")))
   }
 
   private lazy val strings = Table(

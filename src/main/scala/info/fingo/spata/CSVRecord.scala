@@ -55,7 +55,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   def at[A: StringParser](key: String): A = {
     val value = row(header(key))
     val parser = implicitly[StringParser[A]]
-    wrapParseExc(key, value) { parser.parse(value) }
+    wrapParseExc(key, value) { parser.apply(value) }
   }
 
   /** Gets typed record value. Supports custom string formats through [[text.StringParser.Pattern Pattern]].
@@ -219,7 +219,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     @throws[CSVDataException]("if field cannot be parsed to requested type")
     def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = {
       val value = row(header(key))
-      wrapParseExc(key, value) { parser.parse(value, fmt) }
+      wrapParseExc(key, value) { parser(value, fmt) }
     }
   }
 
@@ -243,7 +243,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
       */
     def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Maybe[A] = maybe {
       val value = row(header(key))
-      wrapParseExc(key, value) { parser.parse(value, fmt) }
+      wrapParseExc(key, value) { parser(value, fmt) }
     }
   }
 }

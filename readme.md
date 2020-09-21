@@ -298,11 +298,11 @@ this may be done with single-parameter `at` or `get` functions:
 ```scala
 val record: CSVRecord = ???
 val num: Double = record.at[Double]("123.45")
-val numM: Maybe[Double] = record.get[Double]("123.45")
+val numFV: Decoded[Double] = record.get[Double]("123.45")
 ```
-`get` is a safe version of `at` - it returns the result wrapped in `Maybe[A]`,
-which is an alias for `Either[Throwable, A]`.
-`at` may throw `CSVDataException`.
+`get` is a safe version of `at` - it returns the result wrapped in `Decoded[A]`,
+which is an alias for `Either[ContentError, A]`.
+`at` may throw `ContentError`.
 Both functions require a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
 
 Both `at` and `get` have overloaded versions, which support formatting-aware parsing:
@@ -310,7 +310,7 @@ Both `at` and `get` have overloaded versions, which support formatting-aware par
 val record: CSVRecord = ???
 val df = new DecimalFormat("#,###")
 val num: Double = record.at[Double]("123,45", df)
-val numM: Maybe[Double] = record.get[Double]("123,45", df)
+val numFV: Decoded[Double] = record.get[Double]("123,45", df)
 ```
 Both functions require a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
 (They use intermediary classes `UnsafeField` and `Field` to provide a nice syntax,
@@ -328,7 +328,7 @@ The data can be converted from a record directly into a case class:
 ```scala
 val record: CSVRecord = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
-val element: Maybe[Element] = record.to[Element]()
+val element: Decoded[Element] = record.to[Element]()
 ```
 Notice that not all source fields have to be used for conversion.
 The conversion is name-based - header strings have to match case class field names exactly, including case.
@@ -344,7 +344,7 @@ lithium,Li,453.65,1603
 ```scala
 val record: CSVRecord = ???
 type Element = (String, String, Double, Double)
-val element: Maybe[Element] = record.to[Element]()
+val element: Decoded[Element] = record.to[Element]()
 ```
 Notice that in this case the first column has been included in the conversion to ensure header and tuple field matching.
 
@@ -364,7 +364,7 @@ val record: CSVRecord = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
 implicit val nsp: StringParser[Double] = (str: String) => nf.parse(str).doubleValue()
-val element: Maybe[Element] = record.to[Element]()
+val element: Decoded[Element] = record.to[Element]()
 ```
 
 ### Text parsing
@@ -449,17 +449,17 @@ There are three types of errors which may arise while parsing CSV:
 * Various I/O errors, including but not limited to `IOException`.
 They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
 They may be raised by `reader` operations.
-* Errors caused by malformed CSV structure, reported as `CSVStructureException`.
+* Errors caused by malformed CSV structure, reported as `StructureException`.
 They may be caused by `CSVParser`'s methods.
-* Errors caused by unexpected / incorrect data in record fields, reported as `CSVDataException`.
+* Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
 They may result from interactions with `CVSRecord`.
 
 The two first error categories are unrecoverable and stop stream processing.
-For the `CSVStructureException` errors we are able to precisely identify the place that caused the problem.
+For the `StructureException` errors we are able to precisely identify the place that caused the problem.
 See Scaladoc for `CSVException` for further information about error location.
 
 The last category is reported on the record level and allows for different handling policies.
-Please notice however, that if the error is not handled locally (using safe functions returning `Maybe`)
+Please notice however, that if the error is not handled locally (using safe functions returning `Decoded`)
 and propagates through the stream, further processing of input data is stopped, like for the above error categories.  
 
 Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.

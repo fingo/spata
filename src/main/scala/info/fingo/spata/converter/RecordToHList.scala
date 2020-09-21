@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.converter
 
-import info.fingo.spata.{CSVRecord, Maybe}
+import info.fingo.spata.{CSVRecord, Decoded}
 import info.fingo.spata.text.StringParser
 import shapeless.{::, HList, HNil, Lazy, Witness}
 import shapeless.labelled.{field, FieldType}
@@ -23,7 +23,7 @@ trait RecordToHList[L <: HList] {
     * @param record record to be converted
     * @return either converted `HList` or an exception
     */
-  def apply(record: CSVRecord): Maybe[L]
+  def apply(record: CSVRecord): Decoded[L]
 }
 
 /** Implicits to converter CSVRecord to [[shapeless.HNil]] and [[shapeless.::]]. */

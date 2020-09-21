@@ -10,6 +10,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
+
 import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import cats.effect.{ContextShift, IO}
@@ -17,6 +18,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.error.StructureException
 import info.fingo.spata.io.reader
 import info.fingo.spata.text.StringParser
 
@@ -331,7 +333,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     field: Option[String]
   )(result: A): A = {
     ex match {
-      case ex: CSVStructureException => assertCSVException(ex, errorCode, line, col, row, field)
+      case ex: StructureException => assertCSVException(ex, errorCode, line, col, row, field)
       case ex: IOException => assertIOException(ex, errorCode)
       case _ => fail()
     }
@@ -339,7 +341,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def assertCSVException(
-    ex: CSVStructureException,
+    ex: StructureException,
     errorCode: String,
     line: Int,
     col: Option[Int],

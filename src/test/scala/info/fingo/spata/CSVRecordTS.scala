@@ -10,6 +10,7 @@ import java.text.{DecimalFormat, DecimalFormatSymbols, NumberFormat}
 import java.time.LocalDate
 import java.time.format.{DateTimeFormatter, FormatStyle}
 
+import info.fingo.spata.error.DataError
 import info.fingo.spata.text.StringParser
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -88,12 +89,12 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         assert(record.at[Option[LocalDate]]("date").isEmpty)
         assert(record.at[Option[BigDecimal]]("value").isEmpty)
       }
-      assertThrows[CSVDataException] { record.at[LocalDate]("date") }
+      assertThrows[DataError] { record.at[LocalDate]("date") }
       assert(record.get[LocalDate]("date").isLeft)
       assert(record.get[LocalDate]("wrong").isLeft)
       assert(record.get[LocalDate]("date", dtf).isLeft)
       assert(record.get[LocalDate]("wrong", dtf).isLeft)
-      assertThrows[CSVDataException] { record.at[BigDecimal]("value") }
+      assertThrows[DataError] { record.at[BigDecimal]("value") }
     }
   }
 

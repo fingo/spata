@@ -7,7 +7,7 @@ package info.fingo.spata.parser
 
 import CharParser.{CharFailure, CharState}
 import CharParser.CharPosition._
-import ParsingErrorCode._
+import info.fingo.spata.error.ParsingErrorCode._
 import FieldParser.{FieldFailure, RawField}
 
 object Config {

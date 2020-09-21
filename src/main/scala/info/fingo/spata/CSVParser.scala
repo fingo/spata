@@ -8,9 +8,10 @@ package info.fingo.spata
 import scala.util.Try
 import cats.effect.{Concurrent, Sync}
 import fs2.{Pipe, Pull, RaiseThrowable, Stream}
-import info.fingo.spata.parser.{CharParser, FieldParser, ParsingErrorCode, RecordParser}
+import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
 import info.fingo.spata.parser.RecordParser.RecordResult
 import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.error.{CSVException, ParsingErrorCode, StructureException}
 
 /** A utility for parsing comma-separated values (CSV) sources.
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
@@ -61,11 +62,10 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     *   .through(parser.parse)
     * }}}
     *
-    * Transformation may result in [[CSVStructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
+    * Transformation may result in [[error.StructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
     * If not handled, the exception will be thrown.
     *
     * @see [[https://fs2.io/ FS2]] documentation for further guidance.
-    *
     * @return a pipe to converter [[scala.Char]]s into [[CSVRecord]]s
     */
   def parse: Pipe[F, Char, CSVRecord] = (in: Stream[F, Char]) => {
@@ -81,7 +81,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
-      case None => Pull.raiseError[F](new CSVStructureException(ParsingErrorCode.MissingHeader, 1, 0))
+      case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
@@ -98,9 +98,9 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @param stream the source stream containing CSV content
     * @param F a type class (monad) providing suspended execution
     * @return the list of records
-    * @throws CSVStructureException in case of flawed CSV structure
+    * @throws error.StructureException in case of flawed CSV structure
     */
-  @throws[CSVStructureException]("in case of flawed CSV structure")
+  @throws[StructureException]("in case of flawed CSV structure")
   def get(stream: Stream[F, Char])(implicit F: Sync[F]): F[List[CSVRecord]] = get(stream, None)
 
   /** Fetches requested number of CSV records into a list.
@@ -113,9 +113,9 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @param limit the number of records to get
     * @param F a type class (monad) providing suspended execution
     * @return the list of records
-    * @throws CSVStructureException in case of flawed CSV structure
+    * @throws error.StructureException in case of flawed CSV structure
     */
-  @throws[CSVStructureException]("in case of flawed CSV structure")
+  @throws[StructureException]("in case of flawed CSV structure")
   def get(stream: Stream[F, Char], limit: Long)(implicit F: Sync[F]): F[List[CSVRecord]] =
     get(stream, Some(limit))
 
@@ -137,7 +137,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * It should return `true` to continue the process with next record or `false` to stop processing the input.
     * @param F a type class (monad) providing suspended execution
     * @return unit effect, used as a handle to trigger evaluation
-    * @throws CSVException in case of flawed CSV structure or field parsing errors
+    * @throws error.CSVException in case of flawed CSV structure or field parsing errors
     */
   @throws[CSVException]("in case of flawed CSV structure or field parsing errors")
   def process(stream: Stream[F, Char])(cb: CSVCallback)(implicit F: Sync[F]): F[Unit] = {

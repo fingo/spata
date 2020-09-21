@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.parser
+package info.fingo.spata.error
 
 /* Error codes provided by parsing functions. */
 private[spata] object ParsingErrorCode {

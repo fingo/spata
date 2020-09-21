@@ -6,25 +6,26 @@
 package info.fingo.spata
 
 import fs2.{RaiseThrowable, Stream}
+import info.fingo.spata.error.StructureException
 import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to converter raw records into key-values indexed by header.
- * It converts additionally CSV parsing failures into stream error by raising CSVStructureException.
+ * It converts additionally CSV parsing failures into stream error by raising StructureException.
  */
 private[spata] class CSVContent[F[_]: RaiseThrowable] private (
   data: Stream[F, RecordResult],
   header: CSVHeader,
   hasHeaderRecord: Boolean = true
 ) {
-  /* Converts RawRecord into CSVRecord and raise RecordFailure as CSVStructureException */
+  /* Converts RawRecord into CSVRecord and raise RecordFailure as StructureException */
   def toRecords: Stream[F, CSVRecord] = data.map(wrapRecord).rethrow
 
-  private def wrapRecord(rr: RecordResult): Either[CSVStructureException, CSVRecord] = rr match {
+  private def wrapRecord(rr: RecordResult): Either[StructureException, CSVRecord] = rr match {
     case RawRecord(fields, location, recordNum) =>
       CSVRecord(fields, location.line, recordNum - dataOffset)(header)
     case RecordFailure(code, location, recordNum, fieldNum) =>
       Left(
-        new CSVStructureException(
+        new StructureException(
           code,
           location.line,
           recordNum - dataOffset,
@@ -41,12 +42,12 @@ private[spata] class CSVContent[F[_]: RaiseThrowable] private (
 /* CSVContent helper object. Used to create content for header and header-less data. */
 private[spata] object CSVContent {
 
-  /* Creates CSVContent for data with header. May return CSVStructureException if no header is available (means empty source). */
+  /* Creates CSVContent for data with header. May return StructureException if no header is available (means empty source). */
   def apply[F[_]: RaiseThrowable](
     headerRecord: RecordResult,
     data: Stream[F, RecordResult],
     headerMap: S2S
-  ): Either[CSVStructureException, CSVContent[F]] =
+  ): Either[StructureException, CSVContent[F]] =
     createHeader(headerRecord, headerMap) match {
       case Right(header) => Right(new CSVContent(data, header))
       case Left(e) => Left(e)
@@ -57,14 +58,14 @@ private[spata] object CSVContent {
     headerSize: Int,
     data: Stream[F, RecordResult],
     headerMap: S2S
-  ): Either[CSVStructureException, CSVContent[F]] =
+  ): Either[StructureException, CSVContent[F]] =
     Right(new CSVContent(data, CSVHeader(headerSize, headerMap), false))
 
   /* Build header for based on header record, remapping selected header values. */
-  private def createHeader(rr: RecordResult, headerMap: S2S): Either[CSVStructureException, CSVHeader] =
+  private def createHeader(rr: RecordResult, headerMap: S2S): Either[StructureException, CSVHeader] =
     rr match {
       case RawRecord(captions, _, _) => Right(CSVHeader(captions, headerMap))
       case RecordFailure(code, location, _, _) =>
-        Left(new CSVStructureException(code, location.line, 0, Some(location.position), None))
+        Left(new StructureException(code, location.line, 0, Some(location.position), None))
     }
 }

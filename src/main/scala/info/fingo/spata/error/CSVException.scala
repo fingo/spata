@@ -9,7 +9,10 @@ import ParsingErrorCode.ErrorCode
 import info.fingo.spata.text.StringParser
 
 /** Base exception reported by CSV handling methods.
-  * May be thrown, raised through [[fs2.Stream#raiseError]] or returned as `Left`.
+  * May be thrown, raised through [[fs2.Stream#raiseError]] or returned as `Left`, depending on context.
+  *
+  * `Exception` subclasses denote errors which make CSV parsing completely impossible,
+  * while `Error`s are typically local and mean that at least partial results should be available.
   *
   * For possible error codes see concrete classes implementations.
   *
@@ -88,6 +91,17 @@ private object StructureException {
   }
 }
 
+/** Error for content-related issues, typically reported on record level.
+  *
+  * @see [[CSVException]] for description of fields providing error location.
+  *
+  * @param message error message
+  * @param messageCode error code
+  * @param line source line at which error occurred, starting from 1
+  * @param row row (record) at which error occurred, starting from 1 (`0` for header)
+  * @param field field name (header key) at which error occurred
+  * @param cause the root exception
+  */
 abstract class ContentError private[spata] (
   message: String,
   messageCode: String,
@@ -105,6 +119,18 @@ abstract class ContentError private[spata] (
     Some(cause)
   )
 
+/** Error reported while accessing field with incorrect header value (key).
+  *
+  * Possible `messageCode`s are:
+  *   - `wrongKey` for error caused by accessing field with incorrect key.
+  *
+  * @see [[CSVException]] for description of fields providing error location.
+  *
+  * @param line source line at which error occurred, starting from 1
+  * @param row row (record) at which error occurred, starting from 1 (`0` for header)
+  * @param field field name (header key) at which error occurred
+  * @param cause the root exception
+  */
 class HeaderError private[spata] (
   line: Int,
   row: Int,
@@ -123,10 +149,10 @@ private object HeaderError {
   val messageCode = "wrongKey"
 
   def message(line: Int, row: Int, field: String): String =
-    s"Error occurred at row $row (line $line) while trying to access CSV field by key '$field'."
+    s"Error occurred at row $row (line $line) while trying to access CSV field by '$field'."
 }
 
-/** Exception reported for CSV data (content) errors, caused by string parsing.
+/** Error reported for CSV data problems, caused by string parsing.
   *
   * Possible `messageCode`s are:
   *   - `wrongType` for error caused by parsing field to specific type.

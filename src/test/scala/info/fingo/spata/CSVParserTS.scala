@@ -17,7 +17,7 @@ import cats.effect.{ContextShift, IO}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.CSVParser.Callback
 import info.fingo.spata.error.StructureException
 import info.fingo.spata.io.reader
 import info.fingo.spata.text.StringParser
@@ -191,7 +191,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]()
           val input = csvStream(basicCSV(testCase, separator))
           var count = 0
-          val cb: CSVCallback = row => {
+          val cb: Callback = row => {
             count += 1
             row.rowNum match {
               case 1 =>
@@ -232,7 +232,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("parser should consume only required part of stream depending on callback return value") {
-    val cb: CSVCallback = row => row(0).exists(_.startsWith("2"))
+    val cb: Callback = row => row(0).exists(_.startsWith("2"))
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]()
@@ -251,7 +251,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]()
           val input = csvStream(basicCSV(testCase, separator))
           val count = new LongAdder()
-          val cb: CSVCallback = row => {
+          val cb: Callback = row => {
             count.increment()
             row.rowNum match {
               case 1 =>
@@ -306,19 +306,19 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private def csvStream(csvString: String) = reader[IO](chunkSize).read(Source.fromString(csvString))
 
-  private def assertListFirst(list: List[CSVRecord], firstName: String, firstValue: String): Unit = {
+  private def assertListFirst(list: List[Record], firstName: String, firstValue: String): Unit = {
     val first = list.head
     assert(first.rowNum == 1)
     assertElement(first, firstName, firstValue)
   }
 
-  private def assertListLast(list: List[CSVRecord], lastName: String, lastValue: String): Unit = {
+  private def assertListLast(list: List[Record], lastName: String, lastValue: String): Unit = {
     val last = list.last
     assert(last.rowNum == list.size)
     assertElement(last, lastName, lastValue)
   }
 
-  private def assertElement(elem: CSVRecord, name: String, value: String): Unit = {
+  private def assertElement(elem: Record, name: String, value: String): Unit = {
     assert(elem("NAME").contains(name))
     assert(elem("VALUE").contains(value))
     ()

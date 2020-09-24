@@ -10,7 +10,7 @@ import cats.effect.{Concurrent, Sync}
 import fs2.{Pipe, Pull, RaiseThrowable, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
 import info.fingo.spata.parser.RecordParser.RecordResult
-import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.CSVParser.Callback
 import info.fingo.spata.error.{CSVException, ParsingErrorCode, StructureException}
 
 /** A utility for parsing comma-separated values (CSV) sources.
@@ -56,7 +56,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * Processing of data sources may be achieved by combining this function with [[io.reader]], e.g.:
     * {{{
     * val parser = CSVParser[IO]()
-    * val stream: Stream[IO, CSVRecord] = Stream
+    * val stream: Stream[IO, Record] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
     *   .flatMap(reader[IO].read)
     *   .through(parser.parse)
@@ -66,9 +66,9 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * If not handled, the exception will be thrown.
     *
     * @see [[https://fs2.io/ FS2]] documentation for further guidance.
-    * @return a pipe to converter [[scala.Char]]s into [[CSVRecord]]s
+    * @return a pipe to converter [[scala.Char]]s into [[Record]]s
     */
-  def parse: Pipe[F, Char, CSVRecord] = (in: Stream[F, Char]) => {
+  def parse: Pipe[F, Char, Record] = (in: Stream[F, Char]) => {
     val cp = new CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark)
     val fp = new FieldParser[F](config.fieldSizeLimit)
     val rp = new RecordParser[F]()
@@ -80,15 +80,15 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
-      case Some((h, t)) => Pull.output1(CSVContent(h, t, config.mapHeader))
+      case Some((h, t)) => Pull.output1(Content(h, t, config.mapHeader))
       case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
   private def contentWithoutHeader(stream: Stream[F, RecordResult]) =
     stream.pull.peek1.flatMap {
-      case Some((h, s)) => Pull.output1(CSVContent(h.fieldNum, s, config.mapHeader))
-      case None => Pull.output1(CSVContent(0, Stream.empty[F], config.mapHeader))
+      case Some((h, s)) => Pull.output1(Content(h.fieldNum, s, config.mapHeader))
+      case None => Pull.output1(Content(0, Stream.empty[F], config.mapHeader))
     }
 
   /** Fetches whole source content into list of records.
@@ -101,7 +101,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @throws error.StructureException in case of flawed CSV structure
     */
   @throws[StructureException]("in case of flawed CSV structure")
-  def get(stream: Stream[F, Char])(implicit F: Sync[F]): F[List[CSVRecord]] = get(stream, None)
+  def get(stream: Stream[F, Char])(implicit F: Sync[F]): F[List[Record]] = get(stream, None)
 
   /** Fetches requested number of CSV records into a list.
     *
@@ -116,11 +116,11 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @throws error.StructureException in case of flawed CSV structure
     */
   @throws[StructureException]("in case of flawed CSV structure")
-  def get(stream: Stream[F, Char], limit: Long)(implicit F: Sync[F]): F[List[CSVRecord]] =
+  def get(stream: Stream[F, Char], limit: Long)(implicit F: Sync[F]): F[List[Record]] =
     get(stream, Some(limit))
 
   /* Loads all or provided number of records into a list. */
-  private def get(stream: Stream[F, Char], limit: Option[Long])(implicit F: Sync[F]): F[List[CSVRecord]] = {
+  private def get(stream: Stream[F, Char], limit: Option[Long])(implicit F: Sync[F]): F[List[Record]] = {
     val s = stream.through(parse)
     val limited = limit match {
       case Some(l) => s.take(l)
@@ -140,13 +140,13 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
     * @throws error.CSVException in case of flawed CSV structure or field parsing errors
     */
   @throws[CSVException]("in case of flawed CSV structure or field parsing errors")
-  def process(stream: Stream[F, Char])(cb: CSVCallback)(implicit F: Sync[F]): F[Unit] = {
+  def process(stream: Stream[F, Char])(cb: Callback)(implicit F: Sync[F]): F[Unit] = {
     val effect = evalCallback(cb)
     stream.through(parse).through(effect).compile.drain
   }
 
   /* Callback function wrapper to enclose it in effect F and let the stream evaluate it when run. */
-  private def evalCallback(cb: CSVCallback)(implicit F: Sync[F]): Pipe[F, CSVRecord, Boolean] =
+  private def evalCallback(cb: Callback)(implicit F: Sync[F]): Pipe[F, Record, Boolean] =
     _.evalMap(pr => F.delay(cb(pr))).takeWhile(_ == true)
 
   /** Provides access to asynchronous parsing method.
@@ -161,7 +161,7 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
 object CSVParser {
 
   /** Callback function type. */
-  type CSVCallback = CSVRecord => Boolean
+  type Callback = Record => Boolean
 
   /** Creates a [[CSVParser]] with default configuration, as defined in RFC 4180.
     *
@@ -196,13 +196,13 @@ object CSVParser {
       * it should return `true` to continue with next record or `false` to stop processing the source
       * @return unit effect, used as a handle to trigger evaluation
       */
-    def process(stream: Stream[F, Char], maxConcurrent: Int = 1)(cb: CSVCallback): F[Unit] = {
+    def process(stream: Stream[F, Char], maxConcurrent: Int = 1)(cb: Callback): F[Unit] = {
       val effect = evalCallback(maxConcurrent)(cb)
       stream.through(parser.parse).through(effect).compile.drain
     }
 
     /* Callback function wrapper to enclose it in effect F and let the stream evaluate it asynchronously when run. */
-    private def evalCallback(maxConcurrent: Int)(cb: CSVCallback): Pipe[F, CSVRecord, Boolean] =
+    private def evalCallback(maxConcurrent: Int)(cb: Callback): Pipe[F, Record, Boolean] =
       _.mapAsync(maxConcurrent) { pr =>
         Concurrent[F].async[Boolean] { call =>
           val result = Try(cb(pr)).toEither

@@ -7,7 +7,7 @@ package info.fingo.spata
 
 import java.util.NoSuchElementException
 import shapeless.{HList, LabelledGeneric}
-import info.fingo.spata.CSVRecord.ToProduct
+import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.RecordToHList
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
@@ -30,7 +30,7 @@ import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
   * @param rowNum row number in source file this record comes from
   * @param header indexing header (field names)
   */
-class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(header: CSVHeader) {
+class Record private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(header: Header) {
   self =>
 
   /** Safely gets typed record value.
@@ -73,7 +73,7 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
 
   /** Converts this record to [[scala.Product]], e.g. case class.
     *
-    * The combination of `to`, [[CSVRecord.ToProduct]] constructor and `apply` method
+    * The combination of `to`, [[Record.ToProduct]] constructor and `apply` method
     * allows conversion in following form:
     * {{{
     * // Assume following CSV source
@@ -82,8 +82,8 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * // Nicolaus Copernicus,1473-02-19,1543-05-24
     * // Johannes Hevelius,1611-01-28,
     * // ----------------
-    * // and a CSVRecord created based on it
-    * val record: CSVRecord = ???
+    * // and a Record created based on it
+    * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * val person: Decoded[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
     * }}}
@@ -108,8 +108,8 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
     * // Nicolaus Copernicus,19.02.1473,24.05.1543
     * // Johannes Hevelius,28.01.1611,
     * // ----------------
-    * // and a CSVRecord created based on it
-    * val record: CSVRecord = ???
+    * // and a Record created based on it
+    * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * implicit val ldsp: StringParser[LocalDate] = (str: String) =>
     *     LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
@@ -271,28 +271,28 @@ class CSVRecord private (private val row: IndexedSeq[String], val lineNum: Int, 
   }
 }
 
-/** CSVRecord helper object. Used to create and converter records. */
-object CSVRecord {
+/** Record helper object. Used to create and converter records. */
+object Record {
 
-  /* Creates `CSVRecord`. See CSVRecord documentation for more information about parameters. */
+  /* Creates `Record`. See Record documentation for more information about parameters. */
   private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
-    header: CSVHeader
-  ): Either[StructureException, CSVRecord] =
+    header: Header
+  ): Either[StructureException, Record] =
     if (row.size == header.size)
-      Right(new CSVRecord(row, lineNum, rowNum)(header))
+      Right(new Record(row, lineNum, rowNum)(header))
     else
       Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
     * When converting a record to [[scala.Product]] (e.g. case class) one may use:
-    * {{{ val tp = new CSVRecord.ToProduct[C](record)() }}}
+    * {{{ val tp = new Record.ToProduct[C](record)() }}}
     *
-    * @see [[CSVRecord.to]] for real world usage scenario.
+    * @see [[Record.to]] for real world usage scenario.
     * @param record the record to convert
     * @tparam P the target type for conversion
     */
-  class ToProduct[P <: Product](record: CSVRecord) {
+  class ToProduct[P <: Product](record: Record) {
 
     /** Converts record to [[scala.Product]], e.g. case class.
       *

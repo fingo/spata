@@ -5,12 +5,12 @@
  */
 package info.fingo.spata.converter
 
-import info.fingo.spata.{CSVRecord, Decoded}
+import info.fingo.spata.{Decoded, Record}
 import info.fingo.spata.text.StringParser
 import shapeless.{::, HList, HNil, Lazy, Witness}
 import shapeless.labelled.{field, FieldType}
 
-/** Converter from CSVRecord to specific [[shapeless.HList]].
+/** Converter from Record to specific [[shapeless.HList]].
   *
   * This trait defines behavior to be implemented by concrete, implicit converters.
   *
@@ -23,10 +23,10 @@ trait RecordToHList[L <: HList] {
     * @param record record to be converted
     * @return either converted `HList` or an exception
     */
-  def apply(record: CSVRecord): Decoded[L]
+  def apply(record: Record): Decoded[L]
 }
 
-/** Implicits to converter CSVRecord to [[shapeless.HNil]] and [[shapeless.::]]. */
+/** Implicits to converter Record to [[shapeless.HNil]] and [[shapeless.::]]. */
 object RecordToHList {
 
   /** Converter to [[shapeless.HNil]] */

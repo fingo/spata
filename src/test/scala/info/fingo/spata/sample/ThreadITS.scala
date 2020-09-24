@@ -13,7 +13,7 @@ import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVParser
-import info.fingo.spata.CSVParser.CSVCallback
+import info.fingo.spata.CSVParser.Callback
 import info.fingo.spata.io.reader
 
 /* Samples which process the data asynchronously or using blocking context */
@@ -27,7 +27,7 @@ class ThreadITS extends AnyFunSuite {
     val sum = new LongAdder()
     val count = new LongAdder()
 
-    val cb: CSVCallback = row => {
+    val cb: Callback = row => {
       count.increment()
       val diff = for {
         max <- row.get[Long]("max_temp")

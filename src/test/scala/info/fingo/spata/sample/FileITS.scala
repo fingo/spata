@@ -10,7 +10,7 @@ import java.io.FileWriter
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, CSVRecord}
+import info.fingo.spata.{CSVParser, Record}
 import info.fingo.spata.io.reader
 
 /* Samples which write processing results to another CSV file */
@@ -19,7 +19,7 @@ class FileITS extends AnyFunSuite {
   test("spata allows data conversion to another file") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
 
-    def dtvFromRecord(record: CSVRecord) =
+    def dtvFromRecord(record: Record) =
       for {
         day <- record.get[String]("sol")
         max <- record.get[Double]("max_temp")
@@ -62,7 +62,7 @@ class FileITS extends AnyFunSuite {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
 
     // this method may throw exception
-    def dtvFromRecordUnsafe(record: CSVRecord) = {
+    def dtvFromRecordUnsafe(record: Record) = {
       val day = record.unsafe("sol")
       val max = record.unsafe.get[Double]("max_temp")
       val min = record.unsafe.get[Double]("min_temp")

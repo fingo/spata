@@ -14,7 +14,7 @@ import info.fingo.spata.text.StringParser
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private val locale = new Locale("pl", "PL")
   private val dfs = new DecimalFormatSymbols(locale)
@@ -25,7 +25,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving individual values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -44,7 +44,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving optional values") {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -70,7 +70,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = CSVHeader("num", "date", "value")
+        val header = Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         assert(record.get[Long]("num", numFmt).contains(num))
         assert(record.unsafe.get[Long]("num", numFmt) == num)
@@ -83,7 +83,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record parsing may return error or throw exception") {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
@@ -106,7 +106,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -117,7 +117,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class with optional fields") {
     case class Data(name: String, value: Option[Double], date: Option[LocalDate])
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -141,7 +141,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = CSVHeader("num", "date", "value")
+        val header = Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
         implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
@@ -156,7 +156,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
       case class Data(name: String, value: Double, date: LocalDate)
-      val header = CSVHeader("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yy"))
@@ -168,7 +168,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to tuples") {
     type Data = (String, LocalDate, BigDecimal)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = CSVHeader("_1", "_2", "_3")
+      val header = Header("_1", "_2", "_3")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -176,8 +176,8 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  private def createRecord(name: String, date: String, value: String)(header: CSVHeader): CSVRecord =
-    CSVRecord(Vector(name, date, value), 1, 1)(header).toOption.get
+  private def createRecord(name: String, date: String, value: String)(header: Header): Record =
+    Record(Vector(name, date, value), 1, 1)(header).toOption.get
 
   private lazy val basicCases = Table(
     ("testCase", "name", "sDate", "sValue"),

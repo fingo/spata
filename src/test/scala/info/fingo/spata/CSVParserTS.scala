@@ -78,10 +78,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(list.size == 3)
           val head = list.head
           val last = list.last
-          assert(head("_2") == firstName)
-          assert(head("_4") == firstValue)
-          assert(last("_2") == lastName)
-          assert(last("_4") == lastValue)
+          assert(head("_2").contains(firstName))
+          assert(head("_4").contains(firstValue))
+          assert(last("_2").contains(lastName))
+          assert(last("_4").contains(lastValue))
           assert(head.size == last.size)
           assert(head.lineNum == 1 + csv.takeWhile(_ != '.').count(_ == '\n')) // line breaks are placed before first dot
           assert(head.rowNum == 1)
@@ -195,12 +195,12 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             count += 1
             row.rowNum match {
               case 1 =>
-                assert(row("NAME") == firstName)
-                assert(row("VALUE") == firstValue)
+                assert(row("NAME").contains(firstName))
+                assert(row("VALUE").contains(firstValue))
                 true
               case 3 =>
-                assert(row("NAME") == lastName)
-                assert(row("VALUE") == lastValue)
+                assert(row("NAME").contains(lastName))
+                assert(row("VALUE").contains(lastValue))
                 true
               case _ => true
             }
@@ -232,7 +232,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("parser should consume only required part of stream depending on callback return value") {
-    val cb: CSVCallback = row => if (row(0).startsWith("2")) false else true
+    val cb: CSVCallback = row => row(0).exists(_.startsWith("2"))
     forAll(basicCases) { (testCase: String, _: String, _: String, _: String, _: String) =>
       forAll(separators) { separator =>
         val parser = CSVParser.config.fieldDelimiter(separator).fieldSizeLimit(maxFieldSize).get[IO]()
@@ -255,12 +255,12 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             count.increment()
             row.rowNum match {
               case 1 =>
-                assert(row("NAME") == firstName)
-                assert(row("VALUE") == firstValue)
+                assert(row("NAME").contains(firstName))
+                assert(row("VALUE").contains(firstValue))
                 true
               case 3 =>
-                assert(row("NAME") == lastName)
-                assert(row("VALUE") == lastValue)
+                assert(row("NAME").contains(lastName))
+                assert(row("VALUE").contains(lastValue))
                 true
               case _ => true
             }
@@ -319,8 +319,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def assertElement(elem: CSVRecord, name: String, value: String): Unit = {
-    assert(elem("NAME") == name)
-    assert(elem("VALUE") == value)
+    assert(elem("NAME").contains(name))
+    assert(elem("VALUE").contains(value))
     ()
   }
 

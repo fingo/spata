@@ -12,7 +12,7 @@ private[spata] class CSVHeader private (names: IndexedSeq[String]) {
 
   val size: Int = names.size
 
-  def apply(name: String): Int = index(name)
+  def apply(name: String): Option[Int] = index.get(name)
 
   def get(idx: Int): Option[String] = names.unapply(idx)
 }

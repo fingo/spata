@@ -10,7 +10,7 @@ import info.fingo.spata.error.ContentError
 /** Spata primary package. */
 package object spata {
 
-  /** Convenience type. */
+  /** Convenience type representing result of retrieval record data. */
   type Decoded[A] = Either[ContentError, A]
 
   /** Convenience type. */

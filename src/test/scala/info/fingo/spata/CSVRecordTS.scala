@@ -5,11 +5,10 @@
  */
 package info.fingo.spata
 
-import java.util.Locale
 import java.text.{DecimalFormat, DecimalFormatSymbols, NumberFormat}
 import java.time.LocalDate
 import java.time.format.{DateTimeFormatter, FormatStyle}
-
+import java.util.Locale
 import info.fingo.spata.error.DataError
 import info.fingo.spata.text.StringParser
 import org.scalatest.funsuite.AnyFunSuite
@@ -30,14 +29,16 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
-      assert(record("name") == name)
-      assert(record(0) == name)
-      assert(record.at[String]("name") == name)
+      assert(record("name").contains(name))
+      assert(record.unsafe("name") == name)
+      assert(record(0).contains(name))
+      assert(record.unsafe(0) == name)
       assert(record.get[String]("name").contains(name))
-      assert(record.at[LocalDate]("date") == date)
+      assert(record.unsafe.get[String]("name") == name)
       assert(record.get[LocalDate]("date").contains(date))
-      assert(record.at[BigDecimal]("value") == value)
-      assert(record.at[Double]("value") == value.doubleValue)
+      assert(record.unsafe.get[LocalDate]("date") == date)
+      assert(record.unsafe.get[BigDecimal]("value") == value)
+      assert(record.unsafe.get[Double]("value") == value.doubleValue)
     }
   }
 
@@ -47,12 +48,14 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
-      assert(record.at[Option[String]]("name").forall(_ == name))
-      assert(record.at[Option[LocalDate]]("date").forall(_ == date))
-      assert(record.at[Option[BigDecimal]]("value").forall(_ == value))
+      assert(record.get[Option[String]]("name").exists(_.forall(_ == name)))
+      assert(record.unsafe.get[Option[String]]("name").forall(_ == name))
+      assert(record.get[Option[LocalDate]]("date").exists(_.forall(_ == date)))
+      assert(record.unsafe.get[Option[LocalDate]]("date").forall(_ == date))
       assert(record.get[Option[BigDecimal]]("value").exists(_.forall(_ == value)))
-      assert(record.at[Option[Double]]("value").forall(_ == value.doubleValue))
+      assert(record.unsafe.get[Option[BigDecimal]]("value").forall(_ == value))
       assert(record.get[Option[Double]]("value").exists(_.forall(_ == value.doubleValue)))
+      assert(record.unsafe.get[Option[Double]]("value").forall(_ == value.doubleValue))
     }
   }
 
@@ -69,32 +72,34 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       ) =>
         val header = CSVHeader("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
-        assert(record.at[Long]("num", numFmt) == num)
         assert(record.get[Long]("num", numFmt).contains(num))
-        assert(record.at[LocalDate]("date", dateFmt) == date)
-        assert(record.at[BigDecimal]("value", valueFmt) == value)
+        assert(record.unsafe.get[Long]("num", numFmt) == num)
+        assert(record.get[LocalDate]("date", dateFmt).contains(date))
+        assert(record.unsafe.get[LocalDate]("date", dateFmt) == date)
+        assert(record.get[BigDecimal]("value", valueFmt).contains(value))
+        assert(record.unsafe.get[BigDecimal]("value", valueFmt) == value)
     }
   }
 
-  test("Record parsing may throw exception") {
+  test("Record parsing may return error or throw exception") {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
       val header = CSVHeader("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
-        assert(record.at[String]("name") == name)
+        assert(record.unsafe.get[String]("name") == name)
       else {
-        assert(record.at[String]("name") == "")
-        assert(record.at[Option[String]]("name").isEmpty)
-        assert(record.at[Option[LocalDate]]("date").isEmpty)
-        assert(record.at[Option[BigDecimal]]("value").isEmpty)
+        assert(record.unsafe.get[String]("name") == "")
+        assert(record.unsafe.get[Option[String]]("name").isEmpty)
+        assert(record.unsafe.get[Option[LocalDate]]("date").isEmpty)
+        assert(record.unsafe.get[Option[BigDecimal]]("value").isEmpty)
       }
-      assertThrows[DataError] { record.at[LocalDate]("date") }
       assert(record.get[LocalDate]("date").isLeft)
       assert(record.get[LocalDate]("wrong").isLeft)
       assert(record.get[LocalDate]("date", dtf).isLeft)
       assert(record.get[LocalDate]("wrong", dtf).isLeft)
-      assertThrows[DataError] { record.at[BigDecimal]("value") }
+      assertThrows[DataError] { record.unsafe.get[LocalDate]("date") }
+      assertThrows[DataError] { record.unsafe.get[BigDecimal]("value") }
     }
   }
 
@@ -148,7 +153,7 @@ class CSVRecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Converting record to case class yields Left[Throwable, _] on incorrect input") {
+  test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
       case class Data(name: String, value: Double, date: LocalDate)
       val header = CSVHeader("name", "date", "value")

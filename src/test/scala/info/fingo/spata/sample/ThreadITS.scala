@@ -34,7 +34,7 @@ class ThreadITS extends AnyFunSuite {
         min <- row.get[Long]("min_temp")
       } yield max - min
       sum.add(diff.getOrElse(0))
-      row("month") == "Month 5"
+      row("month").contains("Month 5")
     }
     val cdl = new CountDownLatch(1)
     val result: Either[Throwable, Unit] => Unit = {

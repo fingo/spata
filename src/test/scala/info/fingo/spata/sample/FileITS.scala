@@ -34,7 +34,7 @@ class FileITS extends AnyFunSuite {
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
-      record("max_temp") != "NaN" && record("min_temp") != "NaN"
+      !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
     }.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
     // write data to output file
     val outFile = SampleTH.getTempFile
@@ -63,9 +63,9 @@ class FileITS extends AnyFunSuite {
 
     // this method may throw exception
     def dtvFromRecordUnsafe(record: CSVRecord) = {
-      val day = record("sol")
-      val max = record.at[Double]("max_temp")
-      val min = record.at[Double]("min_temp")
+      val day = record.unsafe("sol")
+      val max = record.unsafe.get[Double]("max_temp")
+      val min = record.unsafe.get[Double]("min_temp")
       DTV(day, max - min)
     }
 
@@ -79,7 +79,7 @@ class FileITS extends AnyFunSuite {
         .read(source)
         .through(parser.parse)
         .filter { record =>
-          record("max_temp") != "NaN" && record("min_temp") != "NaN"
+          !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
         }
       // converter and aggregate data, get stream of YTs (this may throw exception to be handled by handleErrorWith)
       dtv = dtvFromRecordUnsafe(record)

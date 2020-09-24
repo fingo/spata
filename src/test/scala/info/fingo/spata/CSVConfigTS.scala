@@ -27,6 +27,6 @@ class CSVConfigTS extends AnyFunSuite {
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)
     assert(result.head.size == 2)
-    assert(result.head(1) == "value '1B")
+    assert(result.head(1).contains("value '1B"))
   }
 }

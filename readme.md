@@ -10,8 +10,9 @@ spata
 **spata** is a functional Scala parser for tabular data (`CSV`).
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
-The main goal of the library is to provide handy, functional, stream-based API with easy conversion to case classes and
-precise information about possible flaws and their location in source data while maintaining good performance.
+The main goal of the library is to provide handy, functional, stream-based API
+with easy conversion of records to case classes and precise information about possible flaws
+and their location in source data while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse a well-formatted CSV file,
 but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.   
@@ -54,10 +55,10 @@ val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(reader[IO]().by) // produce stream of chars from source
-  .through(parser.parse)  // parse csv file and get csv records 
+  .through(parser.parse)  // parse CSV file and get CSV records 
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
-  .map(_.to[Data]()) // converter records to case class
-  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
+  .map(_.to[Data]()) // convert records to case class
+  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
 val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
 ```
 
@@ -87,10 +88,10 @@ object Converter extends IOApp {
         .shifting[IO](blocker)
         .read(Paths.get("testdata/fahrenheit.txt"))
         .through(parser.parse)
-        .filter(r => !r("temp").isEmpty)
+        .filter(r => r("temp").exists(!_.isBlank)
         .map { r =>
-          val date = r("date")
-          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
+          val date = r.unsafe("date")
+          val temp = fahrenheitToCelsius(r.unsafe.get[Double]("temp"))
           s"$date,$temp"
         }
         .intersperse("\n")
@@ -102,6 +103,8 @@ object Converter extends IOApp {
     converter.compile.drain.as(ExitCode.Success)
 }
 ```
+(This example uses exception throwing methods for brevity and to keep it closer to original snippet.
+A modified version with safe access to record data may be found in [error handling](#error-handling) part of tutorial.)
 
 More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
 
@@ -117,20 +120,20 @@ Tutorial
 
 ### Parsing
 
-Core spata operation is a transformation from a stream of characters into a stream of `CSVRecords`.
+Core spata operation is a transformation from a stream of characters into a stream of `Record`s.
 This is available through `CSVParser.parse` function (supplying FS2 `Pipe`)
 and is probably the best way to include CSV parsing into any FS2 stream processing pipeline:
 ```scala
 val input: Stream[IO, Char] = ???
 val parser: CSVParser[IO] = CSVParser[IO]()
-val output: Stream[IO, CSVRecord] = input.through(parser.parse)
+val output: Stream[IO, Record] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
 (Cats [IO](https://typelevel.org/cats-effect/datatypes/io.html),
 Monix [Task](https://monix.io/docs/3x/eval/task.html)
 or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
-Type class dependencies are defined in terms of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
 Please note however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
+Type class dependencies are defined in terms of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
 
 Like in case of any other FS2 processing, spata consumes only as much of the source stream as required,
 give or take a chunk size. 
@@ -146,7 +149,7 @@ Fields containing delimiters (field or record) or quotes have to be wrapped in q
 As defined in RFC 4180, quotation marks in content have to be escaped through double quotation marks.
 
 In addition to `parse`, `CSVParser` provides other methods to read CSV data:
-* `get` to load data into `List[CSVRecord]`, which may be handy for small data sets,
+* `get` to load data into `List[Record]`, which may be handy for small data sets,
 * `process` to deal with data record by record through a callback function,
 * `async` to process data through a callback function in asynchronous way.
 
@@ -155,7 +158,7 @@ The three above functions return the result (`List` or `Unit`) wrapped in an eff
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] = CSVParser[IO]()
-val list: List[CSVRecord] = parser.get(stream).unsafeRunSync()
+val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
 whole processing may run through [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html).
@@ -278,45 +281,51 @@ val stream: Stream[IO, Char] = Stream
 
 ### Getting actual data
 
-Sole CSV parsing operation produces a stream of `CSVRecord`s.
+Sole CSV parsing operation produces a stream of `Record`s.
 Each record may be seen as a map from `String` to `String`, where the keys are shared among all records.
 The basic method to obtain individual values is through the `apply` function, by key (taken from header):
 ```scala
-val record: CSVRecord = ???
-val value: String = record("key")
+val record: Record = ???
+val value: Option[String] = record("key")
 ```
 or index:
 ```scala
-val record: CSVRecord = ???
-val value: String = record(0)
+val record: Record = ???
+val value: Option[String] = record(0)
 ```
 
 `CSVRecord` supports retrieval of typed values.
 In simple cases, when the value is serialized in its canonical form,
 which does not require any additional format information, like ISO format for dates,
-this may be done with single-parameter `at` or `get` functions:
+this may be done with single-parameter `get` function:
 ```scala
-val record: CSVRecord = ???
-val num: Double = record.at[Double]("123.45")
-val numFV: Decoded[Double] = record.get[Double]("123.45")
+val record: Record = ???
+val num: Decoded[Double] = record.get[Double]("123.45")
 ```
-`get` is a safe version of `at` - it returns the result wrapped in `Decoded[A]`,
-which is an alias for `Either[ContentError, A]`.
-`at` may throw `ContentError`.
-Both functions require a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
+`Decoded[A]` is an alias for `Either[ContentError, A]`.
+This method requires a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
 
-Both `at` and `get` have overloaded versions, which support formatting-aware parsing:
+`get` has sn overloaded versions, which support formatting-aware parsing:
 ```scala
-val record: CSVRecord = ???
+val record: Record = ???
 val df = new DecimalFormat("#,###")
-val num: Double = record.at[Double]("123,45", df)
-val numFV: Decoded[Double] = record.get[Double]("123,45", df)
+val num: Decoded[Double] = record.get[Double]("123,45", df)
 ```
-Both functions require a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
-(They use intermediary classes `UnsafeField` and `Field` to provide a nice syntax,
-this should be however transparent in most cases).
+This methods requires a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
+(It uses an intermediary class `Field` to provide a nice syntax, this should be however transparent in most cases).
 
-In addition to retrieval of single fields, `CSVRecord` may be converted to a case class or a tuple.
+Above methods are available also in unsafe, exception-throwing version, accessible through `Record.unsafe` object:
+```scala
+val record: Record = ???
+val v1: String = record.unsafe("key")
+val v2: String = record.unsafe(0)
+val n1: Double = record.unsafe.get[Double]("123.45")
+val df = new DecimalFormat("#,###")
+val n2: Double = record.unsafe.get[Double]("123,45", df)
+```
+They may throw `ContentError` exception.
+
+In addition to retrieval of single fields, `Record` may be converted to a case class or a tuple.
 Assuming CSV data in the following form:
 ```csv
 element,symnol,melting,boiling
@@ -326,7 +335,7 @@ lithium,Li,453.65,1603
 ```
 The data can be converted from a record directly into a case class:
 ```scala
-val record: CSVRecord = ???
+val record: Record = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
 val element: Decoded[Element] = record.to[Element]()
 ```
@@ -342,7 +351,7 @@ helium,He,0.95,4.222
 lithium,Li,453.65,1603
 ```
 ```scala
-val record: CSVRecord = ???
+val record: Record = ???
 type Element = (String, String, Double, Double)
 val element: Decoded[Element] = record.to[Element]()
 ```
@@ -360,7 +369,7 @@ helium,He,"0,95","4,222"
 lithium,Li,"453,65","1603"
 ```
 ```scala
-val record: CSVRecord = ???
+val record: Record = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
 implicit val nsp: StringParser[Double] = (str: String) => nf.parse(str).doubleValue()
@@ -374,14 +383,14 @@ We often need typed values, e.g. numbers or dates, for further processing.
 There is no standard, uniform interface available for Scala or Java to parse strings to different types.
 Numbers may be parsed using `java.text.NumberFormat`.
 Dates and times through `parse` methods in `java.time.LocalDate` or `LocalTime`, providing format as parameter.
-This is awkward when providing single interface for various types, like `CSVRecord` does.
+This is awkward when providing single interface for various types, like `Record` does.
 This is the place where spata's `text.StringParser` comes in handy.
 
 `StringParser` object provides methods for parsing strings with default format:
 ```scala
 val num: ParseResult[Double] = StringParser.parse[Double]("123.45")
 ```
-where `ParseResult[A]` is just an alias for `Either[ParseError, A]`
+where `ParseResult[A]` is just an alias for `Either[ParseError, A]`.
 
 When a specific format has to be provided, an overloaded version of above method is available: 
 ```scala
@@ -452,14 +461,14 @@ They may be raised by `reader` operations.
 * Errors caused by malformed CSV structure, reported as `StructureException`.
 They may be caused by `CSVParser`'s methods.
 * Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
-They may result from interactions with `CVSRecord`.
+They may result from interactions with `Record`.
 
 The two first error categories are unrecoverable and stop stream processing.
 For the `StructureException` errors we are able to precisely identify the place that caused the problem.
 See Scaladoc for `CSVException` for further information about error location.
 
 The last category is reported on the record level and allows for different handling policies.
-Please notice however, that if the error is not handled locally (using safe functions returning `Decoded`)
+Please notice however, that if the error is not handled locally (e.g. using safe functions returning `Decoded`)
 and propagates through the stream, further processing of input data is stopped, like for the above error categories.  
 
 Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
@@ -494,12 +503,15 @@ object Converter extends IOApp {
         .shifting[IO](blocker)
         .read(src)
         .through(parser.parse)
-        .filter(r => !r("temp").isEmpty)
+        .filter(r => r("temp").exists(!_.isBlank)
         .map { r =>
-          val date = r("date")
-          val temp = fahrenheitToCelsius(r.at[Double]("temp"))
-          s"$date,$temp"
+          for {
+            date <- r.get[String]("date")
+            fTemp <- r.get[Double]("temp")
+            cTemp = fahrenheitToCelsius(fTemp)
+          } yield s"$date,$cTemp"
         }
+        .rethrow
         .intersperse("\n")
         .through(text.utf8Encode)
         .through(io.file.writeAll(dst, blocker))
@@ -516,8 +528,7 @@ object Converter extends IOApp {
 }
 ```
 
-If some operations return `Either` (e.g. when `r.get` would be used instead of `r.at` in above code)
-and we would like to handle errors wrapped in `Left` together with raised ones, we may call `rethrow` on the stream. 
+The `rethrow` method in above code raises error for `Left`, converting `Either` to a simple values.
 
 Sometimes we would like to convert a stream to a collection.
 We should wrap the result in `Either` in such situations to distinguish successful processing from erroneous one.

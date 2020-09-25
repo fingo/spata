@@ -13,7 +13,7 @@ import Config._
 import RawFields._
 import FieldFailures._
 import RecordResults._
-import ParsingErrorCode._
+import info.fingo.spata.error.ParsingErrorCode._
 import FieldParser.FieldResult
 
 class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks {

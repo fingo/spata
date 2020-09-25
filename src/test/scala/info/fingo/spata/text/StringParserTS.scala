@@ -83,18 +83,18 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
     implicit p: FormattedStringParser[A, B]
   ) = {
-    val maybeO: ValueOrError[Option[A]] = fmt match {
+    val pro: ParseResult[Option[A]] = fmt match {
       case Some(f) => parse[Option[A]](str, f)
       case _ => parse[Option[A]](str)
     }
-    assert(maybeO.contains(expected))
-    val maybe: ValueOrError[A] = fmt match {
+    assert(pro.contains(expected))
+    val pr: ParseResult[A] = fmt match {
       case Some(f) => parse[A](str, f)
       case _ => parse[A](str)
     }
     if (tc != empty)
-      assert(maybe.toOption == expected)
-    assert(maybe.toOption == expected)
+      assert(pr.toOption == expected)
+    assert(pr.toOption == expected)
   }
 
   test("String parser should return error on incorrect input") {
@@ -114,7 +114,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val eBool = parse[Boolean]("yes", BooleanFormatter("y", "n"))
     assert(eBool.left.exists(e => e.dataType.contains("boolean") && e.content == "yes"))
     val eInt = parse[Int]("1234567890" * 10)
-    assert(eInt.left.exists(_.getMessage.endsWith(s"${DataParseException.infoCutSuffix} as requested number")))
+    assert(eInt.left.exists(_.getMessage.endsWith(s"${ParseError.infoCutSuffix} as requested number")))
   }
 
   private lazy val strings = Table(

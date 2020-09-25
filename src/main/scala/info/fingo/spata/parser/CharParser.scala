@@ -6,7 +6,7 @@
 package info.fingo.spata.parser
 
 import fs2.{Chunk, Pipe, Pull, Stream}
-import ParsingErrorCode._
+import info.fingo.spata.error.ParsingErrorCode._
 
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,
  * taking into consideration special meaning of some characters (e.g. separators), quoting and escaping.

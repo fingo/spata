@@ -52,7 +52,7 @@ private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult,
 }
 
 private[spata] object RecordParser {
-  import ParsingErrorCode._
+  import info.fingo.spata.error.ParsingErrorCode._
 
   sealed trait RecordResult {
     def location: Location

@@ -12,7 +12,7 @@ import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, CSVRecord}
+import info.fingo.spata.{CSVParser, Record}
 import info.fingo.spata.io.reader
 
 /* Samples which use console to output CSV processing results */
@@ -23,7 +23,7 @@ class ConsoleITS extends AnyFunSuite {
   test("spata allows manipulate data using stream functionality") {
     case class YT(year: Int, temp: Double) // class to converter data to
 
-    def ytFromRecord(record: CSVRecord) =
+    def ytFromRecord(record: Record) =
       for {
         date <- record.get[LocalDate]("terrestrial_date")
         temp <- record.get[Double]("max_temp")

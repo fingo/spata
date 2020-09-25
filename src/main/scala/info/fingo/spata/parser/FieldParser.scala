@@ -7,7 +7,7 @@ package info.fingo.spata.parser
 
 import scala.annotation.tailrec
 import fs2.{Chunk, Pipe}
-import ParsingErrorCode._
+import info.fingo.spata.error.ParsingErrorCode._
 import FieldParser._
 import CharParser.CharResult
 

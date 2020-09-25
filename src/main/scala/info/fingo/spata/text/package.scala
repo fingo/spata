@@ -9,5 +9,5 @@ package info.fingo.spata
 package object text {
 
   /** Convenience type. */
-  type ValueOrError[A] = Either[DataParseException, A]
+  type ParseResult[A] = Either[ParseError, A]
 }

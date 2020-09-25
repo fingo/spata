@@ -6,12 +6,14 @@
 package info.fingo.spata.sample
 
 import java.io.IOException
+
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import info.fingo.spata.io.reader
-import info.fingo.spata.{CSVException, CSVParser}
+import info.fingo.spata.CSVParser
+import info.fingo.spata.error.CSVException
 
 class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 

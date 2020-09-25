@@ -10,7 +10,7 @@ import java.io.FileWriter
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, CSVRecord}
+import info.fingo.spata.{CSVParser, Record}
 import info.fingo.spata.io.reader
 
 /* Samples which write processing results to another CSV file */
@@ -19,7 +19,7 @@ class FileITS extends AnyFunSuite {
   test("spata allows data conversion to another file") {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
 
-    def dtvFromRecord(record: CSVRecord) =
+    def dtvFromRecord(record: Record) =
       for {
         day <- record.get[String]("sol")
         max <- record.get[Double]("max_temp")
@@ -34,7 +34,7 @@ class FileITS extends AnyFunSuite {
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val dtvs = records.filter { record =>
-      record("max_temp") != "NaN" && record("min_temp") != "NaN"
+      !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
     }.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
     // write data to output file
     val outFile = SampleTH.getTempFile
@@ -62,10 +62,10 @@ class FileITS extends AnyFunSuite {
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
 
     // this method may throw exception
-    def dtvFromRecordUnsafe(record: CSVRecord) = {
-      val day = record("sol")
-      val max = record.at[Double]("max_temp")
-      val min = record.at[Double]("min_temp")
+    def dtvFromRecordUnsafe(record: Record) = {
+      val day = record.unsafe("sol")
+      val max = record.unsafe.get[Double]("max_temp")
+      val min = record.unsafe.get[Double]("min_temp")
       DTV(day, max - min)
     }
 
@@ -79,7 +79,7 @@ class FileITS extends AnyFunSuite {
         .read(source)
         .through(parser.parse)
         .filter { record =>
-          record("max_temp") != "NaN" && record("min_temp") != "NaN"
+          !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
         }
       // converter and aggregate data, get stream of YTs (this may throw exception to be handled by handleErrorWith)
       dtv = dtvFromRecordUnsafe(record)

@@ -6,33 +6,33 @@
 package info.fingo.spata
 
 /* CSV header with names of each field */
-private[spata] class CSVHeader private (names: IndexedSeq[String]) {
+private[spata] class Header private (names: IndexedSeq[String]) {
 
   private val index = names.zipWithIndex.toMap
 
   val size: Int = names.size
 
-  def apply(name: String): Int = index(name)
+  def apply(name: String): Option[Int] = index.get(name)
 
   def get(idx: Int): Option[String] = names.unapply(idx)
 }
 
-/* CSVHeader companion */
-private[spata] object CSVHeader {
+/* Header companion */
+private[spata] object Header {
 
   /* Create regular header from provided values */
-  def apply(names: String*): CSVHeader = new CSVHeader(names.toIndexedSeq)
+  def apply(names: String*): Header = new Header(names.toIndexedSeq)
 
   /* Create regular header and remap it */
-  def apply(names: IndexedSeq[String], headerMap: S2S): CSVHeader = {
+  def apply(names: IndexedSeq[String], headerMap: S2S): Header = {
     val remapped = names.map(hRemap(_, headerMap))
-    new CSVHeader(remapped)
+    new Header(remapped)
   }
 
   /* Create tuple-style header: _1, _2, _3 etc. (if not remapped). */
-  def apply(size: Int, headerMap: S2S): CSVHeader = {
+  def apply(size: Int, headerMap: S2S): Header = {
     val remapped = generate(size).map(hRemap(_, headerMap))
-    new CSVHeader(remapped)
+    new Header(remapped)
   }
 
   /* Generate tuple-style sequence: _1, _2, _3 etc. */

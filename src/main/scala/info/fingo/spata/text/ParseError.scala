@@ -7,16 +7,16 @@ package info.fingo.spata.text
 
 /** Exception for string parsing errors.
   *
-  * @constructor Creates new `DataParseException`
+  * @constructor Creates new `ParseError`
   * @param content the content which has been parsed
   * @param dataType the target data type description
   * @param cause the root exception, if available
   */
-class DataParseException(val content: String, val dataType: Option[String] = None, cause: Option[Throwable] = None)
-  extends Exception(DataParseException.message(content, dataType), cause.orNull)
+class ParseError(val content: String, val dataType: Option[String] = None, cause: Option[Throwable] = None)
+  extends Exception(ParseError.message(content, dataType), cause.orNull)
 
-/* DataParseException companion object with helper methods. */
-private object DataParseException {
+/* ParseError companion object with helper methods. */
+private object ParseError {
   val maxInfoLength = 60
   val infoCutSuffix = "..."
   private def message(content: String, dataType: Option[String]): String =

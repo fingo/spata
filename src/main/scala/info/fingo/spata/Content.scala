@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import fs2.{RaiseThrowable, Stream}
-import info.fingo.spata.error.StructureException
+import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to converter raw records into key-values indexed by header.
@@ -64,8 +64,17 @@ private[spata] object Content {
   /* Build header for based on header record, remapping selected header values. */
   private def createHeader(rr: RecordResult, headerMap: S2S): Either[StructureException, Header] =
     rr match {
-      case RawRecord(captions, _, _) => Right(Header(captions, headerMap))
+      case RawRecord(captions, _, _) =>
+        val dups = duplicates(captions)
+        if (dups.isEmpty)
+          Right(Header(captions, headerMap))
+        else
+          Left(new StructureException(ParsingErrorCode.DuplicatedHeader, 1, 0, None, dups.headOption))
       case RecordFailure(code, location, _, _) =>
         Left(new StructureException(code, location.line, 0, Some(location.position), None))
     }
+
+  /* Gets duplicates from a collection, preserving their sequence */
+  private def duplicates[A](seq: Seq[A]): Seq[A] =
+    seq.zipWithIndex.groupBy(_._1).filter(_._2.size > 1).values.map(_.minBy(_._2)).toSeq.sortBy(_._2).map(_._1)
 }

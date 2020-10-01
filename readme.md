@@ -201,7 +201,7 @@ val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]
 It may also be defined for more fields than there are present in any particular data source,
 which allows using a single parser for multiple data sets with different headers.
 
-There is also index-based header mapping available. It may be used to onluy to define / redefine header
+There is also index-based header mapping available. It may be used not only to define / redefine header,
 but to remove duplicates as well:
 ```csv
 date,temparature,temparature

@@ -62,6 +62,11 @@ private[spata] object Header {
   * @see [CSVConfig] for sample usage.
   */
 sealed trait HeaderMap {
+
+  /** Remap selected header names.
+    * The actual remapping is provided by HeaderMap implementation class, created from a partial function,
+    * as described in [CSVConfig].
+    */
   def remap(header: IndexedSeq[String]): IndexedSeq[String]
 }
 

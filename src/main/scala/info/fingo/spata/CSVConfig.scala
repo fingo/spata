@@ -32,6 +32,9 @@ import fs2.RaiseThrowable
   * {{{config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))}}}
   * or if there is no header line:
   * {{{config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName")))}}}
+  * Header mapping may be also position-based, which is especially handy when there are duplicates in header
+  * and name-based remapping does not solve it (because it remaps all occurrences):
+  * {{{config.mapHeader(Map(0 -> "firstName", 1 -> "lastName")))}}}
   *
   * Field size limit is used to stop processing input when it is significantly larger then expected
   * and avoid `OutOfMemoryError`.

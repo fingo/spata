@@ -310,7 +310,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
         val content = basicContent("basic", separator)
         val csv = s"$header\n$content"
         val headerMap = Map(position -> replacement)
-        val parser = CSVParser.config.fieldDelimiter(separator).setHeader(headerMap).get[IO]()
+        val parser = CSVParser.config.fieldDelimiter(separator).mapHeader(headerMap).get[IO]()
         val stream = csvStream(csv).through(parser.parse)
         val list = stream.compile.toList.unsafeRunSync()
         assert(list.nonEmpty)

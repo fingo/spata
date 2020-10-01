@@ -22,5 +22,6 @@ private[spata] object ParsingErrorCode {
   case object UnmatchedQuotation extends ErrorCode("Bad format: unmatched quotation (premature end of file)")
   case object FieldTooLong extends ErrorCode("Value is longer than provided maximum (unmatched quotation?)")
   case object MissingHeader extends ErrorCode("Header not found (empty content?)")
+  case object DuplicatedHeader extends ErrorCode("Header name is duplicated")
   case object WrongNumberOfFields extends ErrorCode("Number of values doesn't match header size or previous records")
 }

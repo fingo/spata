@@ -32,6 +32,9 @@ import fs2.RaiseThrowable
   * {{{config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))}}}
   * or if there is no header line:
   * {{{config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName")))}}}
+  * Header mapping may be also position-based, which is especially handy when there are duplicates in header
+  * and name-based remapping does not solve it (because it remaps all occurrences):
+  * {{{config.mapHeader(Map(0 -> "firstName", 1 -> "lastName")))}}}
   *
   * Field size limit is used to stop processing input when it is significantly larger then expected
   * and avoid `OutOfMemoryError`.
@@ -42,7 +45,7 @@ import fs2.RaiseThrowable
   * @param recordDelimiter record (row) separator
   * @param quoteMark character used to wrap (quote) field content
   * @param hasHeader set if data starts with header row
-  * @param mapHeader partial function to remap selected header values
+  * @param headerMap definition of header remapping, by name or index
   * @param fieldSizeLimit maximal size of a field
   */
 case class CSVConfig private[spata] (
@@ -50,7 +53,7 @@ case class CSVConfig private[spata] (
   recordDelimiter: Char = '\n',
   quoteMark: Char = '"',
   hasHeader: Boolean = true,
-  mapHeader: S2S = PartialFunction.empty,
+  headerMap: HeaderMap = NoHeaderMap,
   fieldSizeLimit: Option[Int] = None
 ) {
 
@@ -70,7 +73,7 @@ case class CSVConfig private[spata] (
   def fieldSizeLimit(fsl: Int): CSVConfig = this.copy(fieldSizeLimit = Some(fsl))
 
   /** Remap selected fields names. */
-  def mapHeader(mh: S2S): CSVConfig = this.copy(mapHeader = mh)
+  def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
 
   /** Creates [[CSVParser]] from this config.
     *

@@ -57,6 +57,7 @@ abstract class CSVException private[spata] (
   *   - `unmatchedQuotation` for unmatched quotation (probably premature end of file),
   *   - `fieldTooLong` for values longer than provided maximum (may be caused by unmatched quotation),
   *   - `missingHeader` when header isn't found (may be empty content),
+  *   - `duplicatedHeader` when two or more header names are duplicated (not unique),
   *   - `wrongNumberOfFields` when number of values doesn't match header or previous records size.
   *
   * @see [[CSVException]] for description of fields providing error location.

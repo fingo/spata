@@ -304,6 +304,21 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("it should be possible to set duplicated header names to get unique ones") {
+    forAll(separators) { separator =>
+      forAll(duplicateCases(separator)) { (header, position, replacement) =>
+        val content = basicContent("basic", separator)
+        val csv = s"$header\n$content"
+        val headerMap = Map(position -> replacement)
+        val parser = CSVParser.config.fieldDelimiter(separator).mapHeader(headerMap).get[IO]()
+        val stream = csvStream(csv).through(parser.parse)
+        val list = stream.compile.toList.unsafeRunSync()
+        assert(list.nonEmpty)
+        assert(list.head(replacement).isDefined)
+      }
+    }
+  }
+
   private def csvStream(csvString: String) = reader[IO](chunkSize).read(Source.fromString(csvString))
 
   private def assertListFirst(list: List[Record], firstName: String, firstValue: String): Unit = {
@@ -439,6 +454,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("field too long", "fieldTooLong", 2, 1, Some(103), Some("NAME")),
     ("field too long through unmatched quotation", "fieldTooLong", 3, 1, Some(11), Some("NAME")),
     ("malformed header", "unclosedQuotation", 1, 0, Some(10), None),
+    ("duplicated header", "duplicatedHeader", 1, 0, None, Some("VALUE")),
     ("no content", "missingHeader", 1, 0, None, None),
     ("io exception", "message", 0, 0, None, None)
   )
@@ -508,6 +524,11 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
            |1${s}Funky Koval${s}01.01.2001${s}100.00
            |2${s}Eva Solo${s}31.12.2012${s}123.45
            |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+      case "duplicated header" =>
+        s"""ID${s}NAME${s}VALUE${s}VALUE
+           |1${s}Funky Koval${s}01.01.2001${s}100.00
+           |2${s}Eva Solo${s}31.12.2012${s}123.45
+           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "no content" => ""
       case "io exception" => "io.exception"
       case _ => throw new RuntimeException("Unknown test case")
@@ -526,5 +547,11 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("new lines", "\n\n\n"),
     ("new lines and spaces", " \n \n \n"),
     ("mixed new lines and spaces", "  \n \n\n   \n ")
+  )
+
+  private def duplicateCases(s: Char) = Table(
+    ("header", "position", "replacement"),
+    (s"ID${s}VALUE${s}DATE${s}VALUE", 1, "NAME"),
+    (s"ID${s}NAME${s}VALUE${s}VALUE", 2, "DATE")
   )
 }

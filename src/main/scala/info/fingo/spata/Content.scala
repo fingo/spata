@@ -46,7 +46,7 @@ private[spata] object Content {
   def apply[F[_]: RaiseThrowable](
     headerRecord: RecordResult,
     data: Stream[F, RecordResult],
-    headerMap: S2S
+    headerMap: HeaderMap
   ): Either[StructureException, Content[F]] =
     createHeader(headerRecord, headerMap) match {
       case Right(header) => Right(new Content(data, header))
@@ -57,14 +57,17 @@ private[spata] object Content {
   def apply[F[_]: RaiseThrowable](
     headerSize: Int,
     data: Stream[F, RecordResult],
-    headerMap: S2S
+    headerMap: HeaderMap
   ): Either[StructureException, Content[F]] =
-    Right(new Content(data, Header(headerSize, headerMap), false))
+    Header(headerSize, headerMap).flatMap { header =>
+      Right(new Content(data, header, false))
+    }
 
   /* Build header for based on header record, remapping selected header values. */
-  private def createHeader(rr: RecordResult, headerMap: S2S): Either[StructureException, Header] =
+  private def createHeader(rr: RecordResult, headerMap: HeaderMap): Either[StructureException, Header] =
     rr match {
-      case RawRecord(captions, _, _) => Right(Header(captions, headerMap))
+      case RawRecord(captions, _, _) =>
+        Header(captions, headerMap)
       case RecordFailure(code, location, _, _) =>
         Left(new StructureException(code, location.line, 0, Some(location.position), None))
     }

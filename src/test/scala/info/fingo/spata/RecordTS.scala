@@ -25,7 +25,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving individual values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -44,7 +44,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving optional values") {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -70,7 +70,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = Header("num", "date", "value")
+        val header = new Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         assert(record.get[Long]("num", numFmt).contains(num))
         assert(record.unsafe.get[Long]("num", numFmt) == num)
@@ -83,7 +83,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record parsing may return error or throw exception") {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
@@ -106,7 +106,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -117,7 +117,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class with optional fields") {
     case class Data(name: String, value: Option[Double], date: Option[LocalDate])
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -141,7 +141,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = Header("num", "date", "value")
+        val header = new Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
         implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
@@ -156,7 +156,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
       case class Data(name: String, value: Double, date: LocalDate)
-      val header = Header("name", "date", "value")
+      val header = new Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yy"))
@@ -168,7 +168,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to tuples") {
     type Data = (String, LocalDate, BigDecimal)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = Header("_1", "_2", "_3")
+      val header = new Header("_1", "_2", "_3")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)

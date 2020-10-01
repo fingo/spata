@@ -50,6 +50,7 @@ case class CSVConfig private[spata] (
   recordDelimiter: Char = '\n',
   quoteMark: Char = '"',
   hasHeader: Boolean = true,
+  setHeader: I2S = PartialFunction.empty,
   mapHeader: S2S = PartialFunction.empty,
   fieldSizeLimit: Option[Int] = None
 ) {
@@ -71,6 +72,9 @@ case class CSVConfig private[spata] (
 
   /** Remap selected fields names. */
   def mapHeader(mh: S2S): CSVConfig = this.copy(mapHeader = mh)
+
+  /** Set selected fields names. */
+  def setHeader(sh: I2S): CSVConfig = this.copy(setHeader = sh)
 
   /** Creates [[CSVParser]] from this config.
     *

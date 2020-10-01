@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import fs2.{RaiseThrowable, Stream}
-import info.fingo.spata.error.{ParsingErrorCode, StructureException}
+import info.fingo.spata.error.StructureException
 import info.fingo.spata.parser.RecordParser._
 
 /* Intermediate entity used to converter raw records into key-values indexed by header.
@@ -46,9 +46,10 @@ private[spata] object Content {
   def apply[F[_]: RaiseThrowable](
     headerRecord: RecordResult,
     data: Stream[F, RecordResult],
+    headerSeq: I2S,
     headerMap: S2S
   ): Either[StructureException, Content[F]] =
-    createHeader(headerRecord, headerMap) match {
+    createHeader(headerRecord, headerSeq, headerMap) match {
       case Right(header) => Right(new Content(data, header))
       case Left(e) => Left(e)
     }
@@ -57,24 +58,19 @@ private[spata] object Content {
   def apply[F[_]: RaiseThrowable](
     headerSize: Int,
     data: Stream[F, RecordResult],
+    headerSeq: I2S,
     headerMap: S2S
   ): Either[StructureException, Content[F]] =
-    Right(new Content(data, Header(headerSize, headerMap), false))
+    Header(headerSize, headerSeq, headerMap).flatMap { header =>
+      Right(new Content(data, header, false))
+    }
 
   /* Build header for based on header record, remapping selected header values. */
-  private def createHeader(rr: RecordResult, headerMap: S2S): Either[StructureException, Header] =
+  private def createHeader(rr: RecordResult, headerSeq: I2S, headerMap: S2S): Either[StructureException, Header] =
     rr match {
       case RawRecord(captions, _, _) =>
-        val dups = duplicates(captions)
-        if (dups.isEmpty)
-          Right(Header(captions, headerMap))
-        else
-          Left(new StructureException(ParsingErrorCode.DuplicatedHeader, 1, 0, None, dups.headOption))
+        Header(captions, headerSeq, headerMap)
       case RecordFailure(code, location, _, _) =>
         Left(new StructureException(code, location.line, 0, Some(location.position), None))
     }
-
-  /* Gets duplicates from a collection, preserving their sequence */
-  private def duplicates[A](seq: Seq[A]): Seq[A] =
-    seq.zipWithIndex.groupBy(_._1).filter(_._2.size > 1).values.map(_.minBy(_._2)).toSeq.sortBy(_._2).map(_._1)
 }

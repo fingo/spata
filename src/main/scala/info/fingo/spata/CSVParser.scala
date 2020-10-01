@@ -80,15 +80,15 @@ class CSVParser[F[_]: RaiseThrowable](config: CSVConfig) {
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
-      case Some((h, t)) => Pull.output1(Content(h, t, config.mapHeader))
+      case Some((h, t)) => Pull.output1(Content(h, t, config.setHeader, config.mapHeader))
       case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, 1, 0))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
   private def contentWithoutHeader(stream: Stream[F, RecordResult]) =
     stream.pull.peek1.flatMap {
-      case Some((h, s)) => Pull.output1(Content(h.fieldNum, s, config.mapHeader))
-      case None => Pull.output1(Content(0, Stream.empty[F], config.mapHeader))
+      case Some((h, s)) => Pull.output1(Content(h.fieldNum, s, config.setHeader, config.mapHeader))
+      case None => Pull.output1(Content(0, Stream.empty[F], config.setHeader, config.mapHeader))
     }
 
   /** Fetches whole source content into list of records.

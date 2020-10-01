@@ -304,6 +304,21 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("it should be possible to set duplicated header names to get unique ones") {
+    forAll(separators) { separator =>
+      forAll(duplicateCases(separator)) { (header, position, replacement) =>
+        val content = basicContent("basic", separator)
+        val csv = s"$header\n$content"
+        val headerMap = Map(position -> replacement)
+        val parser = CSVParser.config.fieldDelimiter(separator).setHeader(headerMap).get[IO]()
+        val stream = csvStream(csv).through(parser.parse)
+        val list = stream.compile.toList.unsafeRunSync()
+        assert(list.nonEmpty)
+        assert(list.head(replacement).isDefined)
+      }
+    }
+  }
+
   private def csvStream(csvString: String) = reader[IO](chunkSize).read(Source.fromString(csvString))
 
   private def assertListFirst(list: List[Record], firstName: String, firstValue: String): Unit = {
@@ -532,5 +547,11 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("new lines", "\n\n\n"),
     ("new lines and spaces", " \n \n \n"),
     ("mixed new lines and spaces", "  \n \n\n   \n ")
+  )
+
+  private def duplicateCases(s: Char) = Table(
+    ("header", "position", "replacement"),
+    (s"ID${s}VALUE${s}DATE${s}VALUE", 1, "NAME"),
+    (s"ID${s}NAME${s}VALUE${s}VALUE", 2, "DATE")
   )
 }

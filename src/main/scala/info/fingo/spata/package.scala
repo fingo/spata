@@ -15,4 +15,7 @@ package object spata {
 
   /** Convenience type. */
   type S2S = PartialFunction[String, String]
+
+  /** Convenience type. */
+  type I2S = PartialFunction[Int, String]
 }

@@ -201,6 +201,19 @@ val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]
 It may also be defined for more fields than there are present in any particular data source,
 which allows using a single parser for multiple data sets with different headers.
 
+There is also index-based header mapping available. It may be used to onluy to define / redefine header
+but to remove duplicates as well:
+```csv
+date,temparature,temparature
+2020-02-02,13.7,-2.2
+```
+```scala
+val stream: Stream[IO, Char] = ???
+val parser: CSVParser[IO] =
+  CSVParser.config.mapHeader(Map(1 -> "tempMax", 2 -> "tempMin")).get[IO]()
+val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
+```
+
 FS2 takes care of limiting the amount of processed data and consumed memory to the required level.
 This works well to restrict the number of records, however each record has to be fully loaded into memory,
 no matter how large it is.

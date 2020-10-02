@@ -106,11 +106,14 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("name", "date", "value")
-      val record = createRecord(name, sDate, sValue)(header)
-      val md = record.to[Data]()
-      assert(md.isRight)
-      assert(md.contains(Data(name, value.doubleValue, date)))
+      for {
+        header <- Header("name", "date", "value")
+        record = createRecord(name, sDate, sValue)(header)
+        md = record.to[Data]()
+      } yield {
+        assert(md.isRight)
+        assert(md.contains(Data(name, value.doubleValue, date)))
+      }
     }
   }
 

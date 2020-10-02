@@ -29,8 +29,7 @@ lazy val root = (project in file("."))
       "co.fs2" %% "fs2-io" % "2.4.4",
       "com.chuusai" %% "shapeless" % "2.3.3",
       "org.scalatest" %% "scalatest" % "3.2.0" % Test,
-      "com.storm-enroute" %% "scalameter" % "0.19" % Test,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.1.6" % Test
+      "com.storm-enroute" %% "scalameter" % "0.19" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

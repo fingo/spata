@@ -42,9 +42,15 @@ private[spata] object Header {
   /* Generate tuple-style sequence: _1, _2, _3 etc. */
   private def generate(size: Int) = (0 until size).map(i => s"_${i + 1}")
 
-  /* Gets duplicates from a collection, preserving their sequence */
-  private def duplicates[A](seq: Seq[A]): Seq[A] =
-    seq.zipWithIndex.groupBy(_._1).filter(_._2.size > 1).values.map(_.minBy(_._2)).toSeq.sortBy(_._2).map(_._1)
+  /* Gets duplicates from a collection (single occurrences of them), preserving their sequence */
+  private def duplicates[A](seq: Seq[A]): Seq[A] = {
+    val firstDuplicates = for {
+      (_, group) <- seq.zipWithIndex.groupBy { case (elem, _) => elem }
+      if group.size > 1 // duplicate
+      first = group.minBy { case (_, idx) => idx }
+    } yield first
+    firstDuplicates.toSeq.sortBy { case (_, idx) => idx }.map { case (elem, _) => elem }
+  }
 
   /* Check if there are duplicates and return header or error */
   private def checkDuplicates(header: IndexedSeq[String]): Either[StructureException, Header] = {

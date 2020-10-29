@@ -5,7 +5,7 @@
  */
 package info.fingo.spata
 
-import fs2.RaiseThrowable
+import cats.effect.Sync
 
 /** CSV configuration used for creating [[CSVParser]].
   *
@@ -77,9 +77,9 @@ case class CSVConfig private[spata] (
 
   /** Creates [[CSVParser]] from this config.
     *
-    * @tparam F the effect type, with a type class providing support for raising and handling errors
+    * @tparam F the effect type, with a type class providing support for suspended execution
     * (typically [[cats.effect.IO]])
     * @return parser configured according to provided settings
     */
-  def get[F[_]: RaiseThrowable](): CSVParser[F] = new CSVParser(this)
+  def get[F[_]: Sync](): CSVParser[F] = new CSVParser(this)
 }

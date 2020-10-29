@@ -10,15 +10,15 @@ import fs2.Stream
 import org.slf4j.LoggerFactory
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.reader
-import info.fingo.spata.util.{Logger, SLF4JLogger}
+import info.fingo.spata.util.Logger
 import org.scalatest.funsuite.AnyFunSuite
 
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite {
 
-  private val logger = LoggerFactory.getLogger(this.getClass)
-  // turn on spata logging
-  implicit private val spataLogger: Logger[IO] = new SLF4JLogger[IO](LoggerFactory.getLogger("spata"))
+  private val logger = LoggerFactory.getLogger(this.getClass) // regular, unsafe logger
+  // turn on spata logging (logging operations are suspended in IO)
+  implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
   test("spata allows manipulate data using stream functionality") {
     val parser = CSVParser[IO]() // parser with default configuration and IO effect
@@ -40,12 +40,12 @@ class LoggingITS extends AnyFunSuite {
     // get the IO effect with it final result
     val io = maximum.compile.toList.map { l =>
       val t = l.headOption.getOrElse(fail())
-      assert(t > 0)
       logger.debug(f"Maximum recorded temperature is $t%.1f° C")
+      assert(t > 0)
       t
     }
-    // evaluate effect - trigger all stream operations
     logger.debug("CSV parsing with logging - start")
+    // evaluate effect - trigger all stream operations
     val maxTemp = io.unsafeRunSync()
     logger.debug("CSV parsing with logging - finish")
     maxTemp

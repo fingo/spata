@@ -30,11 +30,8 @@ import info.fingo.spata.util.Logger
   *
   * This parser is normally used with stream fetching data from some external source,
   * so its computations are wrapped for deferred evaluation into an effect `F`, e.g. [[cats.effect.IO]].
-  * Basic parsing does not impose any special requirements on `F`, except its support for raising and handling errors,
-  * which requires implicit instance of [[fs2.RaiseThrowable]], meaning `ApplicativeError[F, Throwable]`
-  * or `MonadError[F, Throwable]`.
-  * Nevertheless, convenience methods for loading data into list or processing through callbacks
-  * require presence of more complex type classes.
+  * Basic parsing does not impose any special requirements on `F`, except its support for suspended execution,
+  * which requires implicit instance of [[cats.effect.Sync]].
   *
   * To trigger evaluation, one of the `unsafe` operations on `F` has to be called.
   * Their exact form depends on actual effect in use (e.g. [[cats.effect.IO.unsafeRunSync]]).

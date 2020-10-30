@@ -5,20 +5,22 @@
  */
 package info.fingo.spata
 
-import fs2.{RaiseThrowable, Stream}
+import cats.effect.Sync
+import fs2.Stream
 import info.fingo.spata.error.StructureException
 import info.fingo.spata.parser.RecordParser._
+import info.fingo.spata.util.Logger
 
 /* Intermediate entity used to converter raw records into key-values indexed by header.
  * It converts additionally CSV parsing failures into stream error by raising StructureException.
  */
-private[spata] class Content[F[_]: RaiseThrowable] private (
+private[spata] class Content[F[_]: Sync: Logger] private (
   data: Stream[F, RecordResult],
   header: Header,
   hasHeaderRecord: Boolean = true
 ) {
   /* Converts RawRecord into Record and raise RecordFailure as StructureException */
-  def toRecords: Stream[F, Record] = data.map(wrapRecord).rethrow
+  def toRecords: Stream[F, Record] = Logger[F].debugS(s"Actual header is $header") >> data.map(wrapRecord).rethrow
 
   private def wrapRecord(rr: RecordResult): Either[StructureException, Record] = rr match {
     case RawRecord(fields, location, recordNum) =>
@@ -43,7 +45,7 @@ private[spata] class Content[F[_]: RaiseThrowable] private (
 private[spata] object Content {
 
   /* Creates Content for data with header. May return StructureException if no header is available (means empty source). */
-  def apply[F[_]: RaiseThrowable](
+  def apply[F[_]: Sync: Logger](
     headerRecord: RecordResult,
     data: Stream[F, RecordResult],
     headerMap: HeaderMap
@@ -54,7 +56,7 @@ private[spata] object Content {
     }
 
   /* Creates Content for data without header record - builds a numeric header. */
-  def apply[F[_]: RaiseThrowable](
+  def apply[F[_]: Sync: Logger](
     headerSize: Int,
     data: Stream[F, RecordResult],
     headerMap: HeaderMap

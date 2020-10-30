@@ -6,6 +6,7 @@
 package info.fingo.spata
 
 import cats.effect.Sync
+import info.fingo.spata.util.Logger
 
 /** CSV configuration used for creating [[CSVParser]].
   *
@@ -78,8 +79,30 @@ case class CSVConfig private[spata] (
   /** Creates [[CSVParser]] from this config.
     *
     * @tparam F the effect type, with a type class providing support for suspended execution
-    * (typically [[cats.effect.IO]])
+    * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return parser configured according to provided settings
     */
-  def get[F[_]: Sync](): CSVParser[F] = new CSVParser(this)
+  def get[F[_]: Sync: Logger](): CSVParser[F] = new CSVParser(this)
+
+  /** Provides configuration description
+    *
+    * @return short textual information about configuration
+    */
+  override def toString: String = {
+    def printWhite(c: Char) = c match {
+      case '\n' => "\\n"
+      case '\r' => "\\r"
+      case '\t' => "\\t"
+      case ' ' => " "
+      case c if c.isWhitespace => '␣'
+      case _ => c
+    }
+    val fd = printWhite(fieldDelimiter)
+    val rd = printWhite(recordDelimiter)
+    val qm = printWhite(quoteMark)
+    val hdr = if (hasHeader) "header" else "no header"
+    val hm = if (headerMap == NoHeaderMap) "" else ", header mapping"
+    val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
+    s"CSVConfig('$fd', '$rd', '$qm', $hdr$hm$fsl)"
+  }
 }

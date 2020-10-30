@@ -71,10 +71,13 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     val fp = new FieldParser[F](config.fieldSizeLimit)
     val rp = new RecordParser[F]()
     val stream =
-      Logger[F].infoS("Starting CSV parsing") >>
+      Logger[F].infoS(s"Starting CSV parsing with $config") >>
         in.through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
     val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
-    pull.stream.rethrow.flatMap(_.toRecords)
+    pull.stream.rethrow
+      .flatMap(_.toRecords)
+      .handleErrorWith(ex => Logger[F].errorS(ex.getMessage) >> Stream.raiseError(ex))
+      .onFinalize(Logger[F].info("CSV parsing finished"))
   }
 
   /* Splits source data into header and actual content. */

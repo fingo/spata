@@ -19,6 +19,8 @@ private[spata] class Header private (names: IndexedSeq[String]) {
   def apply(name: String): Option[Int] = index.get(name)
 
   def get(idx: Int): Option[String] = names.unapply(idx)
+
+  override def toString: String = names.mkString("Header(", ", ", ")")
 }
 
 /* Header companion */

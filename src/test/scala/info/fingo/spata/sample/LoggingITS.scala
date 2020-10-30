@@ -21,7 +21,7 @@ class LoggingITS extends AnyFunSuite {
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
   test("spata allows manipulate data using stream functionality") {
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
+    val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).get[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
@@ -29,7 +29,7 @@ class LoggingITS extends AnyFunSuite {
       .through(parser.parse)
     // find maximum temperature
     val maximum = records
-      .map(_.get[Double]("max_temp"))
+      .map(_.get[Double]("temp"))
       .filter(_.exists(!_.isNaN))
       .rethrow // rethrow to get rid of Either
       .fold(-273.15)(Math.max)

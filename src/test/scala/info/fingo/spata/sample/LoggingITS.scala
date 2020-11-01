@@ -16,12 +16,12 @@ import org.scalatest.funsuite.AnyFunSuite
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite {
 
-  private val logger = LoggerFactory.getLogger(this.getClass) // regular, unsafe logger
+  private val logger = LoggerFactory.getLogger(this.getClass) // regular, impure logger
   // turn on spata logging (logging operations are suspended in IO)
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
   test("spata allows manipulate data using stream functionality") {
-    val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).get[IO]() // parser with default configuration and IO effect
+    val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).get[IO]() // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })

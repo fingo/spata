@@ -70,14 +70,14 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     val cp = new CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark)
     val fp = new FieldParser[F](config.fieldSizeLimit)
     val rp = new RecordParser[F]()
-    val stream =
-      Logger[F].infoS(s"Starting CSV parsing with $config") >>
-        in.through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
+    val stream = Logger[F].infoS(s"Parsing CSV with $config") >>
+      in.through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
     val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
     pull.stream.rethrow
       .flatMap(_.toRecords)
+      .through(debugCount)
       .handleErrorWith(ex => Logger[F].errorS(ex.getMessage) >> Stream.raiseError(ex))
-      .onFinalize(Logger[F].info("CSV parsing finished"))
+      .onFinalize(Logger[F].debug("CSV parsing finished"))
   }
 
   /* Splits source data into header and actual content. */
@@ -93,6 +93,28 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
       case Some((h, s)) => Pull.output1(Content(h.fieldNum, s, config.headerMap))
       case None => Pull.output1(Content(0, Stream.empty[F], config.headerMap))
     }
+
+  /* Provided info about number of parsed records. This introduces additional overhead and is done in debug mode only.
+   * Please note, that this information will be not available if stream processing ends prematurely -
+   * in case of an error, as result of take(n) etc. */
+  private def debugCount: Pipe[F, Record, Record] = in => {
+    if (Logger[F].isDebug)
+      in.noneTerminate
+        .mapAccumulate(0) { (s, o) =>
+          o match {
+            case Some(r) => (r.rowNum, o)
+            case None => (s, None)
+          }
+        }
+        .flatMap {
+          case (s, o) =>
+            o match {
+              case Some(r) => Stream.emit(r)
+              case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
+            }
+        }
+    else in
+  }
 
   /** Fetches whole source content into list of records.
     *

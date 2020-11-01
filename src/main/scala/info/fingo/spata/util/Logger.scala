@@ -27,6 +27,9 @@ final class Logger[F[_]: Sync](logger: JLogger) {
   private[spata] def errorS(message: => String): Stream[F, Unit] = Stream.eval(error(message))
   private[spata] def infoS(message: => String): Stream[F, Unit] = Stream.eval(info(message))
   private[spata] def debugS(message: => String): Stream[F, Unit] = Stream.eval(debug(message))
+
+  /* Check if debug level is active */
+  private[spata] def isDebug: Boolean = logger.isDebugEnabled
 }
 
 /* Logger helper object providing default implementation and access to actual logger */

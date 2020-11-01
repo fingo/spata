@@ -101,8 +101,8 @@ case class CSVConfig private[spata] (
     val rd = printWhite(recordDelimiter)
     val qm = printWhite(quoteMark)
     val hdr = if (hasHeader) "header" else "no header"
-    val hm = if (headerMap == NoHeaderMap) "" else ", header mapping"
+    val hm = if (headerMap == NoHeaderMap) "no mapping" else "header mapping"
     val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
-    s"CSVConfig('$fd', '$rd', '$qm', $hdr$hm$fsl)"
+    s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm$fsl)"
   }
 }

@@ -213,7 +213,7 @@ object reader {
 
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
-      Logger[F].infoS("Reading data on current thread") >> fromIterator[Char](source).through(skipBom)
+      Logger[F].debugS("Reading data on current thread") >> fromIterator[Char](source).through(skipBom)
 
     /** @inheritdoc */
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(new BufferedSource(is, chunkSize))
@@ -265,7 +265,7 @@ object reader {
     def read(source: Source): Stream[F, Char] =
       for {
         b <- Stream.resource(br)
-        _ <- Logger[F].infoS("Reading data from Source with context shift")
+        _ <- Logger[F].debugS("Reading data from Source with context shift")
         char <- fromBlockingIterator[Char](source, b).through(reader.skipBom)
       } yield char
 
@@ -273,7 +273,7 @@ object reader {
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
-        _ <- Logger[F].infoS("Reading data from InputStream with context shift")
+        _ <- Logger[F].debugS("Reading data from InputStream with context shift")
         char <- io
           .readInputStream(Sync[F].delay(is), chunkSize, blocker, autoClose)
           .through(byte2char)
@@ -291,7 +291,7 @@ object reader {
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
-        _ <- Logger[F].infoS(s"Reading data from path $path with context shift")
+        _ <- Logger[F].debugS(s"Reading data from path $path with context shift")
         char <- io.file
           .readAll[F](path, blocker, chunkSize)
           .through(byte2char)

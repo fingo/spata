@@ -17,6 +17,7 @@ import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Blocker, ContextShift, Resource, Sync}
 import cats.syntax.all._
 import fs2.{io, Chunk, Pipe, Pull, Stream}
+import info.fingo.spata.util.Logger
 
 /** Utility to read external data and provide stream of characters.
   * It is used through one of its inner classes:
@@ -52,52 +53,55 @@ object reader {
     *
     * @param chunkSize size of data chunk - see [[https://fs2.io/guide.html#chunks FS2 Chunks]].
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
     * @return basic reader
     */
-  def apply[F[_]: Sync](chunkSize: Int = defaultChunkSize): Plain[F] = plain(chunkSize)
+  def apply[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = plain(chunkSize)
 
   /** Provides basic reader executing I/O on current thread.
     *
     * @param chunkSize size of data chunk
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
     * @return basic reader
     */
-  def plain[F[_]: Sync](chunkSize: Int = defaultChunkSize): Plain[F] = new Plain[F](chunkSize)
+  def plain[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = new Plain[F](chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     *
     * @param blocker an execution context to be used for blocking I/O operations
     * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation (to shift back to)
+    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
+    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return reader with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift](blocker: Blocker, chunkSize: Int = defaultChunkSize): Shifting[F] =
+  def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker, chunkSize: Int = defaultChunkSize): Shifting[F] =
     new Shifting[F](Some(blocker), chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool.
     *
     * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation (to shift back to)
+    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
+    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return reader with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift](chunkSize: Int): Shifting[F] = new Shifting[F](None, chunkSize)
+  def shifting[F[_]: Sync: ContextShift: Logger](chunkSize: Int): Shifting[F] = new Shifting[F](None, chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
     *
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation (to shift back to)
+    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
+    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return reader with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift](): Shifting[F] = new Shifting[F](None, defaultChunkSize)
+  def shifting[F[_]: Sync: ContextShift: Logger](): Shifting[F] = new Shifting[F](None, defaultChunkSize)
 
   /* Skip BOM from UTF encoded streams */
-  private def skipBom[F[_]](implicit codec: Codec): Pipe[F, Char, Char] =
+  private def skipBom[F[_]: Logger](implicit codec: Codec): Pipe[F, Char, Char] =
     stream =>
-      if (codec.charSet.name.startsWith(UTFCharsetPrefix)) stream.dropWhile(_ == bom)
+      if (codec.charSet.name.startsWith(UTFCharsetPrefix))
+        Logger[F].debugS("UTF charset provided - skipping BOM if present") >> stream.dropWhile(_ == bom)
       else stream
 
   /** Reader interface with reading operations from various sources.
@@ -203,21 +207,21 @@ object reader {
     *
     * @param chunkSize size of data chunk
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
     */
-  final class Plain[F[_]: Sync] private[spata] (override val chunkSize: Int) extends Reader[F] {
+  final class Plain[F[_]: Sync: Logger] private[spata] (override val chunkSize: Int) extends Reader[F] {
 
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
-      fromIterator[Char](source).through(skipBom)
+      Logger[F].infoS("Reading data on current thread") >> fromIterator[Char](source).through(skipBom)
 
     /** @inheritdoc */
-    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
-      read(new BufferedSource(is, chunkSize))
+    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(new BufferedSource(is, chunkSize))
 
     /** @inheritdoc */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       Stream
-        .bracket(Sync[F].delay {
+        .bracket(Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay {
           Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
         })(source => Sync[F].delay { source.close() })
         .flatMap(read)
@@ -236,11 +240,13 @@ object reader {
     *
     * @param blocker optional execution context to be used for blocking I/O operations
     * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]])
-    * and execution environment for non-blocking operation ([[cats.effect.ContextShift]]).
+    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
+    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     */
-  final class Shifting[F[_]: Sync: ContextShift] private[spata] (blocker: Option[Blocker], override val chunkSize: Int)
-    extends Reader[F] {
+  final class Shifting[F[_]: Sync: ContextShift: Logger] private[spata] (
+    blocker: Option[Blocker],
+    override val chunkSize: Int
+  ) extends Reader[F] {
 
     /** @inheritdoc
       *
@@ -259,6 +265,7 @@ object reader {
     def read(source: Source): Stream[F, Char] =
       for {
         b <- Stream.resource(br)
+        _ <- Logger[F].infoS("Reading data from Source with context shift")
         char <- fromBlockingIterator[Char](source, b).through(reader.skipBom)
       } yield char
 
@@ -266,6 +273,7 @@ object reader {
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
+        _ <- Logger[F].infoS("Reading data from InputStream with context shift")
         char <- io
           .readInputStream(Sync[F].delay(is), chunkSize, blocker, autoClose)
           .through(byte2char)
@@ -283,6 +291,7 @@ object reader {
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
+        _ <- Logger[F].infoS(s"Reading data from path $path with context shift")
         char <- io.file
           .readAll[F](path, blocker, chunkSize)
           .through(byte2char)

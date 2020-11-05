@@ -200,8 +200,9 @@ object CSVParser {
     *
     * @param parser the regular parser
     * @tparam F the effect type, with type class providing support for concurrency (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
     */
-  final class Async[F[_]: Concurrent] private[CSVParser] (parser: CSVParser[F]) {
+  final class Async[F[_]: Concurrent: Logger] private[CSVParser] (parser: CSVParser[F]) {
 
     /** Processes each CSV record with provided callback functions to execute some side effects.
       * Stops processing input as soon as the callback function returns false, stream is exhausted or exception thrown.

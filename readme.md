@@ -559,8 +559,8 @@ passing an SLF4J logger instance to it:
 import org.slf4j.LoggerFactory
 import info.fingo.spata.util.Logger
 
-val logger = LoggerFactory.getLogger("spata")
-implicit val spataLogger = new Logger[IO](logger)
+val slf4jLogger = LoggerFactory.getLogger("spata")
+implicit val spataLogger: Logger[IO] = new Logger[IO](slf4jLogger)
 ```
 spata does not create per-class loggers but uses the provided one for all logging operations.
 
@@ -600,7 +600,6 @@ Credits
 * [http4s](https://http4s.org/) licensed under [Apache-2.0](https://github.com/http4s/http4s#license) /S
 * [IntelliJ IDEA CE](https://www.jetbrains.com/idea/) licensed under [Apache 2.0](https://www.jetbrains.com/idea/download/) /D
 * [javadoc.io](https://www.javadoc.io/) licensed under [Apache-2.0](https://github.com/maxcellent/javadoc.io/blob/master/LICENSE) /D
-* [Logback](http://logback.qos.ch/) licensed under [EPL-1.0](http://logback.qos.ch/license.html) /T
 * [Mars weather data](https://github.com/the-pudding/data/tree/master/mars-weather) made publicly available by [NASA](https://pds.nasa.gov/) and [CAB](https://cab.inta-csic.es/rems/en) /T
 * [Metals](https://scalameta.org/metals/) licensed under [Apache-2.0](https://github.com/scalameta/metals/blob/main/LICENSE) /D
 * [OpenJDK](https://adoptopenjdk.net/) licensed under [GPL-2.0 with CE](https://openjdk.java.net/legal/gplv2+ce.html) /C

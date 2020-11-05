@@ -5,17 +5,19 @@
  */
 package info.fingo.spata.sample
 
+import java.nio.file.{Files, Paths}
 import cats.effect.IO
 import fs2.Stream
 import org.slf4j.LoggerFactory
+import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.reader
 import info.fingo.spata.util.Logger
-import org.scalatest.funsuite.AnyFunSuite
 
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite {
 
+  val logFile = "./target/log/spata.log" // has to match org.slf4j.simpleLogger.logFile property
   private val logger = LoggerFactory.getLogger(this.getClass) // regular, impure logger
   // turn on spata logging (logging operations are suspended in IO)
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
@@ -45,9 +47,14 @@ class LoggingITS extends AnyFunSuite {
       t
     }
     logger.debug("CSV parsing with logging - start")
+    assert(!Files.readString(Paths.get(logFile)).contains("spata"))
     // evaluate effect - trigger all stream operations
     val maxTemp = io.unsafeRunSync()
     logger.debug("CSV parsing with logging - finish")
+
+    val log = Files.readString(Paths.get(logFile))
+    assert(log.contains("INFO spata - Parsing CSV"))
+    assert(log.contains("DEBUG spata - CSV parsing finished"))
     maxTemp
   }
 

@@ -117,6 +117,7 @@ Tutorial
 * [Getting actual data](#getting-actual-data)
 * [Text parsing](#text-parsing)
 * [Error handling](#error-handling)
+* [Logging](#logging)
 
 ### Parsing
 
@@ -134,6 +135,8 @@ Monix [Task](https://monix.io/docs/3x/eval/task.html)
 or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
 Please note however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
 Type class dependencies are defined in terms of [Cats Effect](https://typelevel.org/cats-effect/typeclasses/) class hierarchy.
+To support effect suspension, spata requires in general `cats.effect.Sync` type class implementation for its effect type.
+Some methods need enhanced type classes to support asynchronous or concurrent computation.
 
 Like in case of any other FS2 processing, spata consumes only as much of the source stream as required,
 give or take a chunk size. 
@@ -487,7 +490,8 @@ and propagates through the stream, further processing of input data is stopped, 
 Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
 FS2 captures exceptions thrown or reported explicitly with `raiseError`
 and in both cases is able to handle them with `handleErrorWith`.
-To fully support this, `CSVParser` requires the `RaiseThrowable` type class instance for its effect `F`.  
+To fully support this, `CSVParser` requires the `RaiseThrowable` type class instance for its effect `F`,
+which is covered with `cats.effect.Sync` type class.
 
 The converter example presented in [Basic usage](#basic-usage) may be enriched with explicit error handling:
 ```scala
@@ -547,6 +551,33 @@ Sometimes we would like to convert a stream to a collection.
 We should wrap the result in `Either` in such situations to distinguish successful processing from erroneous one.
 See the first code snippet in [Basic usage](#basic-usage) for sample.
 
+### Logging
+
+Logging is turned off by default in spata (no-op logger) and may be activated by defining an implicit `util.Logger`,
+passing an SLF4J logger instance to it:
+```scala
+import org.slf4j.LoggerFactory
+import info.fingo.spata.util.Logger
+
+val slf4jLogger = LoggerFactory.getLogger("spata")
+implicit val spataLogger: Logger[IO] = new Logger[IO](slf4jLogger)
+```
+spata does not create per-class loggers but uses the provided one for all logging operations.
+
+All logging operations are deferred in the stream effect and executed as part of effect evaluation,
+together with main effectful operations.
+
+The logging is currently limited to only a few events per parsed CSV source (single `info` entry,
+a couple of `debug` entries and possibly an `error` entry). There are no log events generated per CSV record.
+No stack trace is recorded for `error` events.
+
+The `debug` level introduces additional operations on the stream and may slightly impact performace.
+
+No parsed data is explicitly written to the log.
+It can however occur, when the CSV source is assumed to have a header row,
+but it does not and then the first record of data is assumed to be the header and is logged at debug level.
+Please do not use the debug level if data security is crucial.
+
 Alternatives
 ------------
 
@@ -585,6 +616,7 @@ Credits
 * [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T
 * [ScalaTest](http://www.scalatest.org/) licensed under [Apache-2.0](http://www.scalatest.org/about) /T
 * [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache-2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /C
+* [SLF4J](http://www.slf4j.org/) licensed under [MIT](http://www.slf4j.org/license.html) /C
 * [sonatype OSSRH](https://central.sonatype.org/) available under following [Terms of Service](https://central.sonatype.org/pages/central-repository-producer-terms.html) /D
 * [Travis CI](https://travis-ci.org/) available under following [Terms of Service](https://docs.travis-ci.com/legal/terms-of-service/) /D
 

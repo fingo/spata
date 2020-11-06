@@ -29,4 +29,15 @@ class CSVConfigTS extends AnyFunSuite {
     assert(result.head.size == 2)
     assert(result.head(1).contains("value '1B"))
   }
+
+  test("Config should clearly present its composition through toString") {
+    val c1 = CSVConfig(',', '\n', '"')
+    assert(c1.toString == """CSVConfig(',', '\n', '"', header, no mapping)""")
+    val c2 = CSVConfig('\t', '\r', '\'', hasHeader = false, Map("x" -> "y"), Some(100))
+    assert(c2.toString == """CSVConfig('\t', '\r', ''', no header, header mapping, 100)""")
+    val c3 = CSVConfig(';', ' ', '\"')
+    assert(c3.toString == """CSVConfig(';', ' ', '"', header, no mapping)""")
+    val c4 = CSVConfig('\u001F', '\u001E', '|', fieldSizeLimit = Some(256))
+    assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, 256)""")
+  }
 }

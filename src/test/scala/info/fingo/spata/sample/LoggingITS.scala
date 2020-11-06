@@ -17,12 +17,12 @@ import info.fingo.spata.util.Logger
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite {
 
-  val logFile = "./target/log/spata.log" // has to match org.slf4j.simpleLogger.logFile property
+  val logFile = "./target/spata.log" // has to match org.slf4j.simpleLogger.logFile property
   private val logger = LoggerFactory.getLogger(this.getClass) // regular, impure logger
   // turn on spata logging (logging operations are suspended in IO)
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
-  test("spata allows manipulate data using stream functionality") {
+  test("spata allows logging basic operations") {
     val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).get[IO]() // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream

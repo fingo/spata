@@ -30,6 +30,7 @@ object CharStates {
   def csq: CharState = CharState(Left(qt), Quoted)
   val cses: CharState = CharState(Left(qt), Escape)
   val css: CharState = CharState(Left(sp), Start)
+  def css(c: Char): CharState = CharState(Left(c), Start)
   def cse: CharState = CharState(Left(sp), End)
   def csff: CharState = CharState(Left(sep), FinishedField)
   def csfr: CharState = CharState(Left(rs), FinishedRecord)

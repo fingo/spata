@@ -15,23 +15,39 @@ import CharFailures._
 
 class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  private val parser = new CharParser[IO](sep, rs, qt)
-
-  test("Char parser should correctly parse provided input") {
-    forAll(regularCases) { (_, input, output) =>
-      val result = parse(input)
+  test("Char parser should correctly parse provided input without trimming") {
+    val parser = new CharParser[IO](sep, rs, qt, false)
+    forAll(regularCases ++ spaceNoTrimCases) { (_, input, output) =>
+      val result = parse(parser, input)
       assert(result == output)
     }
   }
 
-  test("Char parser should return error info for malformed input") {
-    forAll(malformedCases) { (_, input, output) =>
-      val result = parse(input)
+  test("Char parser should correctly parse provided input with trimming") {
+    val parser = new CharParser[IO](sep, rs, qt, true)
+    forAll(regularCases ++ spaceTrimCases) { (_, input, output) =>
+      val result = parse(parser, input)
       assert(result == output)
     }
   }
 
-  private def parse(input: String) = {
+  test("Char parser should return error info for malformed input while parsing without trimming") {
+    val parser = new CharParser[IO](sep, rs, qt, false)
+    forAll(malformedCases ++ malformedNoTrimCases) { (_, input, output) =>
+      val result = parse(parser, input)
+      assert(result == output)
+    }
+  }
+
+  test("Char parser should return error info for malformed input while parsing with trimming") {
+    val parser = new CharParser[IO](sep, rs, qt, true)
+    forAll(malformedCases ++ malformedTrimCases) { (_, input, output) =>
+      val result = parse(parser, input)
+      assert(result == output)
+    }
+  }
+
+  private def parse(parser: CharParser[IO], input: String) = {
     val stream = Stream(input.toIndexedSeq: _*).through(parser.toCharResults)
     stream.compile.toList.unsafeRunSync()
   }
@@ -51,20 +67,11 @@ class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("sepRowBegMid", s"${sep}ab${rs}c", List(csff, csr('a'), csr('b'), csfr, csr('c'), csf)),
     ("sepRowBegBeg", s"$sep${rs}abc", List(csff, csfr, csr('a'), csr('b'), csr('c'), csf)),
     ("sepRowSwap", s"abc$rs$sep", List(csr('a'), csr('b'), csr('c'), csfr, csff, csf)),
-    ("spaces", "  ab c ", List(css, css, csr('a'), csr('b'), cst(' '), csr('c'), cst(' '), csf)),
-    (
-      "spSepRowEnd",
-      s" ab $sep c $rs",
-      List(css, csr('a'), csr('b'), cst(' '), csff, css, csr('c'), cst(' '), csfr, csf)
-    ),
-    ("spSepDbl", s"ab $sep${sep}c", List(csr('a'), csr('b'), cst(' '), csff, csff, csr('c'), csf)),
     ("quote", s"${qt}abc$qt", List(csq, csq('a'), csq('b'), csq('c'), cses, csf)),
     ("qtEscMid", s"${qt}ab$qt${qt}c$qt", List(csq, csq('a'), csq('b'), cses, csq('"'), csq('c'), cses, csf)),
     ("qtEscBeg", s"$qt$qt${qt}abc$qt", List(csq, cses, csq('"'), csq('a'), csq('b'), csq('c'), cses, csf)),
     ("qtEscEnd", s"${qt}abc$qt$qt$qt", List(csq, csq('a'), csq('b'), csq('c'), cses, csq('"'), cses, csf)),
     ("qtSpIn", s"$qt ab c $qt", List(csq, csq(' '), csq('a'), csq('b'), csq(' '), csq('c'), csq(' '), cses, csf)),
-    ("qtSpOut", s" ${qt}abc$qt  ", List(css, csq, csq('a'), csq('b'), csq('c'), cses, cse, cse, csf)),
-    ("qtSpMix", s"${qt}abc $qt  ", List(csq, csq('a'), csq('b'), csq('c'), csq(' '), cses, cse, cse, csf)),
     ("qtSepEndIn", s"${qt}abc$sep$qt", List(csq, csq('a'), csq('b'), csq('c'), csq(sep), cses, csf)),
     ("qtSepMidIn", s"${qt}ab${sep}c$qt", List(csq, csq('a'), csq('b'), csq(sep), csq('c'), cses, csf)),
     ("qtSepBegIn", s"$qt${sep}abc$qt", List(csq, csq(sep), csq('a'), csq('b'), csq('c'), cses, csf)),
@@ -78,12 +85,47 @@ class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("empty", "", List(csf))
   )
 
+  private lazy val spaceNoTrimCases = Table(
+    ("testCase", "input", "output"),
+    ("spaces", "  ab c ", List(csr(' '), csr(' '), csr('a'), csr('b'), csr(' '), csr('c'), csr(' '), csf)),
+    (
+      "spSepRowEnd",
+      s" \tab $sep c $rs",
+      List(csr(' '), csr('\t'), csr('a'), csr('b'), csr(' '), csff, csr(' '), csr('c'), csr(' '), csfr, csf)
+    ),
+    ("spSepDbl", s"ab $sep${sep}c", List(csr('a'), csr('b'), csr(' '), csff, csff, csr('c'), csf))
+  )
+
+  private lazy val spaceTrimCases = Table(
+    ("testCase", "input", "output"),
+    ("spaces", "  ab c ", List(css, css, csr('a'), csr('b'), cst(' '), csr('c'), cst(' '), csf)),
+    (
+      "spSepRowEnd",
+      s" \tab $sep c $rs",
+      List(css, css('\t'), csr('a'), csr('b'), cst(' '), csff, css, csr('c'), cst(' '), csfr, csf)
+    ),
+    ("spSepDbl", s"ab $sep${sep}c", List(csr('a'), csr('b'), cst(' '), csff, csff, csr('c'), csf)),
+    ("qtSpOut", s" ${qt}abc$qt  ", List(css, csq, csq('a'), csq('b'), csq('c'), cses, cse, cse, csf)),
+    ("qtSpMix", s"${qt}abc $qt  ", List(csq, csq('a'), csq('b'), csq('c'), csq(' '), cses, cse, cse, csf))
+  )
+
   private lazy val malformedCases = Table(
     ("testCase", "input", "output"),
     ("unquotedQuote", "a\"bc", List(csr('a'), cfcq)),
     ("unescapedQuote", "\"a\"bc\"", List(csq, csq('a'), cses, cfeq)),
-    ("unescapedQuoteSp", "\"ab\" c,", List(csq, csq('a'), csq('b'), cses, cse, cfeq)),
     ("singleQuote", "\"abc", List(csq, csq('a'), csq('b'), csq('c'), cfmq)),
     ("onlyQuote", "\"", List(csq, cfmq))
+  )
+
+  private lazy val malformedNoTrimCases = Table(
+    ("testCase", "input", "output"),
+    ("unescapedQuoteSp", "\"ab\" c,", List(csq, csq('a'), csq('b'), cses, cfeq)),
+    ("qtSpOut", s" ${qt}abc$qt  ", List(csr(' '), cfcq)),
+    ("qtSpMix", s"${qt}abc $qt  ", List(csq, csq('a'), csq('b'), csq('c'), csq(' '), cses, cfeq))
+  )
+
+  private lazy val malformedTrimCases = Table(
+    ("testCase", "input", "output"),
+    ("unescapedQuoteSp", "\"ab\" c,", List(csq, csq('a'), csq('b'), cses, cse, cfeq))
   )
 }

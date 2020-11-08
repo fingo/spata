@@ -11,7 +11,7 @@ import info.fingo.spata.error.ParsingErrorCode._
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,
  * taking into consideration special meaning of some characters (e.g. separators), quoting and escaping.
  */
-private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Char, quote: Char) {
+private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Char, quote: Char, trim: Boolean = true) {
   import CharParser._
   import CharParser.CharPosition._
 
@@ -71,10 +71,16 @@ private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Cha
       case c if isDelimiter(c) && state.position == Quoted => CharState(Right(c), Quoted)
       case `fieldDelimiter` => CharState(Left(char), FinishedField)
       case `recordDelimiter` => CharState(Left(char), FinishedRecord)
-      case c if c.isWhitespace && state.atBoundary => CharState(Left(char), state.position)
-      case c if c.isWhitespace && state.finished => CharState(Left(char), Start)
-      case c if c.isWhitespace && state.position == Escape => CharState(Left(char), End)
-      case c if c.isWhitespace && state.isSimple => CharState(Right(c), Trailing)
+      case c if c.isWhitespace && state.position == Start =>
+        if (trim) CharState(Left(char), state.position) else CharState(Right(char), Regular)
+      case c if c.isWhitespace && state.position == End =>
+        if (trim) CharState(Left(char), state.position) else CharFailure(UnescapedQuotation)
+      case c if c.isWhitespace && state.finished =>
+        if (trim) CharState(Left(char), Start) else CharState(Right(c), Regular)
+      case c if c.isWhitespace && state.position == Escape =>
+        if (trim) CharState(Left(char), End) else CharFailure(UnescapedQuotation)
+      case c if c.isWhitespace && state.isSimple =>
+        if (trim) CharState(Right(c), Trailing) else CharState(Right(c), Regular)
       case _ if state.position == Escape || state.position == End => CharFailure(UnescapedQuotation)
       case c if state.atBeginning => CharState(Right(c), Regular)
       case c if state.position == Trailing => CharState(Right(c), Regular)

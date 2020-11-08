@@ -74,7 +74,7 @@ case class CSVConfig private[spata] (
   /** Remap selected fields names. */
   def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
 
-  /** Gets new config from this one by switching on whitespace stripping around fields */
+  /** Gets new config from this one by switching on stripping of unquoted, leading and trailing whitespaces */
   def trimSpaces(): CSVConfig = this.copy(trim = true)
 
   /** Gets new config from this one by replacing field size limit with provided one. */

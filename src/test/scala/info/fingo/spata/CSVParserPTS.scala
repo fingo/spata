@@ -20,7 +20,7 @@ object CSVParserPTS extends Bench.LocalTime {
 
   private val separator = ','
   private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
-  private val parser = CSVParser.config.fieldDelimiter(separator).get[IO]()
+  private val parser = CSVParser.config.fieldDelimiter(separator).trimSpaces().get[IO]()
 
   performance.of("parser").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
     measure.method("parse_gen") in {

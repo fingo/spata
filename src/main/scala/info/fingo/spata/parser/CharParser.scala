@@ -11,7 +11,7 @@ import info.fingo.spata.error.ParsingErrorCode._
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,
  * taking into consideration special meaning of some characters (e.g. separators), quoting and escaping.
  */
-private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Char, quote: Char, trim: Boolean = true) {
+private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimiter: Char, quote: Char, trim: Boolean) {
   import CharParser._
   import CharParser.CharPosition._
 

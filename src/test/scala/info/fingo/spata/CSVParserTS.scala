@@ -320,20 +320,19 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             val source = generateErroneousCSV(testCase, separator)
             val input = reader[IO](chunkSize).read(source)
             val cdl = new CountDownLatch(1)
-            var result: Either[Throwable, Unit] = Right(())
-            val rcb: Either[Throwable, Unit] => Unit = r => {
-              result = r
-              cdl.countDown()
-            }
-            parser.async.process(input)(_ => true).unsafeRunAsync(rcb)
-            cdl.await(100, TimeUnit.MILLISECONDS)
-            assert(cdl.getCount == 0)
-            result match {
+            def assertResult(result: Either[Throwable, Unit]): Unit = result match {
               case Right(_) =>
                 fail()
               case Left(ex) =>
                 assertError(ex, errorCode, line, col, row, field)(())
             }
+            val rcb: Either[Throwable, Unit] => Unit = r => {
+              cdl.countDown()
+              assertResult(r)
+            }
+            parser.async.process(input)(_ => true).unsafeRunAsync(rcb)
+            cdl.await(100, TimeUnit.MILLISECONDS)
+            assert(cdl.getCount == 0)
           }
       }
     }
@@ -426,7 +425,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("trim", "whitespace"),
     (false, ""),
     (true, " "),
-    (true, "\u2029") // paragraph separator, to test with another whitespace
+    (true, "\f") // to test with another whitespace
   )
 
   private lazy val separators = Table("separator", ',', ';', '\t')

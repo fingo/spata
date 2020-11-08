@@ -151,6 +151,29 @@ carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not e
 Fields containing delimiters (field or record) or quotes have to be wrapped in quotation marks.
 As defined in RFC 4180, quotation marks in content have to be escaped through double quotation marks.
 
+By default, in accordance with standard, whitespace characters are considered part of the field and are not ignored.
+Nonetheless, it is possible to turn on trimming of leading and trailing whitespaces with a configuration option.
+This differs from stripping whitespaces from resulting field content,
+because it distinguishes between quoted and unquoted spaces. For example, having following input:
+```csv
+X,Y,Z
+xxx," yyy ",zzz
+xxx, yyy ,zzz
+```
+without trimming the content of `Y` field will be `" yyy "` for both records.
+With trimming on, we get `" yyy "` for the first record and `"yyy"` for the second.
+
+Please also note, that following content: 
+```csv
+X,Y,Z
+xxx, " yyy " ,zzz
+```
+is correct with trimming on (and produces `" yyy "` for field `Y`), but will cause an error without it,
+as spaces are considered regular characters in this case and quote has to be put around the whole field.
+
+Not all invisible characters (notably non-breaking space, `'\u00A0'`) are whitespaces.
+See Java `Char.isWhitespace` for details.  
+
 In addition to `parse`, `CSVParser` provides other methods to read CSV data:
 * `get` to load data into `List[Record]`, which may be handy for small data sets,
 * `process` to deal with data record by record through a callback function,

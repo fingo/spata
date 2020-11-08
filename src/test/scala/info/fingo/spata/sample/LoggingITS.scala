@@ -23,7 +23,7 @@ class LoggingITS extends AnyFunSuite {
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
   test("spata allows logging basic operations") {
-    val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).get[IO]() // parser with IO effect
+    val parser = CSVParser.config.mapHeader(Map("max_temp" -> "temp")).trimSpaces().get[IO]() // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })

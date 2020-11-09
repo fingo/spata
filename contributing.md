@@ -19,11 +19,16 @@ Proposing and submitting a change
 ---------------------------------
 
 If you would like to make any changes to the project, please:
-*   let us know about this by commenting on an existing [issue](https://github.com/fingo/spata/issues) 
+
+*   let us know about this by commenting on an existing [issue](https://github.com/fingo/spata/issues)
     or creating a new one and describing your idea,
+
 *   fork and build the project,
+
 *   implement your contribution along with tests and a documentation update,
+
 *   format the code and run the tests,
+
 *   submit a [pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
 
 spata follows a standard [fork and pull](https://guides.github.com/activities/forking/) model for contributions. 
@@ -76,4 +81,3 @@ When possible, include the original authors’ names and a link to the original 
 *This guide borrows from [fs2](https://github.com/typelevel/fs2/blob/main/CONTRIBUTING.md),
 [http4s](https://github.com/http4s/http4s/blob/master/CONTRIBUTING.md) and
 [cats](https://github.com/typelevel/cats/blob/master/CONTRIBUTING.md) contribution guides.*
-

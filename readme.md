@@ -176,9 +176,9 @@ Not all invisible characters (notably non-breaking space, `'\u00A0'`) are whites
 See Java `Char.isWhitespace` for details.  
 
 In addition to `parse`, `CSVParser` provides other methods to read CSV data:
-* `get` to load data into `List[Record]`, which may be handy for small data sets,
-* `process` to deal with data record by record through a callback function,
-* `async` to process data through a callback function in asynchronous way.
+*   `get` to load data into `List[Record]`, which may be handy for small data sets,
+*   `process` to deal with data record by record through a callback function,
+*   `async` to process data through a callback function in asynchronous way.
 
 The three above functions return the result (`List` or `Unit`) wrapped in an effect and require calling one of the
 "at the end of the world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
@@ -259,7 +259,9 @@ To simplify working with common data sources, like files or sockets, spata provi
 available through its `io.reader` object.
 
 There are two groups of `read` methods in `reader`:
+
 *   basic ones, accessible through `reader.plain`, where reading is done synchronously on the current thread,
+
 *   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
     accessible through `reader.shifting`.
 
@@ -495,11 +497,14 @@ leaving all exception handling in a single place, i.e. the `StringParser.parse` 
 ### Error handling
 
 There are three types of errors which may arise while parsing CSV:
+
 *   Various I/O errors, including but not limited to `IOException`.
     They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
     They may be raised by `reader` operations.
+
 *   Errors caused by malformed CSV structure, reported as `StructureException`.
     They may be caused by `CSVParser`'s methods.
+
 *   Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
     They may result from interactions with `Record`.
 

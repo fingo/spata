@@ -49,7 +49,7 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
       def stream = reader.shifting[IO](chunkSize).read(Source.fromString(data))
       stream
         .zip(reader[IO]().read(Source.fromString(data)))
-        .map(p => assert(p._1 == p._2))
+        .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
         .compile
         .drain
         .unsafeRunSync()

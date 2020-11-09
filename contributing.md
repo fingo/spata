@@ -7,11 +7,11 @@ How to help
 -----------
 
 Different kinds of contributions are welcome, including, but not limited to:
-* improvements in the documentation - scope, accuracy, clarity and language, 
-* providing additional examples on how to use the library,
-* reporting and fixing bugs,
-* refactoring existing code and enhancing tests,
-* proposing and implementing improvements and new features.
+*   improvements in the documentation - scope, accuracy, clarity and language, 
+*   providing additional examples on how to use the library,
+*   reporting and fixing bugs,
+*   refactoring existing code and enhancing tests,
+*   proposing and implementing improvements and new features.
 
 In case of any doubts, talk to us on the [spata Gitter channel](https://gitter.im/fingo-spata/community).
 
@@ -19,12 +19,12 @@ Proposing and submitting a change
 ---------------------------------
 
 If you would like to make any changes to the project, please:
-* let us know about this by commenting on an existing [issue](https://github.com/fingo/spata/issues) 
-or creating a new one and describing your idea,
-* fork and build the project,
-* implement your contribution along with tests and a documentation update,
-* format the code and run the tests,
-* submit a [pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
+*   let us know about this by commenting on an existing [issue](https://github.com/fingo/spata/issues) 
+    or creating a new one and describing your idea,
+*   fork and build the project,
+*   implement your contribution along with tests and a documentation update,
+*   format the code and run the tests,
+*   submit a [pull request](https://docs.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork).
 
 spata follows a standard [fork and pull](https://guides.github.com/activities/forking/) model for contributions. 
 

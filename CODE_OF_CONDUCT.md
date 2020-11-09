@@ -14,8 +14,8 @@ Moderation
 
 For any questions, concerns, or moderation requests, please contact us on
 [Gitter channel](https://gitter.im/fingo-spata/community) or directly per email:
-- [Robert Marek](mailto:robert.marek@fingo.info),
-- [Piotr Chowaniec](mailto:piotr.chowaniec@fingo.info).
+-   [Robert Marek](mailto:robert.marek@fingo.info),
+-   [Piotr Chowaniec](mailto:piotr.chowaniec@fingo.info).
 
 Domain
 ------

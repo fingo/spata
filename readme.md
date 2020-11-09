@@ -21,11 +21,11 @@ but it could be a nightmare to locate the source of a problem in case of any dis
 The source data format is assumed to basically conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
 but allows some variations - see `CSVConfig` for details.
 
-* [Getting started](#getting-started)
-* [Basic usage](#basic-usage)
-* [Tutorial](#tutorial)
-* [Alternatives](#alternatives)
-* [Credits](#credits)
+*   [Getting started](#getting-started)
+*   [Basic usage](#basic-usage)
+*   [Tutorial](#tutorial)
+*   [Alternatives](#alternatives)
+*   [Credits](#credits)
 
 Getting started
 ---------------
@@ -112,13 +112,13 @@ More examples of how to use the library may be found in `src/test/scala/info/fin
 Tutorial
 --------
 
-* [Parsing](#parsing)
-* [Configuration](#configuration)
-* [Reading source data](#reading-source-data)
-* [Getting actual data](#getting-actual-data)
-* [Text parsing](#text-parsing)
-* [Error handling](#error-handling)
-* [Logging](#logging)
+*   [Parsing](#parsing)
+*   [Configuration](#configuration)
+*   [Reading source data](#reading-source-data)
+*   [Getting actual data](#getting-actual-data)
+*   [Text parsing](#text-parsing)
+*   [Error handling](#error-handling)
+*   [Logging](#logging)
 
 ### Parsing
 
@@ -259,9 +259,9 @@ To simplify working with common data sources, like files or sockets, spata provi
 available through its `io.reader` object.
 
 There are two groups of `read` methods in `reader`:
-* basic ones, accessible through `reader.plain`, where reading is done synchronously on the current thread,
-* with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
-accessible through `reader.shifting`.
+*   basic ones, accessible through `reader.plain`, where reading is done synchronously on the current thread,
+*   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
+    accessible through `reader.shifting`.
 
 It is recommended to use the thread shifting version, especially for long reading operation,
 for better thread pools utilization.
@@ -495,13 +495,13 @@ leaving all exception handling in a single place, i.e. the `StringParser.parse` 
 ### Error handling
 
 There are three types of errors which may arise while parsing CSV:
-* Various I/O errors, including but not limited to `IOException`.
-They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
-They may be raised by `reader` operations.
-* Errors caused by malformed CSV structure, reported as `StructureException`.
-They may be caused by `CSVParser`'s methods.
-* Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
-They may result from interactions with `Record`.
+*   Various I/O errors, including but not limited to `IOException`.
+    They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
+    They may be raised by `reader` operations.
+*   Errors caused by malformed CSV structure, reported as `StructureException`.
+    They may be caused by `CSVParser`'s methods.
+*   Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
+    They may result from interactions with `Record`.
 
 The two first error categories are unrecoverable and stop stream processing.
 For the `StructureException` errors we are able to precisely identify the place that caused the problem.
@@ -606,43 +606,43 @@ Alternatives
 ------------
 
 For those who need a different characteristic of a CSV library, there are a few alternatives available for Scala:
-* [Itto-CSV](https://github.com/gekomad/itto-csv) - CSV handling library based on FS2 and Cats with support for case class conversion.
-* [fs2  data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including CSV.
-* [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented CSV parser/serializer with support for different parsing engines.
-* [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use CSV reader/writer.
+*   [Itto-CSV](https://github.com/gekomad/itto-csv) - CSV handling library based on FS2 and Cats with support for case class conversion.
+*   [fs2  data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including CSV.
+*   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented CSV parser/serializer with support for different parsing engines.
+*   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use CSV reader/writer.
 
 Credits
 -------
 
 **spata** makes use of the following tools, languages, frameworks, libraries and data sets (in alphabetical order):
-* [Cats Effect](https://typelevel.org/cats-effect/) licensed under [Apache-2.0](https://github.com/typelevel/cats-effect/blob/master/LICENSE.txt) /C
-* [Codecov](https://codecov.io/) available under following [Terms of Use](https://codecov.io/terms) /D
-* [FS2](https://fs2.io/) licensed under [MIT](https://github.com/functional-streams-for-scala/fs2/blob/master/LICENSE) /C
-* [Git](https://git-scm.com/) licensed under [GPL-2.0](https://git-scm.com/about/free-and-open-source) /D
-* [GitHub](https://github.com/) available under following [Terms of Service](https://help.github.com/en/github/site-policy/github-terms-of-service) /D
-* [Gitter](https://gitter.im/) available under following [Terms of Use](https://about.gitlab.com/terms/) /D
-* [http4s](https://http4s.org/) licensed under [Apache-2.0](https://github.com/http4s/http4s#license) /S
-* [IntelliJ IDEA CE](https://www.jetbrains.com/idea/) licensed under [Apache 2.0](https://www.jetbrains.com/idea/download/) /D
-* [javadoc.io](https://www.javadoc.io/) licensed under [Apache-2.0](https://github.com/maxcellent/javadoc.io/blob/master/LICENSE) /D
-* [Mars weather data](https://github.com/the-pudding/data/tree/master/mars-weather) made publicly available by [NASA](https://pds.nasa.gov/) and [CAB](https://cab.inta-csic.es/rems/en) /T
-* [Metals](https://scalameta.org/metals/) licensed under [Apache-2.0](https://github.com/scalameta/metals/blob/main/LICENSE) /D
-* [OpenJDK](https://adoptopenjdk.net/) licensed under [GPL-2.0 with CE](https://openjdk.java.net/legal/gplv2+ce.html) /C
-* [sbt](https://www.scala-sbt.org/) licensed under [BSD-2-Clause](https://www.lightbend.com/legal/licenses) /D
-* [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache-2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D
-* [sbt-dynver](https://github.com/dwijnand/sbt-dynver) licensed under [Apache-2.0](https://github.com/dwijnand/sbt-dynver/blob/master/LICENSE) /D
-* [sbt-header](https://github.com/sbt/sbt-header) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
-* [sbt-pgp](https://github.com/sbt/sbt-pgp) licensed under [BSD-3-Clause](https://github.com/sbt/sbt-pgp/blob/master/LICENSE) /D
-* [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache-2.0](https://github.com/scoverage/sbt-scoverage#license) /D
-* [sbt-sonatype](https://github.com/xerial/sbt-sonatype) licensed under [Apache-2.0](https://github.com/xerial/sbt-sonatype/blob/master/LICENSE.txt) /D
-* [Scala](https://www.scala-lang.org/download/) licensed under [Apache-2.0](https://www.scala-lang.org/license/) /C
-* [Scalafix](https://github.com/scalacenter/scalafix) licensed under [BSD-3-Clause](https://github.com/scalacenter/scalafix/blob/master/LICENSE.md) /D
-* [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache-2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
-* [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T
-* [ScalaTest](http://www.scalatest.org/) licensed under [Apache-2.0](http://www.scalatest.org/about) /T
-* [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache-2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /C
-* [SLF4J](http://www.slf4j.org/) licensed under [MIT](http://www.slf4j.org/license.html) /C
-* [sonatype OSSRH](https://central.sonatype.org/) available under following [Terms of Service](https://central.sonatype.org/pages/central-repository-producer-terms.html) /D
-* [Travis CI](https://travis-ci.org/) available under following [Terms of Service](https://docs.travis-ci.com/legal/terms-of-service/) /D
+*   [Cats Effect](https://typelevel.org/cats-effect/) licensed under [Apache-2.0](https://github.com/typelevel/cats-effect/blob/master/LICENSE.txt) /C
+*   [Codecov](https://codecov.io/) available under following [Terms of Use](https://codecov.io/terms) /D
+*   [FS2](https://fs2.io/) licensed under [MIT](https://github.com/functional-streams-for-scala/fs2/blob/master/LICENSE) /C
+*   [Git](https://git-scm.com/) licensed under [GPL-2.0](https://git-scm.com/about/free-and-open-source) /D
+*   [GitHub](https://github.com/) available under following [Terms of Service](https://help.github.com/en/github/site-policy/github-terms-of-service) /D
+*   [Gitter](https://gitter.im/) available under following [Terms of Use](https://about.gitlab.com/terms/) /D
+*   [http4s](https://http4s.org/) licensed under [Apache-2.0](https://github.com/http4s/http4s#license) /S
+*   [IntelliJ IDEA CE](https://www.jetbrains.com/idea/) licensed under [Apache 2.0](https://www.jetbrains.com/idea/download/) /D
+*   [javadoc.io](https://www.javadoc.io/) licensed under [Apache-2.0](https://github.com/maxcellent/javadoc.io/blob/master/LICENSE) /D
+*   [Mars weather data](https://github.com/the-pudding/data/tree/master/mars-weather) made publicly available by [NASA](https://pds.nasa.gov/) and [CAB](https://cab.inta-csic.es/rems/en) /T
+*   [Metals](https://scalameta.org/metals/) licensed under [Apache-2.0](https://github.com/scalameta/metals/blob/main/LICENSE) /D
+*   [OpenJDK](https://adoptopenjdk.net/) licensed under [GPL-2.0 with CE](https://openjdk.java.net/legal/gplv2+ce.html) /C
+*   [sbt](https://www.scala-sbt.org/) licensed under [BSD-2-Clause](https://www.lightbend.com/legal/licenses) /D
+*   [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache-2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D
+*   [sbt-dynver](https://github.com/dwijnand/sbt-dynver) licensed under [Apache-2.0](https://github.com/dwijnand/sbt-dynver/blob/master/LICENSE) /D
+*   [sbt-header](https://github.com/sbt/sbt-header) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
+*   [sbt-pgp](https://github.com/sbt/sbt-pgp) licensed under [BSD-3-Clause](https://github.com/sbt/sbt-pgp/blob/master/LICENSE) /D
+*   [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache-2.0](https://github.com/scoverage/sbt-scoverage#license) /D
+*   [sbt-sonatype](https://github.com/xerial/sbt-sonatype) licensed under [Apache-2.0](https://github.com/xerial/sbt-sonatype/blob/master/LICENSE.txt) /D
+*   [Scala](https://www.scala-lang.org/download/) licensed under [Apache-2.0](https://www.scala-lang.org/license/) /C
+*   [Scalafix](https://github.com/scalacenter/scalafix) licensed under [BSD-3-Clause](https://github.com/scalacenter/scalafix/blob/master/LICENSE.md) /D
+*   [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache-2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
+*   [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T
+*   [ScalaTest](http://www.scalatest.org/) licensed under [Apache-2.0](http://www.scalatest.org/about) /T
+*   [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache-2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /C
+*   [SLF4J](http://www.slf4j.org/) licensed under [MIT](http://www.slf4j.org/license.html) /C
+*   [sonatype OSSRH](https://central.sonatype.org/) available under following [Terms of Service](https://central.sonatype.org/pages/central-repository-producer-terms.html) /D
+*   [Travis CI](https://travis-ci.org/) available under following [Terms of Service](https://docs.travis-ci.com/legal/terms-of-service/) /D
 
 **/C** means compile/runtime dependency,
 **/T** means test dependency,

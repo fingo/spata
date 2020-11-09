@@ -82,10 +82,10 @@ sealed trait HeaderMap {
 object HeaderMap {
 
   /** Provides conversion from `PartialFunction[String, String]` to [HeaderMap]. */
-  implicit def s2sHeaderMap(f: S2S): HeaderMap = new NameHeaderMap(f)
+  implicit def s2sHdrMap(f: S2S): HeaderMap = new NameHeaderMap(f)
 
   /** Provides conversion from `PartialFunction[Int, String]` to [HeaderMap]. */
-  implicit def i2sHeaderMap(f: I2S): HeaderMap = new IndexHeaderMap(f)
+  implicit def i2sHdrMap(f: I2S): HeaderMap = new IndexHeaderMap(f)
 }
 
 /* No-op implementation of HeaderMap. */

@@ -24,9 +24,9 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.1.4",
-      "co.fs2" %% "fs2-core" % "2.4.4",
-      "co.fs2" %% "fs2-io" % "2.4.4",
+      "org.typelevel" %% "cats-effect" % "2.2.0",
+      "co.fs2" %% "fs2-core" % "2.4.5",
+      "co.fs2" %% "fs2-io" % "2.4.5",
       "com.chuusai" %% "shapeless" % "2.3.3",
       "org.slf4j" % "slf4j-api" % "1.7.30",
       "org.scalatest" %% "scalatest" % "3.2.2" % Test,

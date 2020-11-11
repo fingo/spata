@@ -169,12 +169,12 @@ object reader {
 
     /** Alias for various `read` methods.
       *
-      * @param cvs the CSV data
+      * @param csv the CSV data
       * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @tparam A type of source
       * @return the stream of characters
       */
-    def apply[A: CSV](cvs: A)(implicit codec: Codec): Stream[F, Char] = cvs match {
+    def apply[A: CSV](csv: A)(implicit codec: Codec): Stream[F, Char] = csv match {
       case s: Source => read(s)
       case is: InputStream => read(is)
       case p: Path => read(p)

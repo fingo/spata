@@ -67,7 +67,7 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * @return a pipe to converter [[scala.Char]]s into [[Record]]s
     */
   def parse: Pipe[F, Char, Record] = (in: Stream[F, Char]) => {
-    val cp = new CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark, config.trim)
+    val cp = new CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark, config.trimSpaces)
     val fp = new FieldParser[F](config.fieldSizeLimit)
     val rp = new RecordParser[F]()
     val stream = Logger[F].infoS(s"Parsing CSV with $config") >>

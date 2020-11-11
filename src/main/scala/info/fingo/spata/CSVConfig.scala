@@ -55,7 +55,7 @@ case class CSVConfig private[spata] (
   quoteMark: Char = '"',
   hasHeader: Boolean = true,
   headerMap: HeaderMap = NoHeaderMap,
-  trim: Boolean = false,
+  trimSpaces: Boolean = false,
   fieldSizeLimit: Option[Int] = None
 ) {
 
@@ -75,7 +75,7 @@ case class CSVConfig private[spata] (
   def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
 
   /** Gets new config from this one by switching on stripping of unquoted, leading and trailing whitespaces */
-  def trimSpaces(): CSVConfig = this.copy(trim = true)
+  def stripSpaces(): CSVConfig = this.copy(trimSpaces = true)
 
   /** Gets new config from this one by replacing field size limit with provided one. */
   def fieldSizeLimit(fsl: Int): CSVConfig = this.copy(fieldSizeLimit = Some(fsl))
@@ -106,7 +106,7 @@ case class CSVConfig private[spata] (
     val qm = printWhite(quoteMark)
     val hdr = if (hasHeader) "header" else "no header"
     val hm = if (headerMap == NoHeaderMap) "no mapping" else "header mapping"
-    val st = if (trim) "space trimming" else "no trimming"
+    val st = if (trimSpaces) "space trimming" else "no trimming"
     val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
     s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm, $st$fsl)"
   }

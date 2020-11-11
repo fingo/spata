@@ -45,7 +45,7 @@ lazy val root = (project in file("."))
     scalacOptions ++= scalacSettings,
     Test / compile / scalacOptions -= "-Wunused:locals", // false positives for implicits and Scalatest Table
     Compile / console / scalacOptions --= Seq("-Wunused:imports", "-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set.empty,
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "1.0.0"),
     autoAPIMappings := true
   )
 

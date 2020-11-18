@@ -71,12 +71,12 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val validCases: TestCaseTable = Table(
     ("testCase", "idValidator", "nameValidator", "dateValidator", "valueValidator"),
-    ("basic", List(MinMaxValidator()), List(RegexValidator("""\w*\s\wo.*""")), Nil, List(MinMaxValidator(0, 1000)))
+    ("basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, List(MinMaxValidator(0, 1000)))
   )
 
   private lazy val invalidCases: TestCaseTable = Table(
     ("testCase", "idValidator", "nameValidator", "dateValidator", "valueValidator"),
-    ("basic", List(MinMaxValidator(2)), List(RegexValidator("Fun.*")), Nil, List(MinMaxValidator(100, 200)))
+    ("basic", List(MinValidator(2)), List(RegexValidator("Fun.*")), Nil, List(MinMaxValidator(100, 200)))
   )
 
   private def csvContent(testCase: String): String = {

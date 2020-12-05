@@ -7,12 +7,15 @@ package info.fingo.spata.schema
 
 import scala.util.matching.Regex
 import cats.data.Validated
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
 import info.fingo.spata.Record
 import info.fingo.spata.error.ContentError
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
+import shapeless.{::, DepFn2, HList, HNil}
+import shapeless.labelled.{field, FieldType}
 
 abstract class ValidationError(val message: String) {
   // TODO: extract and share with ParsingErrorCode
@@ -29,35 +32,71 @@ case object ValueToSmall extends ValidationError("Value to small")
 case object ValueToLarge extends ValidationError("Value to large")
 case object NotRegexConform extends ValidationError("Value not conforming to regex")
 
-class ValidatedRecord(val record: Record, val errors: List[ValidationError]) {
-  def isValid: Boolean = errors.isEmpty
+trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
+  type Out <: VLE[HList]
 }
 
-class CSVSchema[F[_]: Sync: Logger](columns: List[Column[_]]) {
-  def validate: Pipe[F, Record, ValidatedRecord] =
-    (in: Stream[F, Record]) =>
-      in.map { r =>
-        val validated =
-          columns.map(_.validate(r)).filter(_.isInvalid).map(_.fold[ValidationError](identity, _ => Unknown))
-        new ValidatedRecord(r, validated)
+object SchemaEnforcer {
+  type Aux[I <: HList, O <: VLE[HList]] = SchemaEnforcer[I] { type Out = O }
+
+  private val empty = Validated.valid[List[ValidationError], HNil](HNil)
+
+  implicit val nil: Aux[HNil, VLE[HNil]] = new SchemaEnforcer[HNil] {
+    override type Out = VLE[HNil]
+    override def apply(columns: HNil, record: Record): Out = empty
+  }
+
+  implicit def cons[K <: StrSng, V, T <: HList, TTR <: HList](
+    implicit tailEnforcer: Aux[T, VLE[TTR]]
+  ): Aux[Column[K, V] :: T, VLE[FieldType[K, V] :: TTR]] =
+    new SchemaEnforcer[Column[K, V] :: T] {
+      override type Out = VLE[FieldType[K, V] :: TTR]
+      override def apply(columns: Column[K, V] :: T, record: Record): Out = {
+        val column = columns.head
+        val validated = column.validate(record)
+        val tailV = tailEnforcer(columns.tail, record)
+        validated match {
+          case Valid(vv) => tailV.map(vv :: _)
+          case Invalid(iv) =>
+            val errors = tailV match {
+              case Valid(_) => Nil
+              case Invalid(ivt) => ivt
+            }
+            Validated.invalid[List[ValidationError], FieldType[K, V] :: TTR](iv :: errors)
+        }
       }
-}
-object CSVSchema {
-  def apply[F[_]: Sync: Logger](columns: List[Column[_]]) = new CSVSchema(columns)
+    }
+
+  def enforce[L <: HList](columns: L, record: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out =
+    enforcer(columns, record)
 }
 
-class Column[A: StringParser](val name: String, val validators: Seq[Validator[A]]) {
-  def validate(record: Record): Validated[ValidationError, A] = {
-    val typeValidated: Validated[ValidationError, A] =
+class CSVSchema[L <: HList: SchemaEnforcer](columns: L) {
+
+  def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
+    (in: Stream[F, Record]) => in.map(r => validateRecord(r)(enforcer))
+
+  private def validateRecord(r: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out = enforcer(columns, r)
+}
+
+object CSVSchema {
+  def apply[L <: HList: SchemaEnforcer](columns: L) = new CSVSchema(columns)
+}
+
+class Column[K <: StrSng, V: StringParser](val name: K, val validators: Seq[Validator[V]]) {
+  def validate(record: Record): Validated[ValidationError, FieldType[K, V]] = {
+    val typeValidated: Validated[ValidationError, V] =
       Validated.fromEither(record.get(name)).leftMap(e => NotParsed(e.messageCode, e))
-    typeValidated.andThen { v =>
+    val fullyValidated: Validated[ValidationError, V] = typeValidated.andThen { v =>
       validators.map(_.validate(v)).foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
     }
+    fullyValidated.map(field[K](_))
   }
 }
 object Column {
-  def apply[A: StringParser](name: String): Column[A] = new Column(name, Nil)
-  def apply[A: StringParser](name: String, validators: Seq[Validator[A]]): Column[A] = new Column(name, validators)
+  def apply[A: StringParser](name: String): Column[name.type, A] = new Column(name, Nil)
+  def apply[A: StringParser](name: String, validators: Seq[Validator[A]]): Column[name.type, A] =
+    new Column(name, validators)
 }
 
 trait Validator[A] {

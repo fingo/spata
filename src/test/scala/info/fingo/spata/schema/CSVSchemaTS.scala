@@ -39,9 +39,9 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
         val result = validate(testCase, idValidators, nameValidators, dateValidators, valueValidators)
         assert(result.length == 3)
         assert(result.forall(_.isValid))
-        result.head.map { record =>
-          assert(record("ID") > 0)
-          assert(record("DATE").getYear < 2020)
+        result.head.map { tr =>
+          assert(tr.data("ID") > 0)
+          assert(tr.data("DATE").getYear < 2020)
         }
     }
   }
@@ -58,10 +58,10 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
         val result = validate(testCase, idValidators, nameValidators, dateValidators, valueValidators)
         assert(result.length == 3)
         assert(result.forall(!_.isValid))
-        result.head.leftMap { errors =>
-          assert(!errors.isEmpty)
-          errors.foreach { error =>
-            assert(!error.message.isEmpty)
+        result.head.leftMap { rf =>
+          assert(!rf.fieldFlaws.isEmpty)
+          rf.fieldFlaws.foreach { ff =>
+            assert(!ff.error.message.isEmpty)
           }
         }
     }

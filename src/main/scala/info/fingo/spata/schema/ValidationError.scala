@@ -7,19 +7,6 @@ package info.fingo.spata.schema
 
 import info.fingo.spata.error.ContentError
 
-class RecordFlaw(val fieldFlaws: List[FieldFlaw], val lineNum: Int, val rowNum: Int)
-
-object RecordFlaw {
-  def apply(fieldFlaws: List[FieldFlaw], lineNum: Int, rowNum: Int): RecordFlaw =
-    new RecordFlaw(fieldFlaws, lineNum, rowNum)
-}
-
-class FieldFlaw(val name: String, val error: ValidationError)
-
-object FieldFlaw {
-  def apply(name: String, error: ValidationError): FieldFlaw = new FieldFlaw(name, error)
-}
-
 abstract class ValidationError(val message: String) {
   // TODO: extract and share with ParsingErrorCode
   def code: String = {

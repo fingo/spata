@@ -58,9 +58,9 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
         val result = validate(testCase, idValidators, nameValidators, dateValidators, valueValidators)
         assert(result.length == 3)
         assert(result.forall(!_.isValid))
-        result.head.leftMap { rf =>
-          assert(!rf.fieldFlaws.isEmpty)
-          rf.fieldFlaws.foreach { ff =>
+        result.head.leftMap { ir =>
+          assert(!ir.flaws.isEmpty)
+          ir.flaws.foreach { ff =>
             assert(!ff.error.message.isEmpty)
           }
         }

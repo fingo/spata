@@ -30,7 +30,7 @@ object SchemaEnforcer {
   type Aux[I <: HList, O <: VR[HList]] = SchemaEnforcer[I] { type Out = O }
 
   private def empty(record: Record) =
-    Validated.valid[RecordFlaw, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
+    Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
 
   implicit val nil: Aux[HNil, VR[HNil]] = new SchemaEnforcer[HNil] {
     override type Out = VR[HNil]
@@ -51,10 +51,10 @@ object SchemaEnforcer {
           case Invalid(iv) =>
             val flaws = tailV match {
               case Valid(_) => Nil
-              case Invalid(ivt) => ivt.fieldFlaws
+              case Invalid(ivt) => ivt.flaws
             }
-            Validated.invalid[RecordFlaw, TypedRecord[FieldType[K, V] :: TTR]](
-              RecordFlaw(iv :: flaws, record.lineNum, record.rowNum)
+            Validated.invalid[InvalidRecord, TypedRecord[FieldType[K, V] :: TTR]](
+              InvalidRecord(record, iv :: flaws)
             )
         }
       }

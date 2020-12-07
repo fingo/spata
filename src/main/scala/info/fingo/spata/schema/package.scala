@@ -10,5 +10,5 @@ import cats.data.Validated
 package object schema {
   type StrSng = String with Singleton
   type VF[A] = Validated[FieldFlaw, A]
-  type VR[A] = Validated[RecordFlaw, TypedRecord[A]]
+  type VR[A] = Validated[InvalidRecord, TypedRecord[A]]
 }

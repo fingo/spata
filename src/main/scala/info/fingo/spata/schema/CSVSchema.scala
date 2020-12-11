@@ -15,12 +15,6 @@ import info.fingo.spata.util.Logger
 import shapeless.{::, DepFn2, HList, HNil}
 import shapeless.labelled.{field, FieldType}
 
-class TypedRecord[+A](val data: A, val lineNum: Int, val rowNum: Int)
-
-object TypedRecord {
-  def apply[A](data: A, lineNum: Int, rowNum: Int): TypedRecord[A] = new TypedRecord[A](data, lineNum, rowNum)
-}
-
 class CSVSchema[L <: HList: SchemaEnforcer](columns: L) {
 
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
@@ -53,11 +47,12 @@ object Column {
 }
 
 trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
-  type Out <: VR[HList]
+  type Out <: Validated[InvalidRecord, TypedRecord[HList]]
 }
 
 object SchemaEnforcer {
   type Aux[I <: HList, O <: VR[HList]] = SchemaEnforcer[I] { type Out = O }
+  type VR[L <: HList] = Validated[InvalidRecord, TypedRecord[L]]
 
   private def empty(record: Record) =
     Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))

@@ -15,7 +15,6 @@ import info.fingo.spata.io.reader
 import info.fingo.spata.CSVParser
 import info.fingo.spata.text.StringParser
 import shapeless.HNil
-import shapeless.record.recordOps
 
 class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
@@ -40,8 +39,11 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
         assert(result.length == 3)
         assert(result.forall(_.isValid))
         result.head.map { tr =>
-          assert(tr.data("ID") > 0)
-          assert(tr.data("DATE").getYear < 2020)
+          val id: "ID" = "ID"
+          val dt: LocalDate = tr("DATE")
+          assert(tr(id) > 0)
+          assert(dt.getYear < 2020)
+          assert(tr("VALUE") > 0)
         }
     }
   }

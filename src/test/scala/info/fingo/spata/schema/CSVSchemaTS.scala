@@ -45,8 +45,8 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
           assert(date.getYear < 2020)
           assert(tr("VALUE") > 0)
 
-          case class Person(ID: Int, NAME: String, DATE: LocalDate, VALUE: Double)
-          val person = tr.to[Person].apply
+          case class Person(ID: Int, VALUE: Double, NAME: String)
+          val person = tr.to[Person]()
           assert(person.ID == tr(id))
           assert(person.NAME == tr("NAME"))
         }

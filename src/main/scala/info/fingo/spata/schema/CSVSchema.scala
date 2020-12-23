@@ -9,14 +9,13 @@ import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
+import shapeless.{::, DepFn2, HList, HNil}
+import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
-import shapeless.{::, DepFn2, HList, HNil}
-import shapeless.labelled.{field, FieldType}
 
-class CSVSchema[L <: HList: SchemaEnforcer](columns: L) {
-
+class CSVSchema[L <: HList: SchemaEnforcer] private (columns: L) {
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
     (in: Stream[F, Record]) => in.map(r => validateRecord(r)(enforcer))
 
@@ -25,6 +24,23 @@ class CSVSchema[L <: HList: SchemaEnforcer](columns: L) {
 
 object CSVSchema {
   def apply[L <: HList: SchemaEnforcer](columns: L) = new CSVSchema(columns)
+
+  def builder: SchemaBuilder[HNil] = new SchemaBuilder(HNil)
+
+  class SchemaBuilder[L <: HList: SchemaEnforcer](columns: L) {
+
+    def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
+      implicit se: SchemaEnforcer[Column[key.type, V] :: L]
+    ): SchemaBuilder[Column[key.type, V] :: L] =
+      new SchemaBuilder[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
+
+    def add[V: StringParser](key: StrSng)(
+      implicit se: SchemaEnforcer[Column[key.type, V] :: L]
+    ): SchemaBuilder[Column[key.type, V] :: L] =
+      new SchemaBuilder[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
+
+    def build: CSVSchema[L] = new CSVSchema[L](columns)
+  }
 }
 
 class Column[K <: StrSng, V: StringParser](val name: K, val validators: Seq[Validator[V]]) {

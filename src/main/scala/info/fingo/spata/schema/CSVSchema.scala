@@ -15,16 +15,12 @@ import info.fingo.spata.Record
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
 
-class CSVSchema[L <: HList: SchemaEnforcer] private (columns: L) {
+class CSVSchema[L <: HList] private (columns: L) {
 
-  def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
-    implicit se: SchemaEnforcer[Column[key.type, V] :: L]
-  ): CSVSchema[Column[key.type, V] :: L] =
+  def add[V: StringParser](key: StrSng, validators: Validator[V]*): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
 
-  def add[V: StringParser](key: StrSng)(
-    implicit se: SchemaEnforcer[Column[key.type, V] :: L]
-  ): CSVSchema[Column[key.type, V] :: L] =
+  def add[V: StringParser](key: StrSng): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
 
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =

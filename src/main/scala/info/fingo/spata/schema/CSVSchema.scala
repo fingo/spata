@@ -16,6 +16,17 @@ import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
 
 class CSVSchema[L <: HList: SchemaEnforcer] private (columns: L) {
+
+  def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
+    implicit se: SchemaEnforcer[Column[key.type, V] :: L]
+  ): CSVSchema[Column[key.type, V] :: L] =
+    new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
+
+  def add[V: StringParser](key: StrSng)(
+    implicit se: SchemaEnforcer[Column[key.type, V] :: L]
+  ): CSVSchema[Column[key.type, V] :: L] =
+    new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
+
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
     (in: Stream[F, Record]) => in.map(r => validateRecord(r)(enforcer))
 
@@ -23,24 +34,7 @@ class CSVSchema[L <: HList: SchemaEnforcer] private (columns: L) {
 }
 
 object CSVSchema {
-  def apply[L <: HList: SchemaEnforcer](columns: L) = new CSVSchema(columns)
-
-  def builder: SchemaBuilder[HNil] = new SchemaBuilder(HNil)
-
-  class SchemaBuilder[L <: HList: SchemaEnforcer](columns: L) {
-
-    def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
-      implicit se: SchemaEnforcer[Column[key.type, V] :: L]
-    ): SchemaBuilder[Column[key.type, V] :: L] =
-      new SchemaBuilder[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
-
-    def add[V: StringParser](key: StrSng)(
-      implicit se: SchemaEnforcer[Column[key.type, V] :: L]
-    ): SchemaBuilder[Column[key.type, V] :: L] =
-      new SchemaBuilder[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
-
-    def build: CSVSchema[L] = new CSVSchema[L](columns)
-  }
+  def apply(): CSVSchema[HNil] = new CSVSchema[HNil](HNil)
 }
 
 class Column[K <: StrSng, V: StringParser](val name: K, val validators: Seq[Validator[V]]) {

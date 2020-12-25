@@ -75,12 +75,11 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("It should be possible to validate types only") {
-    val schema = CSVSchema.builder
+    val schema = CSVSchema()
       .add[Int]("ID")
       .add[String]("NAME")
       .add[LocalDate]("DATE")
       .add[Double]("VALUE")
-      .build
     val parser = CSVParser.config.get[IO]()
     val validated = csvStream("basic").through(parser.parse).through(schema.validate)
     val result = validated.compile.toList.unsafeRunSync()
@@ -93,12 +92,11 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private def validate(testData: TestCase) = {
     val (_, data, idValidators, nameValidators, dateValidators, valueValidators) = testData
-    val schema = CSVSchema.builder
+    val schema = CSVSchema()
       .add[Int]("ID", idValidators: _*)
       .add[String]("NAME", nameValidators: _*)
       .add[LocalDate]("DATE", dateValidators: _*)
       .add[Double]("VALUE", valueValidators: _*)
-      .build
     val parser = CSVParser.config.get[IO]()
     val validated = csvStream(data).through(parser.parse).through(schema.validate)
     validated.compile.toList.unsafeRunSync()

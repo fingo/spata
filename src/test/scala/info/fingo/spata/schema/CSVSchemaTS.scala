@@ -90,6 +90,14 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Schema should not accept the same column name twice") {
+    assertDoesNotCompile("""CSVSchema()
+      .add[Int]("ID")
+      .add[String]("NAME")
+      .add[Int]("ID", MinValidator(0))
+      .add[Double]("VALUE")""")
+  }
+
   private def validate(testData: TestCase) = {
     val (_, data, idValidators, nameValidators, dateValidators, valueValidators) = testData
     val schema = CSVSchema()

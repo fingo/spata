@@ -9,18 +9,24 @@ import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
-import shapeless.{::, DepFn2, HList, HNil}
+import shapeless.{::, =:!=, DepFn2, HList, HNil}
 import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
 
+import scala.annotation.unused
+
 class CSVSchema[L <: HList] private (columns: L) {
 
-  def add[V: StringParser](key: StrSng, validators: Validator[V]*): CSVSchema[Column[key.type, V] :: L] =
+  def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
+    implicit @unused ev: NotPresent[key.type, L]
+  ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
 
-  def add[V: StringParser](key: StrSng): CSVSchema[Column[key.type, V] :: L] =
+  def add[V: StringParser](key: StrSng)(
+    implicit @unused ev: NotPresent[key.type, L]
+  ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
 
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
@@ -63,12 +69,12 @@ object SchemaEnforcer {
   private def empty(record: Record) =
     Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
 
-  implicit val nil: Aux[HNil, VR[HNil]] = new SchemaEnforcer[HNil] {
+  implicit val enforceHNil: Aux[HNil, VR[HNil]] = new SchemaEnforcer[HNil] {
     override type Out = VR[HNil]
     override def apply(columns: HNil, record: Record): Out = empty(record)
   }
 
-  implicit def cons[K <: StrSng, V, T <: HList, TTR <: HList](
+  implicit def enforceHCons[K <: StrSng, V, T <: HList, TTR <: HList](
     implicit tailEnforcer: Aux[T, VR[TTR]]
   ): Aux[Column[K, V] :: T, VR[FieldType[K, V] :: TTR]] =
     new SchemaEnforcer[Column[K, V] :: T] {
@@ -90,7 +96,17 @@ object SchemaEnforcer {
         }
       }
     }
+}
 
-  def enforce[L <: HList](columns: L, record: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out =
-    enforcer(columns, record)
+trait NotPresent[K <: StrSng, L <: HList]
+
+object NotPresent {
+
+  implicit def notPresentHNil[K <: StrSng]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
+
+  implicit def notPresentHCons[K <: StrSng, V, H <: StrSng, T <: HList](
+    implicit @unused neq: K =:!= H,
+    @unused tailNP: NotPresent[K, T]
+  ): NotPresent[K, Column[H, V] :: T] =
+    new NotPresent[K, Column[H, V] :: T] {}
 }

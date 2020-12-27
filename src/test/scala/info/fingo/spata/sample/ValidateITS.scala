@@ -33,13 +33,12 @@ class ValidateITS extends AnyFunSuite {
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
       .map {
-        _.bimap(
+        _.bimap( // map over invalid and valid part of Validated
           invalidRecord => logger.warn(invalidRecord.toString),
           typedRecord => DayTempVar(typedRecord("date"), typedRecord("max_temp") - typedRecord("min_temp"))
         )
       }
-      .filter(_.isValid) // on this and following 2 lines get only valid DayTempVar out of validated
-      .map(_.toOption)
+      .map(_.toOption) // on this and next line get only valid DayTempVar out of validated
       .unNone
       .filter(_.date.getYear == 2016) // filter data for specific year
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error

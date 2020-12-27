@@ -5,6 +5,7 @@
  */
 package info.fingo.spata.schema
 
+import scala.annotation.unused
 import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
@@ -14,8 +15,6 @@ import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
-
-import scala.annotation.unused
 
 class CSVSchema[L <: HList] private (columns: L) {
 

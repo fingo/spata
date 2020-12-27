@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 import scala.io.Source
 import cats.effect.IO
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor6}
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
 import info.fingo.spata.io.reader
 import info.fingo.spata.CSVParser
 import info.fingo.spata.text.StringParser
@@ -20,30 +20,30 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private val separator = ','
 
   type LV[A] = List[Validator[A]]
-  type TestCase = (String, String, LV[Int], LV[String], LV[LocalDate], LV[Double])
-  type TestCaseTable = TableFor6[String, String, LV[Int], LV[String], LV[LocalDate], LV[Double]]
+  type TestCase = (String, String, LV[Int], LV[String], LV[String], LV[LocalDate], LV[Double])
+  type TestCaseTable = TableFor7[String, String, LV[Int], LV[String], LV[String], LV[LocalDate], LV[Double]]
 
   implicit val dateParser: StringParser[LocalDate] =
     (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
 
-  test("spata should positively validate data compliant with schema") {
+  test("validation should positively verify data compliant with schema") {
+    val id: "id" = "id"
     for (testData <- validCases) yield {
       val result = validate(testData)
       assert(result.length == 3)
       result.foreach { validated =>
         assert(validated.isValid)
         validated.map { typedRecord =>
-          val id: "ID" = "ID"
-          val date: LocalDate = typedRecord("DATE")
+          val knownFrom: LocalDate = typedRecord("appeared")
           assert(typedRecord(id) > 0)
-          assert(date.getYear < 2020)
-          assert(typedRecord("VALUE") > 0)
+          assert(knownFrom.getYear < 2020)
+          assert(typedRecord("score") >= 0)
         }
       }
     }
   }
 
-  test("spata should provide validation errors for data not compliant with schema") {
+  test("validation should provide errors for data not compliant with schema") {
     for (testData <- invalidCases) yield {
       val result = validate(testData)
       assert(result.length == 3)
@@ -60,87 +60,117 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("it should be possible to convert typed record to case class after validation") {
-    case class Person(ID: Int, VALUE: Double, NAME: String)
+    case class FullData(id: Int, name: String, occupation: String, appeared: LocalDate, score: Double)
+    case class Person(id: Int, score: Double, name: String)
+    val id: "id" = "id"
     for (testData <- validCases) yield {
       val result = validate(testData)
       result.foreach { validated =>
         validated.map { typedRecord =>
+          val fd = typedRecord.to[FullData]()
+          assert(fd.id == typedRecord(id))
+          assert(fd.score >= 0)
           val person = typedRecord.to[Person]()
-          val id: "ID" = "ID"
-          assert(person.ID == typedRecord(id))
-          assert(person.NAME == typedRecord("NAME"))
+          assert(person.id == typedRecord(id))
+          assert(person.name == typedRecord("name"))
         }
       }
     }
   }
 
-  test("It should be possible to validate types only") {
+  test("it should be possible to validate types only") {
     val schema = CSVSchema()
-      .add[Int]("ID")
-      .add[String]("NAME")
-      .add[LocalDate]("DATE")
-      .add[Double]("VALUE")
+      .add[Int]("id")
+      .add[String]("name")
+      .add[LocalDate]("appeared")
+      .add[Double]("score")
     val parser = CSVParser.config.get[IO]()
     val validated = csvStream("basic").through(parser.parse).through(schema.validate)
     val result = validated.compile.toList.unsafeRunSync()
     assert(result.length == 3)
     assert(result.forall(_.isValid))
     result.head.map { tr =>
-      assert(tr("ID") == 1)
+      assert(tr("id") == 1)
+    }
+  }
+
+  test("validation should support optional values") {
+    val name: "name" = "name"
+    val schema = CSVSchema()
+      .add[String](name, RegexValidator(".+?"))
+      .add[Option[Double]]("score")
+    val parser = CSVParser.config.get[IO]()
+    val validated = csvStream("empty values").through(parser.parse).through(schema.validate)
+    val result = validated.compile.toList.unsafeRunSync()
+    assert(result.length == 3)
+    result.foreach { validated =>
+      assert(validated.isValid)
+      validated.map { typedRecord =>
+        assert(typedRecord(name).length > 0)
+        assert(typedRecord("score").forall(_ >= 0))
+      }
     }
   }
 
   test("Schema should not accept the same column name twice") {
     assertDoesNotCompile("""CSVSchema()
-      .add[Int]("ID")
-      .add[String]("NAME")
-      .add[Int]("ID", MinValidator(0))
-      .add[Double]("VALUE")""")
+      .add[Int]("id")
+      .add[Int]("id")""")
+    assertDoesNotCompile("""CSVSchema()
+      .add[Int]("id")
+      .add[String]("name")
+      .add[Int]("id", MinValidator(0))
+      .add[Double]("score")""")
+    assertDoesNotCompile("""CSVSchema()
+      .add[String]("id")
+      .add[Int]("id", MinValidator(0))
+      .add[Double]("score")""")
   }
 
   private def validate(testData: TestCase) = {
-    val (_, data, idValidators, nameValidators, dateValidators, valueValidators) = testData
+    val (_, data, idValidators, nameValidators, occupationValidators, appearedValidators, scoreValidators) = testData
     val schema = CSVSchema()
-      .add[Int]("ID", idValidators: _*)
-      .add[String]("NAME", nameValidators: _*)
-      .add[LocalDate]("DATE", dateValidators: _*)
-      .add[Double]("VALUE", valueValidators: _*)
+      .add[Int]("id", idValidators: _*)
+      .add[String]("name", nameValidators: _*)
+      .add[String]("occupation", occupationValidators: _*)
+      .add[LocalDate]("appeared", appearedValidators: _*)
+      .add[Double]("score", scoreValidators: _*)
     val parser = CSVParser.config.get[IO]()
     val validated = csvStream(data).through(parser.parse).through(schema.validate)
     validated.compile.toList.unsafeRunSync()
   }
 
-  private def csvStream(testCase: String) = {
-    val content = csvContent(testCase)
+  private def csvStream(dataSet: String) = {
+    val content = csvContent(dataSet)
     val source = Source.fromString(s"$header\n$content")
     reader[IO]().read(source)
   }
 
-  private val header = s"ID${separator}NAME${separator}DATE${separator}VALUE"
+  private val header = s"id${separator}name${separator}occupation${separator}appeared${separator}score"
 
   private lazy val validCases: TestCaseTable = Table(
-    ("testCase", "data", "idValidator", "nameValidator", "dateValidator", "valueValidator"),
-    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, List(MinMaxValidator(0, 1000))),
-    ("no validators", "basic", Nil, Nil, Nil, Nil)
+    ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
+    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, Nil, List(MinMaxValidator(0, 1000))),
+    ("no validators", "basic", Nil, Nil, Nil, Nil, Nil)
   )
 
   private lazy val invalidCases: TestCaseTable = Table(
-    ("testCase", "data", "idValidator", "nameValidator", "dateValidator", "valueValidator"),
-    ("basic", "basic", List(MinValidator(2)), List(RegexValidator("Fun.*")), Nil, List(MinMaxValidator(100, 200))),
-    ("empty", "empty values", Nil, Nil, Nil, Nil)
+    ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
+    ("basic", "basic", List(MinValidator(2)), List(RegexValidator("Fun.*")), Nil, Nil, List(MinMaxValidator(100, 200))),
+    ("empty", "empty values", Nil, Nil, Nil, Nil, Nil)
   )
 
-  private def csvContent(testCase: String): String = {
+  private def csvContent(dataSet: String): String = {
     val s = separator
-    testCase match {
+    dataSet match {
       case "basic" =>
-        s"""1${s}Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+        s"""1${s}Funky Koval${s}detective${s}01.03.1987${s}100.00
+           |2${s}Eva Solo${s}lady${s}31.12.2012${s}0
+           |3${s}Han Solo${s}hero${s}09.09.1999${s}999.99""".stripMargin
       case "empty values" =>
-        s""""1"$s${s}01.01.2001$s
-           |""${s}Eva Solo${s}31.12.2012${s}123.45
-           |"3"$s""${s}09.09.1999$s""""".stripMargin
+        s""""1"${s}Funky Koval$s${s}01.01.2001$s
+           |""${s}Eva Solo$s""${s}31.12.2012${s}123.45
+           |"3"${s}Han Solo${s}hero${s}09.09.1999$s""""".stripMargin
     }
   }
 }

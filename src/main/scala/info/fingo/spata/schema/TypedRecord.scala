@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.schema
 
-import shapeless.{::, HList, HNil, LabelledGeneric, Lazy}
+import shapeless.{::, HList, HNil, LabelledGeneric}
 import shapeless.labelled.{field, FieldType}
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
@@ -34,9 +34,9 @@ object ToRepr {
 
   implicit def toHConsRepr[L <: HList, K, V, TR <: HList](
     implicit sel: Selector.Aux[L, K, V],
-    tailRepr: Lazy[ToRepr[L, TR]]
+    tailRepr: ToRepr[L, TR]
   ): ToRepr[L, FieldType[@@[Symbol, K], V] :: TR] = (l: L) => {
     val head = field[@@[Symbol, K]][V](sel(l))
-    head :: tailRepr.value(l)
+    head :: tailRepr(l)
   }
 }

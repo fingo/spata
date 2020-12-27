@@ -47,7 +47,7 @@ class LoggingITS extends AnyFunSuite {
       t
     }
     logger.debug("CSV parsing with logging - start")
-    assert(!Files.readString(Paths.get(logFile)).contains("spata"))
+    assert(!Files.readString(Paths.get(logFile)).contains("spata -"))
     // evaluate effect - trigger all stream operations
     val maxTemp = io.unsafeRunSync()
     logger.debug("CSV parsing with logging - finish")

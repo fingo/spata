@@ -47,3 +47,11 @@ class MinMaxValidator[A: Ordering](min: A, max: A) extends Validator[A] {
 object MinMaxValidator {
   def apply[A: Numeric](min: A, max: A): MinMaxValidator[A] = new MinMaxValidator(min, max)
 }
+
+class FiniteValidator() extends Validator[Double] {
+  def validate(value: Double): Validated[ValidationError, Double] =
+    Validated.valid(value).ensure[ValidationError](NotFiniteNumber)(_.isFinite)
+}
+object FiniteValidator {
+  def apply(): FiniteValidator = new FiniteValidator()
+}

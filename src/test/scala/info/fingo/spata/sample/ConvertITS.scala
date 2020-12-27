@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.reader
 
-/* Samples which converter CSV records to case classes. */
+/* Sample which converts CSV records to case classes. */
 class ConvertITS extends AnyFunSuite {
 
   test("spata allows manipulate data and converter it to case classes using stream functionality") {

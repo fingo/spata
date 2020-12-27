@@ -7,14 +7,19 @@ package info.fingo.spata.schema
 
 import info.fingo.spata.Record
 
-class InvalidRecord(val record: Record, val flaws: List[FieldFlaw])
+class InvalidRecord(val record: Record, val flaws: List[FieldFlaw]) {
+  override def toString: String =
+    flaws.mkString(s"Invalid record ${record.rowNum} at line ${record.lineNum}: ", ", ", "")
+}
 
 object InvalidRecord {
   def apply(record: Record, flaws: List[FieldFlaw]): InvalidRecord =
     new InvalidRecord(record, flaws)
 }
 
-class FieldFlaw(val name: String, val error: ValidationError)
+class FieldFlaw(val name: String, val error: ValidationError) {
+  override def toString: String = s"$name -> ${error.message}"
+}
 
 object FieldFlaw {
   def apply(name: String, error: ValidationError): FieldFlaw = new FieldFlaw(name, error)

@@ -17,7 +17,6 @@ abstract class ValidationError(val message: String) {
 }
 
 case class NotParsed(override val message: String, cause: ContentError) extends ValidationError(message)
-case object Unknown extends ValidationError("Unknown validation error")
 case object NotRegexConform extends ValidationError("Value not conforming to regex")
 case object ValueToSmall extends ValidationError("Value to small")
 case object ValueToLarge extends ValidationError("Value to large")

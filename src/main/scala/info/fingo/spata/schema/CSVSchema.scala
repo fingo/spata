@@ -44,7 +44,7 @@ class Column[K <: StrSng, V: StringParser](val name: K, val validators: Seq[Vali
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, NotParsed(e.messageCode, e)))
     val fullyValidated = typeValidated.andThen { v =>
       validators
-        .map(_.validate(v).leftMap(FieldFlaw(name, _)))
+        .map(_(v).leftMap(FieldFlaw(name, _)))
         .foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
     }
     fullyValidated.map(field[K](_))

@@ -64,6 +64,6 @@ class TypedRecordTS extends AnyFunSuite {
     assert(r.rowNum == 1)
   }
 
-  private def trf[A](key: StrSng, value: A) = field[key.type](value)
+  private def trf[A](key: Key, value: A) = field[key.type](value)
   private def tr[L <: HList](values: L) = TypedRecord(values, 1, 1)
 }

@@ -5,6 +5,15 @@
  */
 package info.fingo.spata
 
+import cats.data.Validated
+import shapeless.HList
+
+/** Schema validation package. */
 package object schema {
-  type StrSng = String with Singleton
+
+  /** Type alias for typed record field key. */
+  type Key = String with Singleton
+
+  /** Type alias for validation result. */
+  type ValidatedRecord[L <: HList] = Validated[InvalidRecord, TypedRecord[L]]
 }

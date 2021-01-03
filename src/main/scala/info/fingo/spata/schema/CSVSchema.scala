@@ -18,12 +18,12 @@ import info.fingo.spata.util.Logger
 
 class CSVSchema[L <: HList] private (columns: L) {
 
-  def add[V: StringParser](key: StrSng, validators: Validator[V]*)(
+  def add[V: StringParser](key: Key, validators: Validator[V]*)(
     implicit @unused ev: NotPresent[key.type, L]
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
 
-  def add[V: StringParser](key: StrSng)(
+  def add[V: StringParser](key: Key)(
     implicit @unused ev: NotPresent[key.type, L]
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
@@ -38,7 +38,7 @@ object CSVSchema {
   def apply(): CSVSchema[HNil] = new CSVSchema[HNil](HNil)
 }
 
-class Column[K <: StrSng, V: StringParser](val name: K, val validators: Seq[Validator[V]]) {
+class Column[K <: Key, V: StringParser](val name: K, val validators: Seq[Validator[V]]) {
   def validate(record: Record): Validated[FieldFlaw, FieldType[K, V]] = {
     val typeValidated =
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, NotParsed(e.messageCode, e)))
@@ -62,22 +62,21 @@ trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
 }
 
 object SchemaEnforcer {
-  type Aux[I <: HList, O <: VR[HList]] = SchemaEnforcer[I] { type Out = O }
-  type VR[L <: HList] = Validated[InvalidRecord, TypedRecord[L]]
+  type Aux[I <: HList, O <: ValidatedRecord[HList]] = SchemaEnforcer[I] { type Out = O }
 
   private def empty(record: Record) =
     Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
 
-  implicit val enforceHNil: Aux[HNil, VR[HNil]] = new SchemaEnforcer[HNil] {
-    override type Out = VR[HNil]
+  implicit val enforceHNil: Aux[HNil, ValidatedRecord[HNil]] = new SchemaEnforcer[HNil] {
+    override type Out = ValidatedRecord[HNil]
     override def apply(columns: HNil, record: Record): Out = empty(record)
   }
 
-  implicit def enforceHCons[K <: StrSng, V, T <: HList, TTR <: HList](
-    implicit tailEnforcer: Aux[T, VR[TTR]]
-  ): Aux[Column[K, V] :: T, VR[FieldType[K, V] :: TTR]] =
+  implicit def enforceHCons[K <: Key, V, T <: HList, TTR <: HList](
+    implicit tailEnforcer: Aux[T, ValidatedRecord[TTR]]
+  ): Aux[Column[K, V] :: T, ValidatedRecord[FieldType[K, V] :: TTR]] =
     new SchemaEnforcer[Column[K, V] :: T] {
-      override type Out = VR[FieldType[K, V] :: TTR]
+      override type Out = ValidatedRecord[FieldType[K, V] :: TTR]
       override def apply(columns: Column[K, V] :: T, record: Record): Out = {
         val column = columns.head
         val validated = column.validate(record)
@@ -97,13 +96,13 @@ object SchemaEnforcer {
     }
 }
 
-trait NotPresent[K <: StrSng, L <: HList]
+trait NotPresent[K <: Key, L <: HList]
 
 object NotPresent {
 
-  implicit def notPresentHNil[K <: StrSng]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
+  implicit def notPresentHNil[K <: Key]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
 
-  implicit def notPresentHCons[K <: StrSng, V, H <: StrSng, T <: HList](
+  implicit def notPresentHCons[K <: Key, V, H <: Key, T <: HList](
     implicit @unused neq: K =:!= H,
     @unused tailNP: NotPresent[K, T]
   ): NotPresent[K, Column[H, V] :: T] =

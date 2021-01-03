@@ -53,7 +53,7 @@ class TypedRecord[+L <: HList] private[schema] (private[schema] val data: L, val
     * @tparam M the data type - this is a supertype of record type parameter to overcame covariance
     * @return field value
     */
-  def apply[M >: L <: HList](key: StrSng)(implicit selector: Selector[M, key.type]): selector.Out = selector(data)
+  def apply[M >: L <: HList](key: Key)(implicit selector: Selector[M, key.type]): selector.Out = selector(data)
 
   /** Converts typed record to a case class.
     * Uses intermediary class [[TypedRecord.ToProduct]] and its `apply` method.

@@ -44,6 +44,21 @@ class TypedRecordTS extends AnyFunSuite {
     assert(pd.name == r("name"))
   }
 
+  test("Typed record allows conversion to tuples") {
+    type Data = (Int, Int, String)
+    val r =
+      tr(
+        trf("_1", 1)
+          :: trf("_2", 100)
+          :: trf("_3", "MX1")
+          :: HNil
+      )
+    val data = r.to[Data]()
+    assert(data._1 == r("_1"))
+    assert(data._2 == r("_2"))
+    assert(data._3 == r("_3"))
+  }
+
   test("Typed record can be empty") {
     val r = tr(HNil)
     assert(r.rowNum == 1)

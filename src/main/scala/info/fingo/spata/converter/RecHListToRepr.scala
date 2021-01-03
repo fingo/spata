@@ -27,7 +27,7 @@ trait RecHListToRepr[L <: HList, R <: HList] {
   def apply(in: L): R
 }
 
-/** Implicits to converter [[shapeless.HList]] from string to symbol-based fields. */
+/** Implicits to convert [[shapeless.HList]] from string to symbol-based fields. */
 object RecHListToRepr {
 
   /** Converter to [[shapeless.HNil]].

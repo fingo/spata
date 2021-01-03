@@ -11,7 +11,8 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.reader
-import info.fingo.spata.schema.{CSVSchema, FiniteValidator}
+import info.fingo.spata.schema.CSVSchema
+import info.fingo.spata.schema.validator.FiniteValidator
 import org.slf4j.LoggerFactory
 
 /* Sample which validates CSV and provides typed records. */

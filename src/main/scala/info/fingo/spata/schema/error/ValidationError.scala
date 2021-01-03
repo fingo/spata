@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.schema
+package info.fingo.spata.schema.error
 
 import info.fingo.spata.error.ContentError
 

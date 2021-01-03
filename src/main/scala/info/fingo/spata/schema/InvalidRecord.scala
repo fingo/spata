@@ -6,6 +6,7 @@
 package info.fingo.spata.schema
 
 import info.fingo.spata.Record
+import info.fingo.spata.schema.error.ValidationError
 
 class InvalidRecord(val record: Record, val flaws: List[FieldFlaw]) {
   override def toString: String =

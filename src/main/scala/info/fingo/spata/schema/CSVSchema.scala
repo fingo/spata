@@ -13,6 +13,8 @@ import fs2.{Pipe, Stream}
 import shapeless.{::, =:!=, DepFn2, HList, HNil}
 import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
+import info.fingo.spata.schema.error.NotParsed
+import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
 

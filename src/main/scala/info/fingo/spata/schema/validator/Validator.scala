@@ -3,10 +3,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.schema
+package info.fingo.spata.schema.validator
+
+import cats.data.Validated
+import info.fingo.spata.schema.error._
 
 import scala.util.matching.Regex
-import cats.data.Validated
 
 trait Validator[A] {
   def apply(value: A): Validated[ValidationError, A]

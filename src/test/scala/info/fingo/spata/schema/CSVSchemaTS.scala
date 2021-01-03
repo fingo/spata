@@ -13,6 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
 import info.fingo.spata.io.reader
 import info.fingo.spata.CSVParser
+import info.fingo.spata.schema.validator.{MinMaxValidator, MinValidator, RegexValidator, Validator}
 import info.fingo.spata.text.StringParser
 
 class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {

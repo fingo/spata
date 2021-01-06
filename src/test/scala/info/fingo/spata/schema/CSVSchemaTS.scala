@@ -113,7 +113,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Schema should not accept the same column name twice") {
+  test("schema should not accept the same column name twice") {
     assertDoesNotCompile("""CSVSchema()
       .add[Int]("id")
       .add[Int]("id")""")
@@ -126,6 +126,21 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add[String]("id")
       .add[Int]("id", MinValidator(0))
       .add[Double]("score")""")
+  }
+
+  test("validation against empty schema should be always correct") {
+    val schema = CSVSchema()
+    val parser = CSVParser.config.get[IO]()
+    val dataSets = Seq("basic", "empty values")
+    for (dataSet <- dataSets) yield {
+      val validated = csvStream(dataSet).through(parser.parse).through(schema.validate)
+      val result = validated.compile.toList.unsafeRunSync()
+      assert(result.length == 3)
+      result.foreach { validated =>
+        assert(validated.isValid)
+        validated.map(typedRecord => assert(typedRecord.rowNum > 0))
+      }
+    }
   }
 
   private def validate(testData: TestCase) = {

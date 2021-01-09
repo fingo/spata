@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.schema.error
 
-import info.fingo.spata.error.ContentError
+import info.fingo.spata.error.{ContentError, DataError, HeaderError}
 import info.fingo.spata.util.classId
 
 /** Error for schema validation. */
@@ -28,7 +28,11 @@ class TypeError private[spata] (ce: ContentError) extends SchemaError {
   def code: String = ce.messageCode
 
   /** @inheritdoc */
-  def message: String = ce.getCause.getMessage
+  def message: String = ce match {
+    case _: DataError => ce.getCause.getMessage
+    case _: HeaderError => "Key not found"
+    case _ => ce.getMessage
+  }
 }
 
 /* Companion with TypeError creation method. */

@@ -50,10 +50,12 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(result.length == 3)
       result.foreach { validated =>
         assert(validated.isInvalid)
-        validated.leftMap { ir =>
-          assert(ir.flaws.nonEmpty)
-          ir.flaws.foreach { ff =>
-            assert(ff.error.message.nonEmpty)
+        validated.leftMap { invalidRecord =>
+          assert(invalidRecord.flaws.nonEmpty)
+          invalidRecord.flaws.foreach { fieldFlaw =>
+            assert(fieldFlaw.error.message.nonEmpty)
+            val ec = fieldFlaw.error.code
+            assert(ec.endsWith("Validator") || ec.endsWith("Type"))
           }
         }
       }
@@ -132,7 +134,13 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(result.length == 3)
       result.foreach { validated =>
         assert(validated.isInvalid)
-        validated.map(invalidRecord => assert(invalidRecord.rowNum > 0))
+        validated.leftMap { invalidRecord =>
+          assert(invalidRecord.record.rowNum > 0)
+          invalidRecord.flaws.foreach { fieldFlaw =>
+            assert(fieldFlaw.error.message.nonEmpty)
+            assert(fieldFlaw.error.code.endsWith("Key"))
+          }
+        }
       }
     }
   }

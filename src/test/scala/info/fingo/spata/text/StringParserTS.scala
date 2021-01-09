@@ -114,7 +114,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val eBool = parse[Boolean]("yes", BooleanFormatter("y", "n"))
     assert(eBool.left.exists(e => e.dataType.contains("boolean") && e.content == "yes"))
     val eInt = parse[Int]("1234567890" * 10)
-    assert(eInt.left.exists(_.getMessage.endsWith(s"${ParseError.infoCutSuffix} as requested number")))
+    assert(eInt.left.exists(_.getMessage.endsWith(s"${ParseError.infoCutSuffix}] to requested number")))
   }
 
   private lazy val strings = Table(

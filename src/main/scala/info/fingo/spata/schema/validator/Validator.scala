@@ -15,22 +15,22 @@ trait Validator[A] {
 }
 
 object RegexValidator {
-  private def error(v: String, r: Regex) = ValidationError(this, s"value [$v] does not conform to regex '$r'")
+  private def error(v: String) = ValidationError(this, s"value [$v] does not conform to regex")
   def apply(regex: Regex): Validator[String] =
-    (value: String) => Validated.valid(value).ensure(error(value, regex))(regex.matches)
+    (value: String) => Validated.valid(value).ensure(error(value))(regex.matches)
   def apply(regex: String): Validator[String] = apply(new Regex(regex))
 }
 
 object MinValidator {
-  private def error[A](v: A, min: A) = ValidationError(this, s"value [$v] is to small (< $min)")
+  private def error[A](v: A) = ValidationError(this, s"value [$v] is to small")
   def apply[A: Ordering](min: A): Validator[A] =
-    (value: A) => Validated.valid(value).ensure(error(value, min))(implicitly[Ordering[A]].lteq(min, _))
+    (value: A) => Validated.valid(value).ensure(error(value))(implicitly[Ordering[A]].lteq(min, _))
 }
 
 object MaxValidator {
-  private def error[A](v: A, max: A) = ValidationError(this, s"value [$v] is to large (> $max)")
+  private def error[A](v: A) = ValidationError(this, s"value [$v] is to large")
   def apply[A: Ordering](max: A): Validator[A] =
-    (value: A) => Validated.valid(value).ensure(error(value, max))(implicitly[Ordering[A]].gteq(max, _))
+    (value: A) => Validated.valid(value).ensure(error(value))(implicitly[Ordering[A]].gteq(max, _))
 }
 
 object MinMaxValidator {

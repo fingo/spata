@@ -15,19 +15,22 @@ trait Validator[A] {
 }
 
 object RegexValidator {
+  private def error(v: String, r: Regex) = ValidationError(this, s"value [$v] does not conform to regex '$r'")
   def apply(regex: Regex): Validator[String] =
-    (value: String) => Validated.valid(value).ensure(NotRegexConform)(regex.matches)
+    (value: String) => Validated.valid(value).ensure(error(value, regex))(regex.matches)
   def apply(regex: String): Validator[String] = apply(new Regex(regex))
 }
 
 object MinValidator {
+  private def error[A](v: A, min: A) = ValidationError(this, s"value [$v] is to small (< $min)")
   def apply[A: Ordering](min: A): Validator[A] =
-    (value: A) => Validated.valid(value).ensure(ValueToSmall)(implicitly[Ordering[A]].lteq(min, _))
+    (value: A) => Validated.valid(value).ensure(error(value, min))(implicitly[Ordering[A]].lteq(min, _))
 }
 
 object MaxValidator {
+  private def error[A](v: A, max: A) = ValidationError(this, s"value [$v] is to large (> $max)")
   def apply[A: Ordering](max: A): Validator[A] =
-    (value: A) => Validated.valid(value).ensure(ValueToLarge)(implicitly[Ordering[A]].gteq(max, _))
+    (value: A) => Validated.valid(value).ensure(error(value, max))(implicitly[Ordering[A]].gteq(max, _))
 }
 
 object MinMaxValidator {
@@ -39,6 +42,7 @@ object MinMaxValidator {
 }
 
 object FiniteValidator {
+  private def error(v: Double) = ValidationError(this, s"number [$v] is not finite")
   def apply(): Validator[Double] =
-    (value: Double) => Validated.valid(value).ensure(NotFiniteNumber)(_.isFinite)
+    (value: Double) => Validated.valid(value).ensure(error(value))(_.isFinite)
 }

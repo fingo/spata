@@ -13,7 +13,7 @@ import fs2.Pipe
 import shapeless.{::, =:!=, DepFn2, HList, HNil}
 import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
-import info.fingo.spata.schema.error.NotParsed
+import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
@@ -152,7 +152,7 @@ class Column[K <: Key, V: StringParser] private (val name: K, validators: Seq[Va
   private[schema] def validate(record: Record): Validated[FieldFlaw, FieldType[K, V]] = {
     // get parsed value from CSV record and convert parsing error to FieldFlaw
     val typeValidated =
-      Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, NotParsed(e.messageCode, e)))
+      Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, new TypeError(e)))
     // call each validator, convert error to FieldFlaw and chain results
     val fullyValidated = typeValidated.andThen { v =>
       validators

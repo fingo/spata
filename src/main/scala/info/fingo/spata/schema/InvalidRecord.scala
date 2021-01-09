@@ -6,22 +6,47 @@
 package info.fingo.spata.schema
 
 import info.fingo.spata.Record
-import info.fingo.spata.schema.error.ValidationError
+import info.fingo.spata.schema.error.SchemaError
 
-class InvalidRecord(val record: Record, val flaws: List[FieldFlaw]) {
+/** CSV record which has not passed validation against schema.
+  *
+  * @param record the original record
+  * @param flaws list of conflicting fields with their errors
+  */
+class InvalidRecord private (val record: Record, val flaws: List[FieldFlaw]) {
+
+  /** Gets description of all validation errors for record.
+    *
+    * @return error information
+    */
   override def toString: String =
-    flaws.mkString(s"Invalid record ${record.rowNum} at line ${record.lineNum}: ", ", ", "")
+    flaws.mkString(s"Invalid record at row ${record.rowNum} (line ${record.lineNum}): ", ", ", "")
 }
 
-object InvalidRecord {
-  def apply(record: Record, flaws: List[FieldFlaw]): InvalidRecord =
-    new InvalidRecord(record, flaws)
+/* Companion with methods for invalid record creation. */
+private[schema] object InvalidRecord {
+
+  /* Creates invalid record. */
+  def apply(record: Record, flaws: List[FieldFlaw]): InvalidRecord = new InvalidRecord(record, flaws)
 }
 
-class FieldFlaw(val name: String, val error: ValidationError) {
-  override def toString: String = s"$name -> ${error.message}"
+/** CSV field which has not passed validation.
+  *
+  * @param name the name of field
+  * @param error information about validation error
+  */
+class FieldFlaw private (val name: String, val error: SchemaError) {
+
+  /** Gets description of validation error for field.
+    *
+    * @return error information
+    */
+  override def toString: String = s"'$name' -> ${error.message}"
 }
 
-object FieldFlaw {
-  def apply(name: String, error: ValidationError): FieldFlaw = new FieldFlaw(name, error)
+/* Companion with methods for field flaw creation. */
+private[schema] object FieldFlaw {
+
+  /* Creates field flaw. */
+  def apply(name: String, error: SchemaError): FieldFlaw = new FieldFlaw(name, error)
 }

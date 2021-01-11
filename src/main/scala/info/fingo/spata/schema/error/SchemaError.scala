@@ -9,18 +9,18 @@ import info.fingo.spata.error.{ContentError, DataError, HeaderError}
 import info.fingo.spata.util.classId
 
 /** Error for schema validation. */
-trait SchemaError {
+sealed trait SchemaError {
 
-  /** Gets short code of error. This value can be used as a key for to provide localized error information. */
+  /** Gets short code of error. This value can be used as a key to provide localized error information. */
   def code: String
 
   /** Gets default error message. */
   def message: String
 }
 
-/** Error for invalid type of field encounter during schema validation.
+/** Error for invalid type of field encountered during schema validation.
   *
-  * @param ce content error returned by record parsing - see `Record.get`
+  * @param ce content error returned by record parsing - see [[Record.get[A](* Record.get]]
   */
 class TypeError private[spata] (ce: ContentError) extends SchemaError {
 
@@ -31,7 +31,6 @@ class TypeError private[spata] (ce: ContentError) extends SchemaError {
   def message: String = ce match {
     case _: DataError => ce.getCause.getMessage
     case _: HeaderError => "Key not found"
-    case _ => ce.getMessage
   }
 }
 
@@ -58,7 +57,7 @@ object ValidationError {
 
   /** Creates validation error.
     *
-    * @param validator the validator which yield the error
+    * @param validator the validator which yield the error, used to form error code
     * @param message default error message
     * @return new validation error
     */

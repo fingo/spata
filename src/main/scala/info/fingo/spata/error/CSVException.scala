@@ -39,7 +39,7 @@ import info.fingo.spata.text.StringParser
   * @param field field name at which error occurred
   * @param cause the root exception, if available
   */
-abstract class CSVException private[spata] (
+sealed abstract class CSVException private[spata] (
   message: String,
   val messageCode: String,
   val line: Int,
@@ -103,7 +103,7 @@ private object StructureException {
   * @param field field name (header key) at which error occurred
   * @param cause the root exception
   */
-abstract class ContentError private[spata] (
+sealed abstract class ContentError private[spata] (
   message: String,
   messageCode: String,
   line: Int,

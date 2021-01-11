@@ -145,6 +145,45 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("validation should work for large records") {
+    val schema = CSVSchema()
+      .add[String]("h10")
+      .add[String]("h20")
+      .add[String]("h30")
+      .add[String]("h40")
+      .add[String]("h50")
+      .add[Int]("h51", MinValidator(50))
+      .add[Int]("h52", MinValidator(50))
+      .add[Int]("h53", MinValidator(50))
+      .add[Int]("h54", MinValidator(50))
+      .add[Int]("h55", MinValidator(50))
+      .add[Int]("h56", MinValidator(50))
+      .add[Int]("h57", MinValidator(50))
+      .add[Int]("h58", MinValidator(50))
+      .add[Int]("h59", MinValidator(50))
+      .add[String]("h60")
+      .add[String]("h70")
+      .add[Int]("h71")
+      .add[Int]("h72")
+      .add[Int]("h73")
+      .add[Int]("h74")
+      .add[Int]("h75")
+      .add[Int]("h76")
+      .add[Int]("h77")
+      .add[Int]("h78")
+      .add[Int]("h79")
+    val validated = recordStream("large").through(schema.validate)
+    val result = validated.compile.toList.unsafeRunSync()
+    assert(result.length == 3)
+    result.foreach { validated =>
+      assert(validated.isValid)
+      validated.map { typedRecord =>
+        assert(typedRecord("h10") == "10")
+        assert(typedRecord("h77") == 77)
+      }
+    }
+  }
+
   test("schema should not accept the same column name twice") {
     assertDoesNotCompile("""CSVSchema()
       .add[Int]("id")
@@ -171,15 +210,6 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val validated = recordStream(data).through(schema.validate)
     validated.compile.toList.unsafeRunSync()
   }
-
-  private def recordStream(dataSet: String) = {
-    val content = csvContent(dataSet)
-    val source = Source.fromString(s"$header\n$content")
-    val parser = CSVParser.config.get[IO]()
-    reader[IO]().read(source).through(parser.parse)
-  }
-
-  private val header = s"id${separator}name${separator}occupation${separator}appeared${separator}score"
 
   private lazy val validCases: TestCaseTable = Table(
     ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
@@ -214,7 +244,22 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     )
   )
 
-  lazy val dataSets = Seq("basic", "wrong types", "missing values")
+  private lazy val dataSets = Seq("basic", "wrong types", "missing values", "large")
+
+  private val largeRange = 1 to 100
+
+  private def recordStream(dataSet: String) = {
+    val content = csvContent(dataSet)
+    val header = csvHeader(dataSet)
+    val source = Source.fromString(s"$header\n$content")
+    val parser = CSVParser.config.get[IO]()
+    reader[IO]().read(source).through(parser.parse)
+  }
+
+  private def csvHeader(dataSet: String) = dataSet match {
+    case "large" => largeRange.map(i => s"h$i").mkString(separator.toString)
+    case _ => s"id${separator}name${separator}occupation${separator}appeared${separator}score"
+  }
 
   private def csvContent(dataSet: String): String = {
     val s = separator
@@ -231,6 +276,10 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
         s""""1"${s}Funky Koval$s${s}01.01.2001$s
            |""${s}Eva Solo$s""${s}31.12.2012${s}123.45
            |"3"${s}Han Solo${s}hero${s}09.09.1999$s""""".stripMargin
+      case "large" => {
+        val row = largeRange.mkString(s.toString)
+        (1 to 3).map(_ => row).mkString("\n")
+      }
     }
   }
 }

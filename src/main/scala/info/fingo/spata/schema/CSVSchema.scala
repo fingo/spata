@@ -18,27 +18,27 @@ import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
 
-/** CSV schema definition and validation.
+/** CSV schema definition and validation utility.
   *
-  * Schema defines fields (their names) which are expected in CSV stream along with their types.
+  * Schema declares fields which are expected in CSV stream - their names and types.
   * Fields with optional values have to be defined as `Option`s:
   * {{{
   * val schema = CSVSchema()
   *   .add[String]("name")
   *   .add[Option[LocalDate]]("birthday")
   * }}}
-  * Not all fields have to be declared in schema but only a subset of them.
+  * Not all fields have to be declared by schema but only a subset of them.
   *
   * In case of header mapping through [[CSVConfig.mapHeader]],
   * the names provided in schema are the final ones, after mapping.
   *
-  * Additionally, it is possible to declare per-field validators, posing additional requirements on CSV data:
+  * Additionally, it is possible to specify per-field validators, posing additional requirements on CSV data:
   * {{{
   * val schema = CSVSchema()
   *   .add[String]("code", RegexValidator("[A-Z][A-Z0-9]+"))
   *   .add[BigDecimal]("price", MinValidator(0.01))
   * }}}
-  * For more information on using existing or creating own validators see [[validator.Validator Validator]].
+  * For more information on available, built-in validator or creating own ones see [[validator.Validator Validator]].
   *
   * CSV schema is verified through it [[validate]] method. It may yield an [[InvalidRecord]],
   * containing validation error together with original [[Record]] data or a [[TypedRecord]],
@@ -52,20 +52,21 @@ class CSVSchema[L <: HList] private (columns: L) {
   /** Adds field definition to schema.
     *
     * Field definition consists of field name and its type. Set of fields definitions constitutes schema definition.
-    * A collection of additional [[validator.Validator]]s may be added to a field.
-    * When validating schema, they are checked after field type verification and are expressed in context of field type.
+    * A collection of additional [[validator.Validator Validator]]s may be added to a field.
+    * When validating schema, validators are checked after field type verification
+    * and receive already parsed value of type declared for field.
     *
-    * To get value of proper type from a field, an implicit [[text.StringParser]] is required.
+    * To get value of proper type from a field, an implicit [[text.StringParser StringParser]] is required.
     * Parsers for basic types and formats are provided through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided by implementing `StringParser` trait.
     *
     * Optional values should be denoted by providing `Option[A]` as field type value.
     * Note that optional values require specific validators operating on `Option` instead of plain type.
-    * Also note, that optional means in this case that individual values may be missing (empty) but
-    * the declared field has to be present in the source data.
+    * Also note, that even optionals require the field to be present in the source data,
+    * only its values may be missing (empty).
     *
-    * This is a chaining method which allows extending schema created by previous call to `add`
-    * or starting with empty one:
+    * This is a chaining method which allows starting with an empty schema
+    * and extending it through subsequent calls to `add`:
     * {{{
     * val schema = CSVSchema()
     *   .add[Double]("latitude", MinMaxValidator(-90, 90))
@@ -73,8 +74,8 @@ class CSVSchema[L <: HList] private (columns: L) {
     * }}}
     *
     * @param key unique field name - a singleton string
-    * @param validators optional validators to check if field values are conform to additional rules, apart from type
-    * @param ev evidence that provided key is unique - is not presented in schema yet
+    * @param validators optional validators to check if field values are conform to additional rules
+    * @param ev evidence that the key is unique - it is not presented in schema yet
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
@@ -83,11 +84,11 @@ class CSVSchema[L <: HList] private (columns: L) {
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
 
-  /** Adds field definition to schema. Does not allow attaching additional validators.
+  /** Adds field definition to schema. Does not support attaching additional validators.
     *
     * @see [[add[V](key:info\.fingo\.spata\.schema\.Key,* add[V](key: Key, validators: Validator[V]*)]]
     * @param key unique field name - a singleton string
-    * @param ev evidence that provided key is unique - is not presented in schema yet
+    * @param ev evidence that the key is unique - it is not presented in schema yet
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
@@ -96,15 +97,16 @@ class CSVSchema[L <: HList] private (columns: L) {
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
 
-  /** Validate CSV stream against schema.
+  /** Validates CSV stream against schema.
     *
     * For each input record the validation process:
-    *  - parses the field to the type required by schema and, if successful
-    *  - runs provided validators against parsed value.
+    *  - parses all fields defined by schema to the declared type and, if successful,
+    *  - runs provided validators with parsed value.
     * The process is successful and creates a [[TypedRecord]] if values of all fields defined in schema
     * are correctly parsed and positively validated. If any of these operations fails, an [[InvalidRecord]] is yielded.
     *
     * If there are many validators defined for single field, the validation stops at first invalid result.
+    * Validation is nonetheless executed for all fields and collects errors from all of them.
     *
     * CSV values which are not declared in schema are omitted.
     * At the extremes, empty schema always proves valid, although yields empty typed records.
@@ -127,10 +129,10 @@ object CSVSchema {
 
   /** Creates empty schema.
     *
-    * Schema created this way is intended to be extended using
-    * [[CSVSchema.add[V](key:info\.fingo\.spata\.schema\.Key)* add]]
+    * Schema created this way is should be extended using
+    * [[CSVSchema.add[V](key:info\.fingo\.spata\.schema\.Key)* add]].
     *
-    * @return schema with no field definitions
+    * @return schema with no field definition
     */
   def apply(): CSVSchema[HNil] = new CSVSchema[HNil](HNil)
 }
@@ -143,7 +145,7 @@ object CSVSchema {
   * @param name the name of column - CSV field name
   * @param validators collection of optional validators for field value
   * @tparam K type of column name - singleton string
-  * @tparam V field value type
+  * @tparam V column type - CSV field value type
   */
 class Column[K <: Key, V: StringParser] private (val name: K, validators: Seq[Validator[V]]) {
 
@@ -173,13 +175,14 @@ private[schema] object Column {
 
 /** Actual verifier of CSV data. Checks if CSV record is congruent with schema.
   *
-  * The verification is achieved through recursive implicits for heterogeneous list of columns.
+  * The verification is achieved through recursive implicits for heterogeneous list of columns (as input type)
+  * and heterogeneous list of record data (as output type).
   *
   * @tparam L the heterogeneous list (of columns) representing schema
   */
 trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
 
-  /** Output type of apply method. */
+  /** Output type of apply method - schema validation core result type. */
   type Out <: ValidatedRecord[HList]
 }
 
@@ -206,8 +209,8 @@ object SchemaEnforcer {
   /** Recursive schema enforcer for [[shapeless.::]].
     *
     * @param tailEnforcer schema enforcer for column list tail
-    * @tparam K type of field name of column list and typed record data head
-    * @tparam V type of field value of column list and typed record data head
+    * @tparam K type of field name of both, column list and typed record data head
+    * @tparam V type of field value of both, column list and typed record data head
     * @tparam T type of column list tail
     * @tparam TTR type of typed record data tail
     * @return schema enforcer for `HCons`
@@ -238,7 +241,7 @@ object SchemaEnforcer {
 
 /** Proof of column name uniqueness in schema.
   *
-  * Witnesses that given key type (singleton string) is not present yet on column list.
+  * Witnesses that given candidate key type (singleton string) is not present on column list yet.
   *
   * @tparam K type of column name
   * @tparam L type of column list
@@ -250,24 +253,24 @@ object NotPresent {
 
   /** [[NotPresent]] witness for empty column list.
     *
-    * @tparam K type of column name
-    * @return `NotPresent` implicit for empty sxchema
+    * @tparam K type of candidate column name
+    * @return `NotPresent` implicit for empty schema
     */
   implicit def notPresentHNil[K <: Key]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
 
   /** Recursive [[NotPresent]] witness for [[shapeless.::]].
     *
-    * @param neq witness that column name type of list head differs from type being examined
+    * @param neq witness that column name type of list head differs from the candidate type
     * @param tailNP `NotPresent` witness for list tail
-    * @tparam K type of column name being examined
-    * @tparam V type of value of column from list head
-    * @tparam H type of name of column from list head
+    * @tparam K type of candidate column name
+    * @tparam HV type of list head column value
+    * @tparam HK type of list head column name
     * @tparam T tail of column list
     * @return `NotPresent` for HCons
     */
-  implicit def notPresentHCons[K <: Key, V, H <: Key, T <: HList](
-    implicit @unused neq: K =:!= H,
+  implicit def notPresentHCons[K <: Key, HV, HK <: Key, T <: HList](
+    implicit @unused neq: K =:!= HK,
     @unused tailNP: NotPresent[K, T]
-  ): NotPresent[K, Column[H, V] :: T] =
-    new NotPresent[K, Column[H, V] :: T] {}
+  ): NotPresent[K, Column[HK, HV] :: T] =
+    new NotPresent[K, Column[HK, HV] :: T] {}
 }

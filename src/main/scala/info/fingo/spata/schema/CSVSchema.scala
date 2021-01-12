@@ -9,7 +9,7 @@ import scala.annotation.unused
 import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
-import fs2.Pipe
+import fs2.{Pipe, Stream}
 import shapeless.{::, =:!=, DepFn2, HList, HNil}
 import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
@@ -17,6 +17,8 @@ import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
+
+import scala.reflect.{classTag, ClassTag}
 
 /** CSV schema definition and validation utility.
   *
@@ -49,6 +51,12 @@ import info.fingo.spata.util.Logger
   */
 class CSVSchema[L <: HList] private (columns: L) {
 
+  /** Gets string representation of schema.
+    *
+    * @return short schema description
+    */
+  override def toString: String = "CSVSchema" + columns.mkString("(", ", ", ")")
+
   /** Adds field definition to schema.
     *
     * Field definition consists of field name and its type. Set of fields definitions constitutes schema definition.
@@ -79,7 +87,7 @@ class CSVSchema[L <: HList] private (columns: L) {
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser](key: Key, validators: Validator[V]*)(
+  def add[V: StringParser: ClassTag](key: Key, validators: Validator[V]*)(
     implicit @unused ev: NotPresent[key.type, L]
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key, validators) :: columns)
@@ -92,7 +100,7 @@ class CSVSchema[L <: HList] private (columns: L) {
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser](key: Key)(
+  def add[V: StringParser: ClassTag](key: Key)(
     implicit @unused ev: NotPresent[key.type, L]
   ): CSVSchema[Column[key.type, V] :: L] =
     new CSVSchema[Column[key.type, V] :: L](Column.apply[V](key) :: columns)
@@ -117,11 +125,15 @@ class CSVSchema[L <: HList] private (columns: L) {
     * @return a pipe to validate [[Record]]s and turn them into [[ValidatedRecord]]s
     */
   def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
-    // TODO: this creates the log entry before the log entry from parser and have to be fixed
-    in => Logger[F].infoS(s"Validating CSV with $columns") >> in.map(r => validateRecord(r)(enforcer))
+    in => in.through(loggingPipe).map(r => validateRecord(r)(enforcer))
 
   /* Validate single record against schema. */
   private def validateRecord(r: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out = enforcer(columns, r)
+
+  /* Add logging information to validation pipe. */
+  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] =
+    // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
+    in => in.interleaveAll(Stream.eval_(Logger[F].info(s"Validating CSV with $this")).covaryOutput[Record])
 }
 
 /** [[CSVSchema]] companion with convenience method to create empty schema. */
@@ -147,7 +159,13 @@ object CSVSchema {
   * @tparam K type of column name - singleton string
   * @tparam V column type - CSV field value type
   */
-class Column[K <: Key, V: StringParser] private (val name: K, validators: Seq[Validator[V]]) {
+class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validators: Seq[Validator[V]]) {
+
+  /** Gets string representation of column.
+    *
+    * @return short column description
+    */
+  override def toString: String = s"'$name' -> ${classTag[V]}"
 
   /* Validates field. Positively validated values are returned as FieldType to encode both, key and value types
    * and to be easily accommodated as shapeless records. */
@@ -168,8 +186,8 @@ class Column[K <: Key, V: StringParser] private (val name: K, validators: Seq[Va
 
 /* Companion with methods for column creation */
 private[schema] object Column {
-  def apply[A: StringParser](name: String): Column[name.type, A] = new Column(name, Nil)
-  def apply[A: StringParser](name: String, validators: Seq[Validator[A]]): Column[name.type, A] =
+  def apply[A: StringParser: ClassTag](name: String): Column[name.type, A] = new Column(name, Nil)
+  def apply[A: StringParser: ClassTag](name: String, validators: Seq[Validator[A]]): Column[name.type, A] =
     new Column(name, validators)
 }
 

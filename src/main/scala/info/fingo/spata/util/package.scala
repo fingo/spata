@@ -9,8 +9,8 @@ package info.fingo.spata
 package object util {
 
   /* Gets short class identifier. Used e.g. for error codes. */
-  private[spata] def classId(obj: AnyRef): String = {
-    val name = obj.getClass.getSimpleName.stripSuffix("$")
+  private[spata] def classLabel(obj: AnyRef): String = {
+    val name = obj.getClass.getSimpleName.takeWhile(_ != '$')
     val first = name.take(1)
     name.replaceFirst(first, first.toLowerCase)
   }

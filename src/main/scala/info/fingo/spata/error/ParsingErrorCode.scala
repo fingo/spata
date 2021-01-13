@@ -5,14 +5,14 @@
  */
 package info.fingo.spata.error
 
-import info.fingo.spata.util.classId
+import info.fingo.spata.util.classLabel
 
 /* Error codes provided by parsing functions. */
 private[spata] object ParsingErrorCode {
 
   sealed abstract class ErrorCode(val message: String) {
 
-    def code: String = classId(this)
+    def code: String = classLabel(this)
   }
 
   case object UnclosedQuotation extends ErrorCode("Bad format: not enclosed quotation")

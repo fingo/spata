@@ -6,6 +6,7 @@
 package info.fingo.spata.schema
 
 import scala.annotation.unused
+import scala.reflect.{classTag, ClassTag}
 import cats.data.Validated
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
@@ -16,9 +17,7 @@ import info.fingo.spata.Record
 import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
-import info.fingo.spata.util.Logger
-
-import scala.reflect.{classTag, ClassTag}
+import info.fingo.spata.util.{classLabel, Logger}
 
 /** CSV schema definition and validation utility.
   *
@@ -165,7 +164,10 @@ class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validato
     *
     * @return short column description
     */
-  override def toString: String = s"'$name' -> ${classTag[V]}"
+  override def toString: String = {
+    val vldInfo = if (validators.isEmpty) "" else validators.map(classLabel).mkString(" +", "+", "")
+    s"'$name' -> ${classTag[V]}$vldInfo"
+  }
 
   /* Validates field. Positively validated values are returned as FieldType to encode both, key and value types
    * and to be easily accommodated as shapeless records. */

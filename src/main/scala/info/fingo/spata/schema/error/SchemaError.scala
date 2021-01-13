@@ -6,7 +6,7 @@
 package info.fingo.spata.schema.error
 
 import info.fingo.spata.error.{ContentError, DataError, HeaderError}
-import info.fingo.spata.util.classId
+import info.fingo.spata.util.classLabel
 
 /** Error for schema validation. */
 sealed trait SchemaError {
@@ -49,7 +49,7 @@ private[spata] object TypeError {
 class ValidationError(validator: AnyRef, val message: String) extends SchemaError {
 
   /** @inheritdoc */
-  def code: String = classId(validator)
+  def code: String = classLabel(validator)
 }
 
 /** [[TypeError]] companion with creation method. */

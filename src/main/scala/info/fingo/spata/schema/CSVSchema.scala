@@ -130,9 +130,12 @@ class CSVSchema[L <: HList] private (columns: L) {
   private def validateRecord(r: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out = enforcer(columns, r)
 
   /* Add logging information to validation pipe. */
-  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] =
-    // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
-    in => in.interleaveAll(Stream.eval_(Logger[F].info(s"Validating CSV with $this")).covaryOutput[Record])
+  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] = in => {
+    if (Logger[F].isDebug)
+      // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
+      in.interleaveAll(Stream.eval_(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
+    else in
+  }
 }
 
 /** [[CSVSchema]] companion with convenience method to create empty schema. */

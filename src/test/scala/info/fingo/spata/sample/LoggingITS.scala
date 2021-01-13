@@ -88,6 +88,6 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
     assert(!Files.readString(logFilePath).contains("spata -"))
     stream.compile.toList.unsafeRunSync()
     val log = Files.readString(logFilePath)
-    assert(log.indexOf("INFO spata - Validating CSV") > log.indexOf("INFO spata - Parsing CSV"))
+    assert(log.indexOf("DEBUG spata - Validating CSV") > log.indexOf("INFO spata - Parsing CSV"))
   }
 }

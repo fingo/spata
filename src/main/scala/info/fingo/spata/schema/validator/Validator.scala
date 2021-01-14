@@ -32,10 +32,10 @@ object MaxValidator {
 }
 
 object MinMaxValidator {
-  def apply[A: Numeric](min: A, max: A): Validator[A] = (value: A) => {
+  def apply[A: Ordering](min: A, max: A): Validator[A] = (value: A) => {
     val minV = MinValidator[A](min)
     val maxV = MaxValidator[A](max)
-    minV(value).flatMap(_ => maxV(value))
+    minV(value).orElse(maxV(value))
   }
 }
 

@@ -182,9 +182,9 @@ class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validato
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, TypeError(e)))
     // call each validator, convert error to FieldFlaw and chain results
     val fullyValidated = typeValidated.andThen { v =>
-      validators.map { validator =>
-        Validated.fromOption(validator(v), v).map(FieldFlaw(name, _)).swap
-      }.foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
+      validators
+        .map(_(v).leftMap(FieldFlaw(name, _)))
+        .foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
     }
     // convert value to FieldType
     fullyValidated.map(field[K](_))

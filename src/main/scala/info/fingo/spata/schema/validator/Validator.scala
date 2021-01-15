@@ -5,28 +5,29 @@
  */
 package info.fingo.spata.schema.validator
 
+import scala.util.matching.Regex
+import cats.data.Validated
+import cats.data.Validated.{Invalid, Valid}
 import info.fingo.spata.schema.error.ValidationError
 import info.fingo.spata.util.classLabel
-import scala.util.matching.Regex
 
 trait Validator[A] {
 
   def isValid(value: A): Boolean
 
-  def errorMessage(value: A) = s"Invalid value [$value] reported by ${classLabel(vld)}"
+  val name: String = classLabel(this)
 
-  final private[schema] def apply(value: A): Option[ValidationError] =
-    if (isValid(value)) None
-    else Some(ValidationError(vld, errorMessage(value)))
+  def errorMessage(value: A) = s"Invalid value [$value] reported by $name"
 
-  protected[validator] val vld: Validator[_] = this
+  final private[schema] def apply(value: A): Validated[ValidationError, A] =
+    if (isValid(value)) Valid(value)
+    else Invalid(ValidationError(name, errorMessage(value)))
 }
 
 object Validator {
-  implicit def option[A](validator: Validator[A]): Validator[Option[A]] = new Validator[Option[A]] {
+  implicit def optional[A](validator: Validator[A]): Validator[Option[A]] = new Validator[Option[A]] {
     def isValid(value: Option[A]): Boolean = value.forall(validator.isValid)
-
-    override protected[validator] val vld: Validator[_] = validator
+    override val name: String = validator.name
   }
 }
 

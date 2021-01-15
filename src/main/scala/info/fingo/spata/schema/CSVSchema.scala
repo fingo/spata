@@ -68,9 +68,11 @@ class CSVSchema[L <: HList] private (columns: L) {
     * Additional ones may be provided by implementing `StringParser` trait.
     *
     * Optional values should be denoted by providing `Option[A]` as field type value.
-    * Note that optional values require specific validators operating on `Option` instead of plain type.
-    * Also note, that even optionals require the field to be present in the source data,
+    * Note, that even optionals require the field to be present in the source data,
     * only its values may be missing (empty).
+    *
+    * The same validators, which are used to validate plain values, may be used to verify optional values.
+    * Missing value (`None`) is assumed correct in such case.
     *
     * This is a chaining method which allows starting with an empty schema
     * and extending it through subsequent calls to `add`:

@@ -6,6 +6,7 @@
 package info.fingo.spata.schema.error
 
 import info.fingo.spata.error.{ContentError, DataError, HeaderError}
+import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.util.classLabel
 
 /** Error for schema validation. */
@@ -41,19 +42,19 @@ private[spata] object TypeError {
 
 /** Product of erroneous custom validation.
   *
-  * The provided validator is used to form error code, which is the validator name in camelCase.
+  * The error code is retrieved automatically from provided validator as its simple name in camelCase.
   *
   * @param validator the validator which yield the error
   * @param message default error message
   */
-class ValidationError(validator: AnyRef, val message: String) extends SchemaError {
+class ValidationError private[schema] (validator: Validator[_], val message: String) extends SchemaError {
 
   /** @inheritdoc */
   def code: String = classLabel(validator)
 }
 
 /** [[TypeError]] companion with creation method. */
-object ValidationError {
+private[schema] object ValidationError {
 
   /** Creates validation error.
     *
@@ -61,5 +62,5 @@ object ValidationError {
     * @param message default error message
     * @return new validation error
     */
-  def apply(validator: AnyRef, message: String): ValidationError = new ValidationError(validator, message)
+  def apply(validator: Validator[_], message: String): ValidationError = new ValidationError(validator, message)
 }

@@ -34,13 +34,13 @@ class ValidatorTS extends AnyFunSuite {
     for (v <- valuesSmall) {
       assert(validatorMin(v).exists(_.code == "minValidator"))
       assert(validatorMax(v).isEmpty)
-      assert(validatorMinMax(v).exists(_.code == "minValidator"))
+      assert(validatorMinMax(v).exists(_.code == "minMaxValidator"))
     }
     val valuesLarge = Seq(101, Integer.MAX_VALUE)
     for (v <- valuesLarge) {
       assert(validatorMin(v).isEmpty)
       assert(validatorMax(v).exists(_.code == "maxValidator"))
-      assert(validatorMinMax(v).exists(_.code == "maxValidator"))
+      assert(validatorMinMax(v).exists(_.code == "minMaxValidator"))
     }
   }
 
@@ -60,13 +60,13 @@ class ValidatorTS extends AnyFunSuite {
     for (v <- valuesSmall) {
       assert(validatorMin(v).exists(_.code == "minValidator"))
       assert(validatorMax(v).isEmpty)
-      assert(validatorMinMax(v).exists(_.code == "minValidator"))
+      assert(validatorMinMax(v).exists(_.code == "minMaxValidator"))
     }
     val valuesLarge = Seq(maxDate.plusDays(1), LocalDate.MAX)
     for (v <- valuesLarge) {
       assert(validatorMin(v).isEmpty)
       assert(validatorMax(v).exists(_.code == "maxValidator"))
-      assert(validatorMinMax(v).exists(_.code == "maxValidator"))
+      assert(validatorMinMax(v).exists(_.code == "minMaxValidator"))
     }
   }
 
@@ -78,5 +78,15 @@ class ValidatorTS extends AnyFunSuite {
       assert(validator(v).isEmpty)
     for (v <- valuesBad)
       assert(validator(v).exists(_.code == "finiteValidator"))
+  }
+
+  test("it is possible to validate optional values") {
+    val validator = MinMaxValidator(0.0, 100.0)
+    val valuesOK = Seq(Some(0.0), Some(50.0), Some(100.0), None)
+    val valuesBad = Seq(Some(-1.0), Some(101.0), Some(Double.MaxValue), Some(Double.NaN), Some(Double.NegativeInfinity))
+    for (v <- valuesOK)
+      assert(validator(v).isEmpty)
+    for (v <- valuesBad)
+      assert(validator(v).exists(_.code == "minMaxValidator"))
   }
 }

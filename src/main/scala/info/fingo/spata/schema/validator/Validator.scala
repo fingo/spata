@@ -6,41 +6,60 @@
 package info.fingo.spata.schema.validator
 
 import info.fingo.spata.schema.error.ValidationError
+import info.fingo.spata.util.classLabel
 import scala.util.matching.Regex
 
 trait Validator[A] {
-  def apply(value: A): Option[ValidationError]
+
+  def isValid(value: A): Boolean
+
+  def errorMessage(value: A) = s"Invalid value [$value] reported by ${classLabel(vld)}"
+
+  final private[schema] def apply(value: A): Option[ValidationError] =
+    if (isValid(value)) None
+    else Some(ValidationError(vld, errorMessage(value)))
+
+  protected[validator] val vld: Validator[_] = this
+}
+
+object Validator {
+  implicit def option[A](validator: Validator[A]): Validator[Option[A]] = new Validator[Option[A]] {
+    def isValid(value: Option[A]): Boolean = value.forall(validator.isValid)
+
+    override protected[validator] val vld: Validator[_] = validator
+  }
 }
 
 object RegexValidator {
-  private def error(v: String) = ValidationError(this, s"Value [$v] does not conform to regex")
-  def apply(regex: Regex): Validator[String] =
-    (value: String) => if (regex.matches(value)) None else Some(error(value))
+  def apply(regex: Regex): Validator[String] = (value: String) => regex.matches(value)
   def apply(regex: String): Validator[String] = apply(new Regex(regex))
 }
 
 object MinValidator {
-  private def error[A](v: A) = ValidationError(this, s"Value [$v] is to small")
-  def apply[A: Ordering](min: A): Validator[A] =
-    (value: A) => if (implicitly[Ordering[A]].lteq(min, value)) None else Some(error(value))
+  def apply[A: Ordering](min: A): Validator[A] = new Validator[A] {
+    def isValid(value: A): Boolean = implicitly[Ordering[A]].lteq(min, value)
+    override def errorMessage(value: A): String = s"Value [$value] is to small"
+  }
 }
 
 object MaxValidator {
-  private def error[A](v: A) = ValidationError(this, s"Value [$v] is to large")
-  def apply[A: Ordering](max: A): Validator[A] =
-    (value: A) => if (implicitly[Ordering[A]].gteq(max, value)) None else Some(error(value))
+  def apply[A: Ordering](max: A): Validator[A] = new Validator[A] {
+    def isValid(value: A): Boolean = implicitly[Ordering[A]].gteq(max, value)
+    override def errorMessage(value: A): String = "Value [$v] is to large"
+  }
 }
 
 object MinMaxValidator {
   def apply[A: Ordering](min: A, max: A): Validator[A] = (value: A) => {
     val minV = MinValidator[A](min)
     val maxV = MaxValidator[A](max)
-    minV(value).orElse(maxV(value))
+    minV.isValid(value) && maxV.isValid(value)
   }
 }
 
 object FiniteValidator {
-  private def error(v: Double) = ValidationError(this, s"Number [$v] is not finite")
-  def apply(): Validator[Double] =
-    (value: Double) => if (value.isFinite) None else Some(error(value))
+  def apply(): Validator[Double] = new Validator[Double] {
+    def isValid(value: Double): Boolean = value.isFinite
+    override def errorMessage(value: Double) = s"Number [$value] is not finite"
+  }
 }

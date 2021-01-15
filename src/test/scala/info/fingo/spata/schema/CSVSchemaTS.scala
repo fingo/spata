@@ -13,7 +13,14 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
 import info.fingo.spata.io.reader
 import info.fingo.spata.CSVParser
-import info.fingo.spata.schema.validator.{MaxValidator, MinMaxValidator, MinValidator, RegexValidator, Validator}
+import info.fingo.spata.schema.validator.{
+  FiniteValidator,
+  MaxValidator,
+  MinMaxValidator,
+  MinValidator,
+  RegexValidator,
+  Validator
+}
 import info.fingo.spata.text.StringParser
 
 class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
@@ -98,7 +105,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val name: "name" = "name"
     val schema = CSVSchema()
       .add[String](name, RegexValidator(".+?"))
-      .add[Option[Double]]("score")
+      .add[Option[Double]]("score", FiniteValidator())
     val validated = recordStream("missing values").through(schema.validate)
     val result = validated.compile.toList.unsafeRunSync()
     assert(result.length == 3)

@@ -13,14 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
 import info.fingo.spata.io.reader
 import info.fingo.spata.CSVParser
-import info.fingo.spata.schema.validator.{
-  FiniteValidator,
-  MaxValidator,
-  MinMaxValidator,
-  MinValidator,
-  RegexValidator,
-  Validator
-}
+import info.fingo.spata.schema.validator._
 import info.fingo.spata.text.StringParser
 
 class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
@@ -220,7 +213,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val validCases: TestCaseTable = Table(
     ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
-    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, Nil, List(MinMaxValidator(0, 1000))),
+    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, Nil, List(RangeValidator(0, 1000))),
     ("multiple", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0), MaxValidator(1000))),
     ("no validators", "basic", Nil, Nil, Nil, Nil, Nil)
   )
@@ -234,7 +227,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       List(RegexValidator("Fun.*")),
       Nil,
       Nil,
-      List(MinMaxValidator(100, 200))
+      List(RangeValidator(100, 200))
     ),
     ("multiple first", "basic", Nil, Nil, Nil, Nil, List(MinValidator(1000), MaxValidator(1000))),
     ("multiple last", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0), MaxValidator(-1))),

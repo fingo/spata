@@ -78,8 +78,8 @@ class CSVSchema[L <: HList] private (columns: L) {
     * and extending it through subsequent calls to `add`:
     * {{{
     * val schema = CSVSchema()
-    *   .add[Double]("latitude", MinMaxValidator(-90, 90))
-    *   .add[Double]("longitude", MinMaxValidator(-180, 180))
+    *   .add[Double]("latitude", RangeValidator(-90, 90))
+    *   .add[Double]("longitude", RangeValidator(-180, 180))
     * }}}
     *
     * @param key unique field name - a singleton string

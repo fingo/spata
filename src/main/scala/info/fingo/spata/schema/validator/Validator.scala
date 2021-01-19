@@ -109,7 +109,24 @@ object OneOfValidator {
   }
 }
 
-/** Validator verifying string maximum length. Takes the length of string after trimming it of white characters.
+/** Validator verifying if string matches one of expected. The comparison is case insensitive.
+  * This validator does not take locale into account and uses `String.equalsIgnoreCase`.
+  * The source string is trimmed off white spaces before comparison.
+  */
+object StringsValidator {
+
+  /** Creates validator to check if string matches enumeration.
+    *
+    * @param allowed allowed values
+    * @return validator
+    */
+  def apply(allowed: String*): Validator[String] = new Validator[String] {
+    override def isValid(value: String): Boolean = allowed.exists(_.equalsIgnoreCase(value.strip))
+    override def errorMessage(value: String): String = s"String [$value] does not match any of allowed"
+  }
+}
+
+/** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
   */
 object MinLenValidator {
@@ -125,7 +142,7 @@ object MinLenValidator {
   }
 }
 
-/** Validator verifying string maximum length. Takes the length of string after trimming it of white characters.
+/** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
   */
 object MaxLenValidator {
@@ -141,7 +158,7 @@ object MaxLenValidator {
   }
 }
 
-/** Validator verifying string length. Takes the length of string after trimming it of white characters.
+/** Validator verifying string length. Takes the length of string after trimming it off white characters.
   * Treats strings with length at boundary as valid.
   */
 object LengthValidator {

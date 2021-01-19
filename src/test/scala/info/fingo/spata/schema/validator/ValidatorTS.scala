@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ValidatorTS extends AnyFunSuite {
 
-  test("it is possible to validate if values are exactly as expected") {
+  test("it is possible to validate if value is exactly as expected") {
     val validatorDecimal = ExactValidator(BigDecimal(0.0))
     val validatorDate = ExactValidator(LocalDate.of(2000, 1, 1))
     val validatorString = ExactValidator("FINGO")
@@ -26,7 +26,7 @@ class ValidatorTS extends AnyFunSuite {
     assertBad(validatorString, "fingo")
   }
 
-  test("it is possible to validate if values are ") {
+  test("it is possible to validate if value is contained in a set") {
     val validatorInt = OneOfValidator(1, 2, 3, 5, 8, 13, 21)
     val validatorString = OneOfValidator("lorem", "ipsum", "dolor", "sit", "amet")
     assert(validatorInt.name == "oneOfValidator")
@@ -41,6 +41,15 @@ class ValidatorTS extends AnyFunSuite {
     for (v <- sValuesBad) assertBad(validatorString, v)
   }
 
+  test("it is possible to validate if string matches a set of values") {
+    val validator = StringsValidator("lorem", "ipsum", "dolor", "sit", "amet", "dźwięk")
+    assert(validator.name == "stringsValidator")
+    val valuesOK = Seq("lorem", "IPSUM", " dolor", " Sit ", "ameT ", "DŹWIĘK")
+    for (v <- valuesOK) assertOK(validator, v)
+    val valuesBad = Seq("LO REM", " ippsum", "我思故我在 ", "łódź", "", "?")
+    for (v <- valuesBad) assertBad(validator, v)
+  }
+
   test("it is possible to validate string length") {
     val validatorMinL = MinLenValidator(3)
     val validatorMaxL = MaxLenValidator(8)
@@ -49,7 +58,7 @@ class ValidatorTS extends AnyFunSuite {
     assert(validatorMinL.name == "minLenValidator")
     assert(validatorMaxL.name == "maxLenValidator")
     assert(validatorLengthR.name == "lengthValidator")
-    val valuesOK = Seq("123", "12345678", "  12345678 ", "FINGO", "1 2")
+    val valuesOK = Seq("123", "12345678", "  12345678 ", "FINGO", "1 2", "łódź", "我思故我在")
     for (v <- valuesOK) {
       assertOK(validatorMinL, v)
       assertOK(validatorMaxL, v)
@@ -82,7 +91,7 @@ class ValidatorTS extends AnyFunSuite {
     assertBad(validator, valueBad)
   }
 
-  test("it is possible to validate numbers with min and max values") {
+  test("it is possible to validate number with min and max values") {
     val validatorMin = MinValidator(0)
     val validatorMax = MaxValidator(100)
     val validatorRange = RangeValidator(0, 100)
@@ -109,7 +118,7 @@ class ValidatorTS extends AnyFunSuite {
     }
   }
 
-  test("it is possible to validate dates with min and max values") {
+  test("it is possible to validate date with min and max values") {
     val minDate = LocalDate.of(2000, 1, 1)
     val maxDate = LocalDate.of(2020, 12, 31)
     val validatorMin = MinValidator(minDate)

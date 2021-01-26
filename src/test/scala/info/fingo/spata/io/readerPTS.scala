@@ -5,15 +5,15 @@
  */
 package info.fingo.spata.io
 
-import java.nio.file.{Files, Path, Paths, StandardOpenOption}
+import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.Source
 import scala.concurrent.ExecutionContext
 import cats.effect.{ContextShift, IO}
 import fs2.Stream
-import info.fingo.spata.CSVParser
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import org.scalameter.picklers.noPickler._
+import info.fingo.spata.PerformanceTH.{parser, path}
 
 /* Check performance of reader using different implementations.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
@@ -21,8 +21,6 @@ import org.scalameter.picklers.noPickler._
 object readerPTS extends Bench.LocalTime {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-  private val path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
-  private val parser = CSVParser.config.get[IO]() // parser with default configuration
 
   case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
     def apply(path: Path): Stream[IO, Char] = method(path)

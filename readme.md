@@ -497,8 +497,8 @@ leaving all exception handling in a single place, i.e. the `StringParser.parse` 
 
 ### Schema validation
 
-Successful CSV parsing means that the underlying source has correct format (taking into account parser configuration). 
-Nonetheless, the obtained records may have any content - being a collection of string they are very permissive.
+Successful CSV parsing means that the underlying source has the correct format (taking into account parser configuration). 
+Nonetheless, the obtained records may have any content - being a collection of strings they are very permissive.
 We often require strict data content and format to be able to use it in accordance with our business logic.
 spata supports basic fields' format definition and validation.
 
@@ -518,23 +518,23 @@ Schema is basically specified by the names of expected CSV fields and their data
 We do not need to include every field from CSV source in the schema definition.
 It is enough to do it only for those fields we are interested in.
 
-Schema is validated as part of regular stream processing pipeline:
+Schema is validated as part of a regular stream processing pipeline:
 ```scala
 val schema = ???
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] = CSVParser[IO]()
 val validatedStream = stream.through(parser.parse).through(schema.validate)
 ```
-As result of validation process, the ordinary CSV `Record` is converted to `ValidatedRecord[T]`,
+As a result of the validation process, the ordinary CSV `Record` is converted to `ValidatedRecord[T]`,
 which is an alias for `Validated[InvalidRecord, TypedRecord[T]]`.
-The parametric type `T` is the compile-time, [shapeless](https://github.com/milessabin/shapeless) based,
-representation of record data type. Because it depends on the schema definition and is quite elaborate,
+The parametric type `T` is the compile-time, [shapeless](https://github.com/milessabin/shapeless) based
+representation of the record data type. Because it depends on the schema definition and is quite elaborate,
 we are not able to manually provide it - we have to let the compiler infer it.
 This is why the type signatures are omitted from some variable definitions in code excerpts in this chapter.
-Although the compiler infers the types correctly, the IDEs/linters often incorrectly report problems.
+Although the compiler infers the types correctly, the IDEs/linters often wrongly report problems.
 Please do not be held back by red marks in your code editor.
 
-[Validated](https://typelevel.org/cats/datatypes/validated.html) is Cats data type for wrapping validation results.
+[Validated](https://typelevel.org/cats/datatypes/validated.html) is a Cats data type for wrapping validation results.
 It is similar to `Either`, with `Valid` corresponding to `Right` and `Invalid` to `Left`,
 but more suitable for validation scenarios. Please reach for Cats documentation for in-depth introduction.
 
@@ -549,16 +549,16 @@ validatedStream.map { validated =>
   }
 }
 ```
-Please notice, that in contract to regular record, where the result is wrapped in `Decoded[T]`,
+Please notice, that in contrast to regular record, where the result is wrapped in `Decoded[T]`,
 we always get the straight type out of typed record.
-If we try to access non-existing field (not defined by schema) or assign it to wrong value type,
-we will get compilation error:
+If we try to access a non-existing field (not defined by schema) or assign it to a wrong value type,
+we will get a compilation error:
 ```scala
 val price: BigDecimal = typedRecord("prce") // does not compile 
 ```
 
-The key (field name) used to access record value is a [literal type](https://docs.scala-lang.org/sips/42.type.html).
-To be accepted by typed record, the key has to be a literal value or a variable having singleton type:
+The key (field name) used to access the record value is a [literal type](https://docs.scala-lang.org/sips/42.type.html).
+To be accepted by a typed record, the key has to be a literal value or a variable having a singleton type:
 ```scala
 val typedRecord = ???
 val narrow: "symbol" = "symbol" // singleton
@@ -574,20 +574,21 @@ case class StockPrice(symbol: String, price: BigDecimal)
 val typedRecord = ???
 val stockPrice: StockPrice = typedRecord.to[StockPrice]()
 ```
-Like in case of [regular records](#getting-actual-data),
-the conversion is name-based and may cover only subset of record's fields.
-However, in contrast to regular record, the result is not wrapped in `Decoded` anymore.
+Like in the case of [regular records](#getting-actual-data),
+the conversion is name-based and may cover only a subset of a record's fields.
+However, in contrast to a regular record, the result is not wrapped in `Decoded` anymore.
 
-Field declared in the schema has to be present in source stream. Moreover, its values, by default, must not be empty.
+A field declared in the schema has to be present in the source stream.
+Moreover, its values, by default, must not be empty.
 If values are optional, they have to be clearly marked as such in the schema definition:
 ```scala
 val schema = CSVSchema()
   .add[String]("symbol")
   .add[Option[LocalDateTime]]("time")
 ```
-Please note, that this still requires the field (column) to be present, only permits empty values.
+Please note, that this still requires the field (column) to be present, only permits it to contain empty values.
 
-While processing validated stream, we have access to invalid data as well: 
+While processing a validated stream, we have access to invalid data as well: 
 ```scala
 val validatedStream = ???
 validatedStream.map { validated =>
@@ -603,14 +604,14 @@ validatedStream.map { validated =>
 (the above `map`/`leftMap` combination may be simplified to `bimap`).
 
 Schema validation requires string parsing, described in the previous chapter.
-Similarly to conversion to case classes, we are not able to directly pass formatter to validation,
+Similarly to conversion to case classes, we are not able to directly pass a formatter to validation,
 so a regular `StringParser` implicit with correct format has to be provided for each parsed type.
 All remarks described in [Text parsing](#text-parsing) apply to the validation process.
 
 Type verification, although probably the most important aspect of schema validation,
 is often not the only constraint on CSV which is required to successfully process the data.
 We often have to check if the values match many other business rules.
-spata provides a mean to declaratively verify basic constraints on field level:
+spata provides a mean to declaratively verify basic constraints on the field level:
 ```scala
 import info.fingo.spata.schema.CSVSchema
 import java.time.LocalDateTime
@@ -622,17 +623,17 @@ val schema = CSVSchema()
   .add[BigDecimal]("price", MinValidator(0.01))
   .add[String]("currency", LengthValidator(3))
 ```
-Records which do not pass provided schema validators render the result invalid, as in case of wrong type.
+Records which do not pass the provided schema validators render the result invalid, as in the case of a wrong type.
 
-It is possible to provide may validators for each field.
-The validation process for a field is stopped on first failing validator.
+It is possible to provide multiple validators for each field.
+The validation process for a field is stopped on the first failing validator.
 The order of running validators is not specified.
 Nevertheless, the validation is run independently for each field defined by the schema.
 The returned `InvalidRecord` contains error information from all incorrect fields.   
 
 The validators are defined in terms of typed (already correctly parsed) values.
-A bunch of typical ones is provided as part of `info.fingo.spata.schema.validator` package.
-Additional may be provided by implementing the `schema.validator.Validator` trait.
+A bunch of typical ones are available as part of `info.fingo.spata.schema.validator` package.
+Additional ones may be provided by implementing the `schema.validator.Validator` trait.
 
 ### Error handling
 

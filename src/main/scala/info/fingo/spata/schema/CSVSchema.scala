@@ -7,7 +7,7 @@ package info.fingo.spata.schema
 
 import scala.annotation.unused
 import scala.reflect.{classTag, ClassTag}
-import cats.data.Validated
+import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
@@ -254,10 +254,10 @@ object SchemaEnforcer {
           // if current value is invalid, add it to list of flaws from tail validation
           case Invalid(iv) =>
             val flaws = tailValidated match {
-              case Valid(_) => Nil
-              case Invalid(ivt) => ivt.flaws
+              case Valid(_) => NonEmptyList.one(iv)
+              case Invalid(ivt) => iv :: ivt.flaws
             }
-            Validated.invalid[InvalidRecord, TypedRecord[FieldType[K, V] :: TR]](InvalidRecord(record, iv :: flaws))
+            Validated.invalid[InvalidRecord, TypedRecord[FieldType[K, V] :: TR]](InvalidRecord(record, flaws))
         }
       }
     }

@@ -5,6 +5,7 @@
  */
 package info.fingo.spata.schema
 
+import cats.data.NonEmptyList
 import info.fingo.spata.Record
 import info.fingo.spata.schema.error.SchemaError
 
@@ -13,21 +14,21 @@ import info.fingo.spata.schema.error.SchemaError
   * @param record the original record
   * @param flaws list of conflicting fields with their errors
   */
-class InvalidRecord private (val record: Record, val flaws: List[FieldFlaw]) {
+class InvalidRecord private (val record: Record, val flaws: NonEmptyList[FieldFlaw]) {
 
   /** Gets description of all validation errors for record.
     *
     * @return error information
     */
   override def toString: String =
-    flaws.mkString(s"Invalid record at row ${record.rowNum} (line ${record.lineNum}): ", ", ", "")
+    flaws.toList.mkString(s"Invalid record at row ${record.rowNum} (line ${record.lineNum}): ", ", ", "")
 }
 
 /* Companion with methods for invalid record creation. */
 private[schema] object InvalidRecord {
 
   /* Creates invalid record. */
-  def apply(record: Record, flaws: List[FieldFlaw]): InvalidRecord = new InvalidRecord(record, flaws)
+  def apply(record: Record, flaws: NonEmptyList[FieldFlaw]): InvalidRecord = new InvalidRecord(record, flaws)
 }
 
 /** CSV field which has not passed validation.

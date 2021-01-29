@@ -21,7 +21,7 @@ sealed trait SchemaError {
   *
   * @param ce content error returned by record parsing - see [[Record.get[A](* Record.get]]
   */
-class TypeError private[spata] (ce: ContentError) extends SchemaError {
+class TypeError private (ce: ContentError) extends SchemaError {
 
   /** @inheritdoc */
   def code: String = ce.messageCode
@@ -34,25 +34,18 @@ class TypeError private[spata] (ce: ContentError) extends SchemaError {
 }
 
 /* Companion with TypeError creation method. */
-private[spata] object TypeError {
+private[schema] object TypeError {
   def apply(ce: ContentError): TypeError = new TypeError(ce)
 }
 
-/** Product of erroneous custom validation.
+/** Result of erroneous custom validation.
   *
   * @param code the error code, which may be used to provide localized message
   * @param message default error message
   */
-class ValidationError private[schema] (val code: String, val message: String) extends SchemaError
+class ValidationError private (val code: String, val message: String) extends SchemaError
 
 /* ValidationError companion with creation method. */
 private[schema] object ValidationError {
-
-  /** Creates validation error.
-    *
-    * @param code the error code, which may be used to provide localized message
-    * @param message default error message
-    * @return new validation error
-    */
   def apply(code: String, message: String): ValidationError = new ValidationError(code, message)
 }

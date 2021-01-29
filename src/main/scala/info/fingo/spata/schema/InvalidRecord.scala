@@ -32,8 +32,8 @@ private[schema] object InvalidRecord {
 
 /** CSV field which has not passed validation.
   *
-  * @param name the name of field
-  * @param error information about validation error
+  * @param name the name of this field
+  * @param error validation error
   */
 class FieldFlaw private (val name: String, val error: SchemaError) {
 

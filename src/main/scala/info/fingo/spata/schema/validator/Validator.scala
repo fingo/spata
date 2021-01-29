@@ -13,11 +13,11 @@ import info.fingo.spata.util.classLabel
 
 /** Validator for typed CVS field value.
   *
-  * It is used as part of schema validation, after successful conversion of CSV string value into desired type.
+  * It is used as part of schema validation, after successful conversion of CSV string value to desired type.
   *
-  * A bunch of common validators is provided by the library. Additional ones may be defined by implementing this trait.
-  * The only method that has to defined by implementing classes is [[isValid]]
-  * as reasonable defaults are provided for other methods.
+  * A bunch of common validators are provided by the library. Additional ones may be created by implementing this trait.
+  * The only method that has to be defined by implementing classes is [[isValid]],
+  * since reasonable defaults are provided for other methods.
   *
   * @see [[CSVSchema]]
   * @tparam A value type
@@ -31,10 +31,10 @@ trait Validator[A] {
     */
   def isValid(value: A): Boolean
 
-  /** Name of this validator, to be used by error information.
+  /** Name of this validator, to be used while providing error information.
     *
     * The default value is based on validator class/object name. Implementing classes may provide their own values.
-    * It is recommended to provide one if validator is implemented as top-level anonymous class,
+    * It is recommended to define one if validator is implemented as top-level anonymous class,
     * without meaningful name.
     */
   val name: String = classLabel(this)
@@ -49,7 +49,7 @@ trait Validator[A] {
     */
   def errorMessage(value: A) = s"Invalid value [$value] reported by $name"
 
-  /* Main validation method, used by schema validation. */
+  /* Main validation method, used by schema validation. Must not alter the value. */
   final private[schema] def apply(value: A): Validated[ValidationError, A] =
     if (isValid(value)) Valid(value)
     else Invalid(ValidationError(name, errorMessage(value)))
@@ -81,7 +81,7 @@ object Validator {
   }
 }
 
-/** Validator verifying if value equals to expected one. */
+/** Validator verifying if value is equal to expected one. */
 object ExactValidator {
 
   /** Creates validator to check equality.
@@ -95,7 +95,7 @@ object ExactValidator {
   }
 }
 
-/** Validator verifying if value equals to one of expected. */
+/** Validator verifying if value is equal to one of expected. */
 object OneOfValidator {
 
   /** Creates validator to check if value matches enumeration.
@@ -184,7 +184,7 @@ object LengthValidator {
     */
   def apply(length: Int): Validator[String] = new Validator[String] {
     override def isValid(value: String): Boolean = value.strip.length == length
-    override def errorMessage(value: String): String = s"String [$value] length is wrong"
+    override def errorMessage(value: String): String = s"String [$value] length is incorrect"
   }
 }
 

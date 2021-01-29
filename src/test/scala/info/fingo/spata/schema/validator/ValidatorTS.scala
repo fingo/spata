@@ -82,7 +82,7 @@ class ValidatorTS extends AnyFunSuite {
     for (v <- valuesExactBad) assertBad(validatorLength, v)
   }
 
-  test("it is possible to validate string with regular expressions") {
+  test("it is possible to validate string with regular expression") {
     val validator = RegexValidator("""[a-z]+\.[a-z]+""")
     assert(validator.name == "regexValidator")
     val valueOK = "fingo.info"
@@ -152,10 +152,8 @@ class ValidatorTS extends AnyFunSuite {
     assert(validator.name == "finiteValidator")
     val valuesOK = Seq(0.0, 3.14, -273.15, 6.626e-34, Double.MinPositiveValue, Double.MaxValue, Double.MinValue)
     val valuesBad = Seq(Double.NaN, Double.NegativeInfinity, Double.PositiveInfinity)
-    for (v <- valuesOK)
-      assertOK(validator, v)
-    for (v <- valuesBad)
-      assertBad(validator, v)
+    for (v <- valuesOK) assertOK(validator, v)
+    for (v <- valuesBad) assertBad(validator, v)
   }
 
   test("it is possible to validate optional values") {
@@ -163,10 +161,8 @@ class ValidatorTS extends AnyFunSuite {
     assert(validator.name == "rangeValidator")
     val valuesOK = Seq(Some(0.0), Some(50.0), Some(100.0), None)
     val valuesBad = Seq(Some(-1.0), Some(101.0), Some(Double.MaxValue), Some(Double.NaN), Some(Double.NegativeInfinity))
-    for (v <- valuesOK)
-      assertOptOK(validator, v)
-    for (v <- valuesBad)
-      assertOptBad(validator, v)
+    for (v <- valuesOK) assertOptOK(validator, v)
+    for (v <- valuesBad) assertOptBad(validator, v)
   }
 
   private def assertOK[A](validator: Validator[A], value: A): Assertion = {

@@ -20,7 +20,7 @@ class ValidateITS extends AnyFunSuite {
 
   private val logger = LoggerFactory.getLogger(this.getClass) // regular, impure logger
 
-  test("spata allows validate data and converter it to case classes in type-safa manner") {
+  test("spata allows data validation and conversion to case classes in type-safe manner") {
     case class DayTempVar(date: LocalDate, tempVar: Double)
     val mh = Map("terrestrial_date" -> "date")
     val parser = CSVParser.config.mapHeader(mh).stripSpaces().get[IO]() // parser with IO effect
@@ -39,7 +39,7 @@ class ValidateITS extends AnyFunSuite {
           typedRecord => DayTempVar(typedRecord("date"), typedRecord("max_temp") - typedRecord("min_temp"))
         )
       }
-      .map(_.toOption) // on this and next line get only valid DayTempVar out of validated
+      .map(_.toOption) // get only valid DayTempVar out of Validated (this and next line)
       .unNone
       .filter(_.date.getYear == 2016) // filter data for specific year
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error

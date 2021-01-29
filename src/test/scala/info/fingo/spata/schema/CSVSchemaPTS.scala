@@ -18,7 +18,7 @@ import info.fingo.spata.PerformanceTH._
  */
 class CSVSchemaPTS extends Bench.LocalTime {
 
-  val schemaGen = CSVSchema()
+  private val schemaGen = CSVSchema()
     .add[Double]("_1", RangeValidator(100.0, 200.0))
     .add[Double]("_2")
     .add[Double]("_3", RangeValidator(100.0, 200.0))
@@ -30,7 +30,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
     .add[Double]("_9", RangeValidator(100.0, 200.0))
     .add[String]("_10")
 
-  val schemaFile = CSVSchema()
+  private val schemaFile = CSVSchema()
     .add[Int]("id")
     .add[LocalDate]("terrestrial_date")
     .add[Int]("sol")

@@ -53,10 +53,10 @@ class TypedRecordTS extends AnyFunSuite {
           :: trf("_3", "MX1")
           :: HNil
       )
-    val data = r.to[Data]()
-    assert(data._1 == r("_1"))
-    assert(data._2 == r("_2"))
-    assert(data._3 == r("_3"))
+    val (v1, v2, v3) = r.to[Data]()
+    assert(v1 == r("_1"))
+    assert(v2 == r("_2"))
+    assert(v3 == r("_3"))
   }
 
   test("Typed record can be empty") {

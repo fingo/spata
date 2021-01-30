@@ -5,7 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based Scala parser for CSV",
-  scalaVersion := "2.13.3"
+  scalaVersion := "2.13.4"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -24,13 +24,13 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.2.0",
-      "co.fs2" %% "fs2-core" % "2.4.5",
-      "co.fs2" %% "fs2-io" % "2.4.5",
+      "org.typelevel" %% "cats-effect" % "2.3.1",
+      "co.fs2" %% "fs2-core" % "2.5.0",
+      "co.fs2" %% "fs2-io" % "2.5.0",
       "com.chuusai" %% "shapeless" % "2.3.3",
       "org.slf4j" % "slf4j-api" % "1.7.30",
-      "org.scalatest" %% "scalatest" % "3.2.2" % Test,
-      "com.storm-enroute" %% "scalameter" % "0.19" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.3" % Test,
+      "com.storm-enroute" %% "scalameter" % "0.20" % Test,
       "org.slf4j" % "slf4j-simple" % "1.7.30" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),

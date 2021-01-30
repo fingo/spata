@@ -38,7 +38,6 @@ lazy val root = (project in file("."))
     Test / testOptions := Seq(Tests.Filter(unitFilter)),
     Test / fork := true,
     PerformanceTest / testOptions := Seq(Tests.Filter(perfFilter)),
-    PerformanceTest / fork := false,
     PerformanceTest / logBuffered := false,
     PerformanceTest / parallelExecution := false,
     javaOptions += "-Dfile.encoding=UTF-8",

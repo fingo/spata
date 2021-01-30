@@ -26,7 +26,7 @@ trait RecordToHList[L <: HList] {
   def apply(record: Record): Decoded[L]
 }
 
-/** Implicits to converter Record to [[shapeless.HNil]] and [[shapeless.::]]. */
+/** Implicits to convert Record to [[shapeless.HNil]] and [[shapeless.::]]. */
 object RecordToHList {
 
   /** Converter to [[shapeless.HNil]] */

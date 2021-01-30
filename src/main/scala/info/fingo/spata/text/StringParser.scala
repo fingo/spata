@@ -224,7 +224,7 @@ object StringParser {
       throw new ParseError(
         str,
         Some("number"),
-        Some(new ParseException(s"Cannot parse $str as number", pos.getIndex))
+        Some(new ParseException(s"Cannot parse [$str] to number", pos.getIndex))
       )
     num
   }

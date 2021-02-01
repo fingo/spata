@@ -9,6 +9,7 @@ lazy val basicSettings = Seq(
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
+addCommandAlias("mima", "; mimaReportBinaryIssues")
 
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")
@@ -44,7 +45,7 @@ lazy val root = (project in file("."))
     scalacOptions ++= scalacSettings,
     Test / compile / scalacOptions -= "-Wunused:locals", // false positives for implicits and Scalatest Table
     Compile / console / scalacOptions --= Seq("-Wunused:imports", "-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "1.0.0"),
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "1.1.0"),
     autoAPIMappings := true
   )
 

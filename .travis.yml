@@ -15,7 +15,7 @@ jobs:
       after_success: bash <(curl -s https://codecov.io/bash)
     - stage: compatibility
       name: "Binary compatibility"
-      script: sbt mimaReportBinaryIssues
+      script: sbt mima
     - stage: performance
       name: "Performance tests"
       script: sbt perf:test

@@ -105,7 +105,8 @@ object Converter extends IOApp {
 }
 ```
 (This example uses exception throwing methods for brevity and to keep it closer to original snippet.
-A modified version with safe access to record data may be found in [error handling](#error-handling) part of tutorial.)
+Modified versions with safe access to record data may be found in [error handling](#error-handling) 
+and [schema validation](#schema-validation) parts of the tutorial.)
 
 More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
 
@@ -635,6 +636,53 @@ The validators are defined in terms of typed (already correctly parsed) values.
 A bunch of typical ones are available as part of `info.fingo.spata.schema.validator` package.
 Additional ones may be provided by implementing the `schema.validator.Validator` trait.
 
+The converter example presented in [Basic usage](#basic-usage) may be improved to take advantage of schema validation:
+```scala
+import java.nio.file.Paths
+import java.time.LocalDate
+import scala.io.Codec
+import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.implicits._
+import fs2.Stream
+import fs2.io
+import fs2.text
+import info.fingo.spata.CSVParser
+import info.fingo.spata.io.reader
+import info.fingo.spata.schema.CSVSchema
+
+object Converter extends IOApp {
+
+  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
+    blocker =>
+      implicit val codec: Codec = Codec.UTF8
+      val parser: CSVParser[IO] = CSVParser.config.get[IO]()
+      def fahrenheitToCelsius(f: Double): Double =
+        (f - 32.0) * (5.0 / 9.0)
+      val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
+
+      reader
+        .shifting[IO](blocker)
+        .read(Paths.get("testdata/fahrenheit.txt"))
+        .through(parser.parse)
+        .through(schema.validate)
+        .map {
+          _.leftMap(println).map { tr =>
+            val date = tr("date")
+            val temp = fahrenheitToCelsius(tr("temp"))
+            s"$date,$temp"
+          }.toOption
+        }
+        .unNone
+        .intersperse("\n")
+        .through(text.utf8Encode)
+        .through(io.file.writeAll(Paths.get("testdata/celsius.txt"), blocker))
+  }
+
+  def run(args: List[String]): IO[ExitCode] =
+    converter.compile.drain.as(ExitCode.Success)
+}
+```
+
 ### Error handling
 
 There are three types of errors which may arise while parsing CSV:
@@ -655,7 +703,7 @@ See Scaladoc for `CSVException` for further information about error location.
 
 The last category is reported on the record level and allows for different handling policies.
 Please notice however, that if the error is not handled locally (e.g. using safe functions returning `Decoded`)
-and propagates through the stream, further processing of input data is stopped, like for the above error categories.  
+and propagates through the stream, further processing of input data is stopped, like for the above error categories.
 
 Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
 FS2 captures exceptions thrown or reported explicitly with `raiseError`

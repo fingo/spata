@@ -656,9 +656,9 @@ object Converter extends IOApp {
     blocker =>
       implicit val codec: Codec = Codec.UTF8
       val parser: CSVParser[IO] = CSVParser.config.get[IO]()
+      val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
       def fahrenheitToCelsius(f: Double): Double =
         (f - 32.0) * (5.0 / 9.0)
-      val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
 
       reader
         .shifting[IO](blocker)
@@ -696,6 +696,10 @@ There are three types of errors which may arise while parsing CSV:
 
 *   Errors caused by unexpected / incorrect data in record fields, reported as `HeaderError` or `DataError`.
     They may result from interactions with `Record`.
+    Alternatively, when schema validation is in use,
+    this type of errors result in `InvalidRecord` with `SchemaError`s (one per each field) being yielded.
+    More precisely, `HeaderError` and `DataError` are wrapped in `TypeError`
+    while any custom validation problem is reported as `ValidationError`. 
 
 The two first error categories are unrecoverable and stop stream processing.
 For the `StructureException` errors we are able to precisely identify the place that caused the problem.

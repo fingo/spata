@@ -17,7 +17,7 @@ import info.fingo.spata.Record
 import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
-import info.fingo.spata.util.{classLabel, Logger}
+import info.fingo.spata.util.Logger
 
 /** CSV schema definition and validation utility.
   *
@@ -170,7 +170,7 @@ class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validato
     * @return short column description
     */
   override def toString: String = {
-    val vInfo = if (validators.isEmpty) "" else validators.map(classLabel).mkString(" +", "+", "")
+    val vInfo = if (validators.isEmpty) "" else validators.map(_.name).mkString(" +", "+", "")
     s"'$name' -> ${classTag[V]}$vInfo"
   }
 

@@ -10,9 +10,14 @@ package object util {
 
   /* Gets short class identifier. Used e.g. for error codes. */
   private[spata] def classLabel(obj: AnyRef): String = {
-    val clazz = obj.getClass
-    // Get simple name if present (works well for inner classes), use full name if needed (anonymous classes)
-    val name = if (clazz.getSimpleName.isEmpty) clazz.getName.split('.').last else clazz.getSimpleName
+
+    def getSimpleName(cls: Class[_]): String =
+      Option(cls).map { c =>
+        if (c.getSimpleName.nonEmpty) c.getSimpleName
+        else getSimpleName(c.getEnclosingClass)
+      }.getOrElse("?")
+
+    val name = getSimpleName(obj.getClass)
     val head = name.take(1).toLowerCase
     val tail = name.takeWhile(_ != '$').tail
     head + tail

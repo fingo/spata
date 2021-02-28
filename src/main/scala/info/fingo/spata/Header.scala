@@ -7,19 +7,28 @@ package info.fingo.spata
 
 import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 
-/* CSV header with names of each field */
-private[spata] class Header private (names: IndexedSeq[String]) {
+/** CSV header with names of each field
+  *
+  * @param names the sequence of names
+  */
+class Header private (val names: IndexedSeq[String]) {
 
+  /** Auxiliary constructor accepting names as varargs
+    *
+    * @param names the names for fields
+    */
   def this(names: String*) = this(names.toIndexedSeq)
+
+  /** Size of header */
+  val size: Int = names.size
 
   private val index = names.zipWithIndex.toMap
 
-  val size: Int = names.size
+  private[spata] def apply(name: String): Option[Int] = index.get(name)
 
-  def apply(name: String): Option[Int] = index.get(name)
+  private[spata] def get(idx: Int): Option[String] = names.unapply(idx)
 
-  def get(idx: Int): Option[String] = names.unapply(idx)
-
+  /** String representation of header */
   override def toString: String = names.mkString("Header(", ", ", ")")
 }
 

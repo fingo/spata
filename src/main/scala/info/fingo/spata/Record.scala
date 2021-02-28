@@ -30,8 +30,16 @@ import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
   * @param rowNum row number in source file this record comes from
   * @param header indexing header (field names)
   */
-class Record private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(header: Header) {
+class Record private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(val header: Header) {
   self =>
+
+  /** Creates record from provided values.
+    *
+    * @param fields values of record's fields
+    * @param header field's names
+    */
+  // FIXME: improve line and row numbers handling in user-created records + Scaladoc
+  def this(fields: String*)(header: Header) = this(fields.toIndexedSeq, 0, 0)(header)
 
   /** Safely gets typed record value.
     *

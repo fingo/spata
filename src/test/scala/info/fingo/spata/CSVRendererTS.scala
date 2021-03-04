@@ -11,28 +11,37 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
-  test("renderer should process records matching provided header") {
+
+  test("renderer should process records matching provided or implicit header") {
     forAll(separators) { separator =>
       val config = CSVConfig().fieldDelimiter(separator)
-      forAll(testCases) { (_: String, headerCase: String, contentCase: String) =>
-        val hdr = header(headerCase)
-        val recs = records(contentCase, hdr)
-        val renderer = new CSVRenderer[IO](config)
-        val stream = Stream(recs: _*).covaryAll[IO, Record]
-        val out = stream.through(renderer.render(hdr))
-        val res = out.compile.toList.unsafeRunSync().mkString
-        val content = rendered(headerCase, contentCase, separator)
-        assert(res == content)
+      forAll(headerModes) { headerMode =>
+        forAll(testCases) { (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+          if (headerModes.contains(headerMode)) {
+            val hdr = header(headerCase)
+            val recs = records(contentCase, hdr)
+            val renderer = new CSVRenderer[IO](config)
+            val stream = Stream(recs: _*).covaryAll[IO, Record]
+            val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
+            val out = stream.through(pipe)
+            val res = out.compile.toList.unsafeRunSync().mkString
+            val content = rendered(headerCase, contentCase, separator)
+            assert(res == content)
+          }
+        }
       }
     }
   }
 
   private lazy val separators = Table("separator", ',', ';', '\t')
 
+  private lazy val headerModes = Table("mode", "implicit", "explicit")
+
   private lazy val testCases = Table(
-    ("testCase", "header", "content"),
-    ("basic", "basic", "basic"),
-    ("no content", "basic", "empty")
+    ("testCase", "header", "content", "headerMode"),
+    ("basic", "basic", "basic", List("explicit", "implicit")),
+    ("no content", "basic", "empty", List("explicit")),
+    ("no content", "empty", "empty", List("implicit"))
   )
 
   private def header(testCase: String): Header = testCase match {

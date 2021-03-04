@@ -6,8 +6,9 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
+
 import cats.effect.Sync
-import fs2.{Chunk, Pipe, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import info.fingo.spata.error.HeaderError
 import info.fingo.spata.util.Logger
 
@@ -35,6 +36,19 @@ class CSVRenderer[F[_]: Sync: Logger](config: CSVConfig) {
       .intersperse(config.recordDelimiter.toString)
       .map(s => Chunk.chars(s.toCharArray))
       .flatMap(Stream.chunk)
+  }
+
+  /** Transforms stream of records into stream of characters representing CSV data.
+    * Determines header from first record in stream.
+    *
+    * @return a pipe to converter [[Record]]s into [[scala.Char]]s
+    */
+  def render: Pipe[F, Record, Char] = (in: Stream[F, Record]) => {
+    val header = in.pull.peek1.flatMap {
+      case Some((r, _)) => Pull.output1(r.header)
+      case None => Pull.done
+    }.stream
+    header.flatMap(h => { in.through(render(h)) })
   }
 
   private def makeLine(record: Record, header: Header): Either[HeaderError, String] =

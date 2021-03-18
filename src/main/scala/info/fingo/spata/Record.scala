@@ -6,11 +6,14 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
+
 import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
-import info.fingo.spata.converter.RecordToHList
+import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
+
+import scala.collection.immutable.VectorBuilder
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -291,6 +294,8 @@ object Record {
     else
       Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
 
+  def from[P <: Product]: FromProduct[P] = new FromProduct[P]()
+
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
     * When converting a record to [[scala.Product]] (e.g. case class) one may use:
@@ -311,5 +316,29 @@ object Record {
       */
     final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rToHL: RecordToHList[R]): Decoded[P] =
       rToHL(record).map(gen.from)
+  }
+
+  class FromProduct[P <: Product] {
+
+    final def apply[R <: HList](
+      product: P
+    )(implicit gen: LabelledGeneric.Aux[P, R], rFromHL: RecordFromHList[R]): Record =
+      rFromHL(gen.to(product)).result()
+  }
+}
+
+class RecordBuilder {
+  val vb = new VectorBuilder[(String, String)]()
+
+  def add[A](key: String, value: A): this.type = {
+    // TODO: add formatting
+    vb.addOne((key, value.toString))
+    this
+  }
+
+  def result(): Record = {
+    val v = vb.result().reverse
+    val header = new Header(v.map(_._1): _*)
+    new Record(v.map(_._2): _*)(header)
   }
 }

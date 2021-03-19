@@ -7,19 +7,13 @@ package info.fingo.spata
 
 import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 
-/** CSV header with names of each field
+/** CSV header with names of each field.
   *
   * @param names the sequence of names
   */
 class Header private (val names: IndexedSeq[String]) {
 
-  /** Auxiliary constructor accepting names as varargs
-    *
-    * @param names the names for fields
-    */
-  def this(names: String*) = this(names.toIndexedSeq)
-
-  /** Size of header */
+  /** Size of header. */
   val size: Int = names.size
 
   private val index = names.zipWithIndex.toMap
@@ -33,19 +27,30 @@ class Header private (val names: IndexedSeq[String]) {
 }
 
 /* Header companion */
-private[spata] object Header {
+object Header {
 
-  /* Create regular header from provided values */
-  def apply(names: String*): Either[StructureException, Header] = checkDuplicates(names.toIndexedSeq)
+  /** Creates regular header from provided values
+    *
+    * @param names the sequence of names forming this header
+    * @return new header
+    */
+  def apply(names: String*): Header = new Header(names.toIndexedSeq)
 
-  /* Create regular header and reset / remap it */
-  def apply(names: IndexedSeq[String], headerMap: HeaderMap): Either[StructureException, Header] = {
+  /** Creates regular header from provided values
+    *
+    * @param size the size of this header
+    * @return new header
+    */
+  def apply(size: Int): Header = new Header(generate(size))
+
+  /* Creates regular header and reset / remap it. Ensures that there are no duplicates in header. */
+  private[spata] def create(names: IndexedSeq[String], headerMap: HeaderMap): Either[StructureException, Header] = {
     val remapped = headerMap.remap(names)
     checkDuplicates(remapped)
   }
 
-  /* Create tuple-style header: _1, _2, _3 etc. (if not reset/remapped). */
-  def apply(size: Int, headerMap: HeaderMap): Either[StructureException, Header] = {
+  /* Creates tuple-style header: _1, _2, _3 etc. (if not reset/remapped). Ensures that there are no duplicates. */
+  private[spata] def create(size: Int, headerMap: HeaderMap): Either[StructureException, Header] = {
     val remapped = headerMap.remap(generate(size))
     checkDuplicates(remapped)
   }

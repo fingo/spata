@@ -6,13 +6,11 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
-
 import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
-
 import scala.collection.immutable.VectorBuilder
 
 /** CSV record representation.
@@ -28,21 +26,13 @@ import scala.collection.immutable.VectorBuilder
   * `rowNum` is record counter. It start with `1` for data, with header row having number `0`.
   * It differs from `lineNum` for sources with header or fields containing line breaks.
   *
-  * @param row core record data
+  * @param values core record data
   * @param lineNum last line number in source file this record is built from
   * @param rowNum row number in source file this record comes from
   * @param header indexing header (field names)
   */
-class Record private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(val header: Header) {
+class Record private (val values: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(val header: Header) {
   self =>
-
-  /** Creates record from provided values.
-    *
-    * @param fields values of record's fields
-    * @param header field's names
-    */
-  // FIXME: improve line and row numbers handling in user-created records + Scaladoc
-  def this(fields: String*)(header: Header) = this(fields.toIndexedSeq, 0, 0)(header)
 
   /** Safely gets typed record value.
     *
@@ -145,13 +135,13 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     * @param idx the index of retrieved field, starting from `0`.
     * @return field value in original, string format or None if index is out of bounds.
     */
-  def apply(idx: Int): Option[String] = row.unapply(idx)
+  def apply(idx: Int): Option[String] = values.unapply(idx)
 
   /** Gets number of fields in record. */
-  def size: Int = row.size
+  def size: Int = values.size
 
   /** Gets text representation of record, with fields separated by comma. */
-  override def toString: String = row.mkString(",")
+  override def toString: String = values.mkString(",")
 
   /* Retrieve field value using string parser with provided format */
   private def retrieve[A, B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
@@ -170,7 +160,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
           case Right(value) => Right(value)
           case Left(error) => Left(new DataError(error.content, lineNum, rowNum, key, error))
         }
-      case None => Left(new HeaderError(lineNum, rowNum, key, new NoSuchElementException()))
+      case None => Left(new HeaderError(lineNum, rowNum, key))
     }
   }
 
@@ -253,7 +243,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       * @throws IndexOutOfBoundsException when incorrect index is provided
       */
     @throws[IndexOutOfBoundsException]("when incorrect index is provided")
-    def apply(idx: Int): String = row(idx)
+    def apply(idx: Int): String = values(idx)
 
     /* Throws exception if Either is Left. */
     private def rethrow[A](result: Decoded[A]) = result match {
@@ -286,15 +276,32 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
 object Record {
 
   /* Creates `Record`. See Record documentation for more information about parameters. */
-  private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
+  private[spata] def create(values: IndexedSeq[String], lineNum: Int, rowNum: Int)(
     header: Header
   ): Either[StructureException, Record] =
-    if (row.size == header.size)
-      Right(new Record(row, lineNum, rowNum)(header))
+    if (values.size == header.size)
+      Right(new Record(values, lineNum, rowNum)(header))
     else
       Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
 
+  def apply(values: String*)(header: Header): Option[Record] =
+    if (values.size == header.size)
+      Some(new Record(values.toIndexedSeq, 0, 0)(header))
+    else
+      None
+
+  def fromPairs(keyValues: (String, String)*): Record = {
+    val (k, v) = keyValues.unzip
+    new Record(v.toIndexedSeq, 0, 0)(Header(k: _*))
+  }
+
   def from[P <: Product]: FromProduct[P] = new FromProduct[P]()
+
+  class FromProduct[P <: Product] {
+
+    final def apply[R <: HList](product: P)(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
+      rHL(gen.to(product)).result()
+  }
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
@@ -314,16 +321,8 @@ object Record {
       * @tparam R [[shapeless.HList]] representation type
       * @return either converted product or an error
       */
-    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rToHL: RecordToHList[R]): Decoded[P] =
-      rToHL(record).map(gen.from)
-  }
-
-  class FromProduct[P <: Product] {
-
-    final def apply[R <: HList](
-      product: P
-    )(implicit gen: LabelledGeneric.Aux[P, R], rFromHL: RecordFromHList[R]): Record =
-      rFromHL(gen.to(product)).result()
+    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordToHList[R]): Decoded[P] =
+      rHL(record).map(gen.from)
   }
 }
 
@@ -336,9 +335,5 @@ class RecordBuilder {
     this
   }
 
-  def result(): Record = {
-    val v = vb.result().reverse
-    val header = new Header(v.map(_._1): _*)
-    new Record(v.map(_._2): _*)(header)
-  }
+  def result(): Record = Record.fromPairs(vb.result().reverse: _*)
 }

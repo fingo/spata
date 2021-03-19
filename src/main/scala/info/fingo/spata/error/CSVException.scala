@@ -5,6 +5,7 @@
  */
 package info.fingo.spata.error
 
+import java.util.NoSuchElementException
 import ParsingErrorCode.ErrorCode
 import info.fingo.spata.text.StringParser
 
@@ -16,7 +17,7 @@ import info.fingo.spata.text.StringParser
   *
   * For possible error codes see concrete classes implementations.
   *
-  * `line` is the line in source file at which error has been detected.
+  * `line` is the line in source data at which error has been detected.
   * It starts with `1`, including header line - first data record has typically line number `2`.
   * There may be many lines per record when some fields contain line breaks.
   * New line is interpreted independently from CSV record separator, as the standard platform `EOL` character sequence.
@@ -135,22 +136,23 @@ sealed abstract class ContentError private[spata] (
 class HeaderError private[spata] (
   line: Int,
   row: Int,
-  field: String,
-  cause: Throwable
+  field: String
 ) extends ContentError(
     HeaderError.message(line, row, field),
     HeaderError.messageCode,
     line,
     row,
     field,
-    cause
+    new NoSuchElementException()
   )
 
 private object HeaderError {
   val messageCode = "wrongKey"
 
-  def message(line: Int, row: Int, field: String): String =
-    s"Error occurred at row $row (line $line) while trying to access CSV field by '$field'."
+  def message(line: Int, row: Int, field: String): String = {
+    val posInfo = if (row > 0 && line > 0) s" at row $row (line $line)" else ""
+    s"Error occurred$posInfo while trying to access CSV field by '$field'."
+  }
 }
 
 /** Error reported for CSV data problems, caused by string parsing.
@@ -191,6 +193,7 @@ private object DataError {
         value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
       else value
     val typeInfo = StringParser.parseErrorTypeInfo(cause).getOrElse("requested type")
-    s"Error occurred at row $row (line $line) while parsing CSV field '$field' with value [$v] to $typeInfo."
+    val posInfo = if (row > 0 && line > 0) s" at row $row (line $line)" else ""
+    s"Error occurred$posInfo while parsing CSV field '$field' with value [$v] to $typeInfo."
   }
 }

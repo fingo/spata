@@ -24,7 +24,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
             val hdr = header(headerCase)
             val recs = records(contentCase, hdr)
             val renderer = new CSVRenderer[IO](config)
-            val stream = Stream(recs: _*).covaryAll[IO, Record]
+            val stream = Stream(recs: _*).unNone.covaryAll[IO, Record]
             val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
             val out = stream.through(pipe)
             val res = out.compile.toList.unsafeRunSync().mkString
@@ -44,7 +44,6 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
           if (headerModes.contains(headerMode)) {
             val hdr = header(headerCase)
             val clss = classes(contentCase)
-            val recs = records(contentCase, hdr)
             val renderer = new CSVRenderer[IO](config)
             val stream = Stream(clss: _*).covaryAll[IO, Data].map(Record.from(_))
             val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
@@ -70,21 +69,21 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   )
 
   private def header(testCase: String): Header = testCase match {
-    case "basic" => new Header("id", "name", "date", "value")
-    case "basic quoted" => new Header(""""id"""", """"name"""", """"date"""", """"value"""")
-    case "empty" => new Header()
+    case "basic" => Header("id", "name", "date", "value")
+    case "basic quoted" => Header(""""id"""", """"name"""", """"date"""", """"value"""")
+    case "empty" => Header()
   }
 
-  private def records(testCase: String, header: Header): List[Record] = testCase match {
+  private def records(testCase: String, header: Header): List[Option[Record]] = testCase match {
     case "basic" =>
-      new Record("1", "Funky Koval", "2001-01-01", "100.0")(header) ::
-        new Record("2", "Eva Solo", "2012-12-31", "123.45")(header) ::
-        new Record("3", "Han Solo", "1999-09-09", "999.99")(header) ::
+      Record("1", "Funky Koval", "2001-01-01", "100.0")(header) ::
+        Record("2", "Eva Solo", "2012-12-31", "123.45")(header) ::
+        Record("3", "Han Solo", "1999-09-09", "999.99")(header) ::
         Nil
     case "basic quoted" =>
-      new Record(""""1"""", """"Funky Koval"""", """"2001-01-01"""", """"100.0"""")(header) ::
-        new Record(""""2"""", """"Eva Solo"""", """"2012-12-31"""", """"123.45"""")(header) ::
-        new Record(""""3"""", """"Han Solo"""", """"1999-09-09"""", """"999.99"""")(header) ::
+      Record(""""1"""", """"Funky Koval"""", """"2001-01-01"""", """"100.0"""")(header) ::
+        Record(""""2"""", """"Eva Solo"""", """"2012-12-31"""", """"123.45"""")(header) ::
+        Record(""""3"""", """"Han Solo"""", """"1999-09-09"""", """"999.99"""")(header) ::
         Nil
     case "empty" => Nil
   }

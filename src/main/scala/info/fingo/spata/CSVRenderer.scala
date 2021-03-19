@@ -51,8 +51,7 @@ class CSVRenderer[F[_]: Sync: Logger](config: CSVConfig) {
 
   private def makeLine(record: Record, header: Header): Either[HeaderError, String] =
     header.names.map { name =>
-      // FIXME: correct HeaderError params / change error type
-      record(name).map(escape).toRight(new HeaderError(0, 0, name))
+      record(name).map(escape).toRight(new HeaderError(Position.none(), name))
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 

@@ -375,8 +375,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     field: Option[String]
   ): Unit = {
     assert(ex.messageCode == errorCode)
-    assert(ex.line == line)
-    assert(ex.row == row)
+    assert(ex.position.forall(_.line == line))
+    assert(ex.position.forall(_.row == row))
     assert(ex.col == col)
     assert(ex.field == field)
     ()

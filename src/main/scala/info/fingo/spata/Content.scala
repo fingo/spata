@@ -24,13 +24,12 @@ private[spata] class Content[F[_]: Sync: Logger] private (
 
   private def wrapRecord(rr: RecordResult): Either[StructureException, Record] = rr match {
     case RawRecord(fields, location, recordNum) =>
-      Record.create(fields, location.line, recordNum - dataOffset)(header)
+      Record.create(fields, recordNum - dataOffset, location.line)(header)
     case RecordFailure(code, location, recordNum, fieldNum) =>
       Left(
         new StructureException(
           code,
-          location.line,
-          recordNum - dataOffset,
+          Position.some(recordNum - dataOffset, location.line),
           Some(location.position),
           header.get(fieldNum - 1)
         )
@@ -71,6 +70,6 @@ private[spata] object Content {
       case RawRecord(captions, _, _) =>
         Header.create(captions, headerMap)
       case RecordFailure(code, location, _, _) =>
-        Left(new StructureException(code, location.line, 0, Some(location.position), None))
+        Left(new StructureException(code, Position.some(0, location.line), Some(location.position), None))
     }
 }

@@ -17,21 +17,14 @@ import scala.collection.immutable.VectorBuilder
   * A record is basically a map from string to string.
   * Values are indexed by header row if present or by tuple-style header: `"_1"`, `"_2"` etc.
   *
-  * `lineNum` is the last line in source file which content is part of this record
-  * - in other words it is the number of lines consumed so far to load this record.
-  * It starts with `1`, including header line - first data record has typically line number `2`.
-  * There may be many lines per record when some fields contain line breaks.
-  * New line is interpreted independently from CSV record separator, as the standard platform `EOL` character sequence.
-  *
-  * `rowNum` is record counter. It start with `1` for data, with header row having number `0`.
-  * It differs from `lineNum` for sources with header or fields containing line breaks.
+  * Position information is always available for parsed data - for records created through [[CSVParser]].
+  * It is missing for records created explicitly in application code (in order to be rendered to CSV).
   *
   * @param values core record data
-  * @param lineNum last line number in source file this record is built from
-  * @param rowNum row number in source file this record comes from
+  * @param position record position in source data
   * @param header indexing header (field names)
   */
-class Record private (val values: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(val header: Header) {
+class Record private (val values: IndexedSeq[String], val position: Option[Position])(val header: Header) {
   self =>
 
   /** Safely gets typed record value.
@@ -140,6 +133,18 @@ class Record private (val values: IndexedSeq[String], val lineNum: Int, val rowN
   /** Gets number of fields in record. */
   def size: Int = values.size
 
+  /** Row number in source data this record comes from or 0 if not applicable.
+    *
+    * @see [[Position]] for row number description.
+    */
+  lazy val rowNum: Int = position.map(_.row).getOrElse(0)
+
+  /** Last line number in source data this record is built from or 0 if not applicable.
+    *
+    * @see [[Position]] for line number description.
+    */
+  lazy val lineNum: Int = position.map(_.line).getOrElse(0)
+
   /** Gets text representation of record, with fields separated by comma. */
   override def toString: String = values.mkString(",")
 
@@ -158,9 +163,9 @@ class Record private (val values: IndexedSeq[String], val lineNum: Int, val rowN
       case Some(str) =>
         parse(str) match {
           case Right(value) => Right(value)
-          case Left(error) => Left(new DataError(error.content, lineNum, rowNum, key, error))
+          case Left(error) => Left(new DataError(error.content, position, key, error))
         }
-      case None => Left(new HeaderError(lineNum, rowNum, key))
+      case None => Left(new HeaderError(position, key))
     }
   }
 
@@ -276,23 +281,23 @@ class Record private (val values: IndexedSeq[String], val lineNum: Int, val rowN
 object Record {
 
   /* Creates `Record`. See Record documentation for more information about parameters. */
-  private[spata] def create(values: IndexedSeq[String], lineNum: Int, rowNum: Int)(
+  private[spata] def create(values: IndexedSeq[String], rowNum: Int, lineNum: Int)(
     header: Header
   ): Either[StructureException, Record] =
     if (values.size == header.size)
-      Right(new Record(values, lineNum, rowNum)(header))
+      Right(new Record(values, Position.some(rowNum, lineNum))(header))
     else
-      Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
+      Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
 
   def apply(values: String*)(header: Header): Option[Record] =
     if (values.size == header.size)
-      Some(new Record(values.toIndexedSeq, 0, 0)(header))
+      Some(new Record(values.toIndexedSeq, Position.none())(header))
     else
       None
 
   def fromPairs(keyValues: (String, String)*): Record = {
     val (k, v) = keyValues.unzip
-    new Record(v.toIndexedSeq, 0, 0)(Header(k: _*))
+    new Record(v.toIndexedSeq, Position.none())(Header(k: _*))
   }
 
   def from[P <: Product]: FromProduct[P] = new FromProduct[P]()

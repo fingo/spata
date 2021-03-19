@@ -74,7 +74,7 @@ object Header {
     if (doubles.isEmpty)
       Right(new Header(header))
     else
-      Left(new StructureException(ParsingErrorCode.DuplicatedHeader, 1, 0, None, doubles.headOption))
+      Left(new StructureException(ParsingErrorCode.DuplicatedHeader, Position.some(0, 1), None, doubles.headOption))
   }
 }
 

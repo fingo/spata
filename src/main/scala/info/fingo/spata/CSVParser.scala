@@ -84,7 +84,7 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(Content(h, t, config.headerMap))
-      case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, 1, 0))
+      case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, Position.some(0, 1)))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */

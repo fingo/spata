@@ -6,11 +6,13 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
+
 import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
-import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
+import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
+
 import scala.collection.immutable.VectorBuilder
 
 /** CSV record representation.
@@ -334,9 +336,8 @@ object Record {
 class RecordBuilder {
   val vb = new VectorBuilder[(String, String)]()
 
-  def add[A](key: String, value: A): this.type = {
-    // TODO: add formatting
-    vb.addOne((key, value.toString))
+  def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): this.type = {
+    vb.addOne((key, renderer(value)))
     this
   }
 

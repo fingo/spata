@@ -9,7 +9,6 @@ import java.util.Locale
 import java.text.{DecimalFormat, NumberFormat}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.time.format.{DateTimeFormatter, FormatStyle}
-
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -18,23 +17,22 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   import StringRenderer._
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
-  private val empty = "empty"
 
   test("StringRenderer should correctly render strings") {
     forAll(strings) { (_: String, string: String, str: String) =>
       assert(render(string) == str)
       assert(render(Some(string)) == str)
-      assert(render(none[String]) == "")
-      assert(render(null: String) == "")
     }
+    assert(render(none[String]) == "")
+    assert(render(null: String) == "")
   }
 
   test("StringRenderer should correctly render ints") {
     forAll(ints) { (_: String, int: Int, str: String) =>
       assert(render[Int](int) == str)
       assert(render(Some(int)) == str)
-      assert(render(none[Int]) == "")
     }
+    assert(render(none[Int]) == "")
   }
 
   test("StringRenderer should correctly render longs") {
@@ -52,29 +50,29 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("StringRenderer should correctly render big decimals") {
     forAll(decimals) { (_: String, decimal: BigDecimal, fmt: Option[DecimalFormat], str: String) =>
       assertRendering(decimal, fmt, str)
-      assert(render(null: BigDecimal) == "")
     }
+    assert(render(null: BigDecimal) == "")
   }
 
   test("StringRenderer should correctly render local dates") {
     forAll(dates) { (_: String, date: LocalDate, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(date, fmt, str)
-      assert(render(null: LocalDate) == "")
     }
+    assert(render(null: LocalDate) == "")
   }
 
   test("StringRenderer should correctly render local times") {
     forAll(times) { (_: String, time: LocalTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(time, fmt, str)
-      assert(render(null: LocalTime) == "")
     }
+    assert(render(null: LocalTime) == "")
   }
 
   test("StringRenderer should correctly render local date-times") {
     forAll(dateTimes) { (_: String, dateTime: LocalDateTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(dateTime, fmt, str)
-      assert(render(null: LocalDateTime) == "")
     }
+    assert(render(null: LocalDateTime) == "")
   }
 
   test("StringRenderer should correctly render booleans") {
@@ -89,8 +87,8 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     implicit r: FormattedStringRenderer[A, B]
   ) = {
     val rr: String = fmt match {
-      case Some(f) => render[A](value, f)
-      case _ => render[A](value)(r)
+      case Some(f) => render(value, f)
+      case _ => render(value)(r)
     }
     assert(rr == expected)
     val rrs: String = fmt match {
@@ -109,8 +107,7 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "string", "str"),
     ("basic", "lorem ipsum", "lorem ipsum"),
     ("l18n", "żółw 忍者", "żółw 忍者"),
-    (empty, "", ""),
-    ("null", null, "")
+    ("empty", "", "")
   )
 
   private lazy val ints = Table(
@@ -131,12 +128,7 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "double", "format", "str"),
     ("basic", 123456.789, None, "123456.789"),
     ("integral", 1234567.00, None, "1234567.0"),
-    (
-      "locale",
-      -123456.789,
-      Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]),
-      s"-123${nbsp}456,789"
-    ),
+    ("locale", -123456.789, Some(NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]), s"-123${nbsp}456,789"),
     ("zero", 0.0, None, "0.0")
   )
 

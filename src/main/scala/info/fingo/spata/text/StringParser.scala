@@ -20,7 +20,7 @@ import scala.util.control.NonFatal
   *
   * @tparam A target type for parsing
   */
-trait StringParser[A] {
+trait StringParser[+A] {
 
   /** Parses string to desired type.
     *
@@ -50,7 +50,7 @@ trait StringParser[A] {
   * @tparam A target type for parsing
   * @tparam B type of formatter
   */
-trait FormattedStringParser[A, B] extends StringParser[A] {
+trait FormattedStringParser[+A, B] extends StringParser[A] {
 
   /** Parses string to desired type based on provided format.
     *
@@ -81,7 +81,7 @@ object StringParser {
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     *
     * When adding parsing function to an entity, instead of providing
-    * {{{def parse[A, B](input: A, format: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A]}}}
+    * {{{def parse[A, B](input: String, format: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A]}}}
     * which requires then to use it as
     * {{{entity.parse[Double, NumberFormat]("123,45", numberFormat)}}}
     * one can provide function to get this `Pattern`

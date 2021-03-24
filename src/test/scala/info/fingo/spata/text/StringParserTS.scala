@@ -56,6 +56,12 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("StringParser should correctly parse numbers") {
+    forAll(decimals) { (tc: String, str: String, number: Option[Number], fmt: Option[DecimalFormat]) =>
+      assertParsing(str, number, fmt, tc)
+    }
+  }
+
   test("StringParser should correctly parse local dates") {
     forAll(dates) { (tc: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
       assertParsing(str, date, fmt, tc)

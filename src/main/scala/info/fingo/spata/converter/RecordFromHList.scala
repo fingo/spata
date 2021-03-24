@@ -30,7 +30,7 @@ trait RecordFromHList[L <: HList] {
 object RecordFromHList {
 
   /** Converter from [[shapeless.HNil]] */
-  implicit val fromHNil: RecordFromHList[HNil] = _ => new RecordBuilder()
+  implicit val fromHNil: RecordFromHList[HNil] = _ => RecordBuilder()
 
   /** Converter from [[shapeless.::]].
     *

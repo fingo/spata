@@ -6,14 +6,11 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
-
 import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
-import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
-
-import scala.collection.immutable.VectorBuilder
+import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -279,7 +276,7 @@ class Record private (val values: IndexedSeq[String], val position: Option[Posit
   }
 }
 
-/** Record helper object. Used to create and converter records. */
+/** Record helper object. Used to create and convert records. */
 object Record {
 
   /* Creates `Record`. See Record documentation for more information about parameters. */
@@ -302,13 +299,9 @@ object Record {
     new Record(v.toIndexedSeq, Position.none())(Header(k: _*))
   }
 
-  def from[P <: Product]: FromProduct[P] = new FromProduct[P]()
-
-  class FromProduct[P <: Product] {
-
-    final def apply[R <: HList](product: P)(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
-      rHL(gen.to(product)).result()
-  }
+  def from[P <: Product, R <: HList](
+    product: P
+  )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed()
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
@@ -331,15 +324,4 @@ object Record {
     final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordToHList[R]): Decoded[P] =
       rHL(record).map(gen.from)
   }
-}
-
-class RecordBuilder {
-  val vb = new VectorBuilder[(String, String)]()
-
-  def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): this.type = {
-    vb.addOne((key, renderer(value)))
-    this
-  }
-
-  def result(): Record = Record.fromPairs(vb.result().reverse: _*)
 }

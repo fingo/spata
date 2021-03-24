@@ -176,6 +176,41 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Records may be created from sequence of values") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header = Header("name", "date", "value")
+      val record = Record(name, sDate, sValue)(header)
+      assert(record.isDefined)
+      assert(record.forall(_.header == header))
+      assert(record.forall(_("name").contains(name)))
+      assert(record.forall(_("value").contains(sValue)))
+    }
+  }
+
+  test("Records may be created from key-value pairs") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record = Record.fromPairs("name" -> name, "date" -> sDate, "value" -> sValue)
+      assert(record.header.names == Header("name", "date", "value").names)
+      assert(record("name").contains(name))
+      assert(record("date").contains(sDate))
+      assert(record("value").contains(sValue))
+    }
+  }
+
+  test("Records may be built") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record: Record =
+        RecordBuilder()
+          .add("name", name)
+          .add("date", LocalDate.parse(sDate.strip()))
+          .add("value", sValue.strip().toDouble)
+      assert(record.header.names == Header("name", "date", "value").names)
+      assert(record("name").contains(name))
+      assert(record("date").contains(sDate.strip()))
+      assert(record("value").contains(sValue.strip()))
+    }
+  }
+
   private def createRecord(name: String, date: String, value: String)(header: Header): Record =
     Record.create(Vector(name, date, value), 1, 1)(header).toOption.get
 

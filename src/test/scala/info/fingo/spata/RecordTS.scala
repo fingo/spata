@@ -9,8 +9,9 @@ import java.text.{DecimalFormat, DecimalFormatSymbols, NumberFormat}
 import java.time.LocalDate
 import java.time.format.{DateTimeFormatter, FormatStyle}
 import java.util.Locale
+import info.fingo.spata.Record.ProductOps
 import info.fingo.spata.error.DataError
-import info.fingo.spata.text.StringParser
+import info.fingo.spata.text.{StringParser, StringRenderer}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -154,8 +155,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
+    case class Data(name: String, value: Double, date: LocalDate)
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
-      case class Data(name: String, value: Double, date: LocalDate)
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       implicit val ldsp: StringParser[LocalDate] =
@@ -176,7 +177,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from sequence of values") {
+  test("Records may be created from sequence of string values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = Record(name, sDate, sValue)(header)
@@ -187,7 +188,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from key-value pairs") {
+  test("Records may be created from string key-value pairs") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record = Record.fromPairs("name" -> name, "date" -> sDate, "value" -> sValue)
       assert(record.header.names == Header("name", "date", "value").names)
@@ -197,7 +198,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be built") {
+  test("Records may be built from typed values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record: Record =
         RecordBuilder()
@@ -208,6 +209,68 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(record("name").contains(name))
       assert(record("date").contains(sDate.strip()))
       assert(record("value").contains(sValue.strip()))
+    }
+  }
+
+  test("Records may be created from case classes") {
+    case class Data(num: Long, value: BigDecimal, date: LocalDate)
+    forAll(formatted) {
+      (
+        _: String,
+        sNum: String,
+        numFmt: NumberFormat,
+        sDate: String,
+        dateFmt: DateTimeFormatter,
+        sValue: String,
+        valueFmt: DecimalFormat
+      ) =>
+        implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
+        implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
+        implicit val dsp: StringParser[BigDecimal] =
+          (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
+        val data = Data(
+          StringParser.parse[Long](sNum).getOrElse(0L),
+          StringParser.parse[BigDecimal](sValue).getOrElse(BigDecimal(0.0)),
+          StringParser.parse[LocalDate](sDate).getOrElse(LocalDate.now())
+        )
+        implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
+        implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
+        implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
+        val record = data.toRecord()
+        assert(record("num").contains(sNum.strip()))
+        assert(record("date").contains(sDate.strip()))
+        assert(record("value").contains(sValue.strip()))
+    }
+  }
+
+  test("Records may be created from tuples") {
+    type Data = (String, LocalDate, BigDecimal)
+    forAll(formatted) {
+      (
+        _: String,
+        sNum: String,
+        numFmt: NumberFormat,
+        sDate: String,
+        dateFmt: DateTimeFormatter,
+        sValue: String,
+        valueFmt: DecimalFormat
+      ) =>
+        implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
+        implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
+        implicit val dsp: StringParser[BigDecimal] =
+          (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
+        val data = (
+          StringParser.parse[Long](sNum).getOrElse(0L),
+          StringParser.parse[BigDecimal](sValue).getOrElse(BigDecimal(0.0)),
+          StringParser.parse[LocalDate](sDate).getOrElse(LocalDate.now())
+        )
+        implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
+        implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
+        implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
+        val record = data.toRecord()
+        assert(record("_1").contains(sNum.strip()))
+        assert(record("_2").contains(sValue.strip()))
+        assert(record("_3").contains(sDate.strip()))
     }
   }
 
@@ -232,11 +295,11 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "sNum", "numFmt", "sDate", "dateFmt", "sValue", "valueFmt"),
     (
       "locale",
-      "-123456",
+      s"-123${nbsp}456",
       NumberFormat.getInstance(locale),
       "22.02.2020",
       DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale),
-      "9999,99",
+      s"9${nbsp}999,99",
       NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]
     ),
     (
@@ -250,8 +313,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ),
     (
       "formatLocale",
-      s"-123${nbsp}456",
-      new DecimalFormat("#,###", dfs),
+      s"(123${nbsp}456)",
+      new DecimalFormat("#,###;(#,###)", dfs),
       "22.02.20",
       DateTimeFormatter.ofPattern("dd.MM.yy", locale),
       s"9${nbsp}999,990",

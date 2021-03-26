@@ -9,6 +9,11 @@ import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 
 /** CSV header with names of each field.
   *
+  * Header created through parsing process ensured to have no duplicate names.
+  * This guarantee is not held for user-created headers.
+  * Providing duplicates does not cause any erroneous conditions while accessing record data,
+  * however the values associated with duplicates will be not accessible by header name.
+  *
   * @param names the sequence of names
   */
 class Header private (val names: IndexedSeq[String]) {
@@ -20,23 +25,30 @@ class Header private (val names: IndexedSeq[String]) {
 
   private[spata] def apply(name: String): Option[Int] = index.get(name)
 
-  private[spata] def get(idx: Int): Option[String] = names.unapply(idx)
+  /** Safely get header element (single name).
+    *
+    * @param idx index of retrieved name, starting from `0`
+    * @return a string representing single header element (field name) or `None` if index is out of bounds.
+    */
+  def apply(idx: Int): Option[String] = names.unapply(idx)
 
   /** String representation of header */
   override def toString: String = names.mkString("Header(", ", ", ")")
 }
 
-/* Header companion */
+/** Header companion */
 object Header {
 
-  /** Creates regular header from provided values
+  /** Creates regular header from provided values.
+    *
+    * This method does to enforce header to have unique elements.
     *
     * @param names the sequence of names forming this header
     * @return new header
     */
   def apply(names: String*): Header = new Header(names.toIndexedSeq)
 
-  /** Creates regular header from provided values
+  /** Creates tuple-style header (`_1`, `_2`, `_3` etc.) of requested size.
     *
     * @param size the size of this header
     * @return new header

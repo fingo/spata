@@ -31,7 +31,7 @@ private[spata] class Content[F[_]: Sync: Logger] private (
           code,
           Position.some(recordNum - dataOffset, location.line),
           Some(location.position),
-          header.get(fieldNum - 1)
+          header(fieldNum - 1)
         )
       )
   }

@@ -55,5 +55,32 @@ class CSVRenderer[F[_]: Sync: Logger](config: CSVConfig) {
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 
-  private def escape(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2).mkString(sq, "", sq) else s
+  private def escape(s: String): String = {
+    val sdq = doubleQuotes(s)
+    val sl = s.length
+    config.escapeMode match {
+      case CSVConfig.EscapeRequired => if (sdq.length != sl) sdq.mkString(sq, "", sq) else s
+      case CSVConfig.EscapeSpaces =>
+        if (sdq.length != sl || s.strip().length != sl) sdq.mkString(sq, "", sq) else s
+      case CSVConfig.EscapeAll =>
+        sdq.mkString(sq, "", sq)
+    }
+  }
+
+  private def doubleQuotes(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2) else s
+}
+
+/** [[CSVRenderer]] companion object with convenience methods to create renderers. */
+object CSVRenderer {
+
+  /** Creates a [[CSVRenderer]] with default configuration, as defined in RFC 4180.
+    *
+    * @tparam F the effect type, with a type class providing support for suspended execution
+    * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
+    * @return new renderer
+    */
+  def apply[F[_]: Sync: Logger](): CSVRenderer[F] = new CSVRenderer(config)
+
+  /** Provides default configuration, as defined in RFC 4180. */
+  lazy val config: CSVConfig = CSVConfig()
 }

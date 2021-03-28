@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.time.LocalDate
-
 import scala.util.control.NonFatal
 import cats.effect.IO
 import cats.implicits._
@@ -64,7 +63,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser

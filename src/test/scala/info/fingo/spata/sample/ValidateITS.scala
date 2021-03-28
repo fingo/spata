@@ -9,7 +9,7 @@ import java.time.LocalDate
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVParser
+import info.fingo.spata.CSVConfig
 import info.fingo.spata.io.reader
 import info.fingo.spata.schema.CSVSchema
 import info.fingo.spata.schema.validator.FiniteValidator
@@ -23,7 +23,7 @@ class ValidateITS extends AnyFunSuite {
   test("spata allows data validation and conversion to case classes in type-safe manner") {
     case class DayTempVar(date: LocalDate, tempVar: Double)
     val mh = Map("terrestrial_date" -> "date")
-    val parser = CSVParser.config.mapHeader(mh).stripSpaces().get[IO]() // parser with IO effect
+    val parser = CSVConfig().mapHeader(mh).stripSpaces().parser[IO]() // parser with IO effect
     val schema = CSVSchema()
       .add[LocalDate]("date")
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted

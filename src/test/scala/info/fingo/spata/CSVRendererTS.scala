@@ -23,7 +23,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
           if (headerModes.contains(headerMode)) {
             val hdr = header(headerCase)
             val recs = records(contentCase, hdr)
-            val renderer = new CSVRenderer[IO](config)
+            val renderer = config.renderer[IO]()
             val stream = Stream(recs: _*).unNone.covaryAll[IO, Record]
             val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
             val out = stream.through(pipe)
@@ -44,7 +44,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
           if (headerModes.contains(headerMode)) {
             val hdr = header(headerCase)
             val clss = classes(contentCase)
-            val renderer = new CSVRenderer[IO](config)
+            val renderer = config.renderer[IO]()
             val stream = Stream(clss: _*).covaryAll[IO, Data].map(Record.from(_))
             val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
             val out = stream.through(pipe)

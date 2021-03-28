@@ -15,7 +15,7 @@ object PerformanceTH {
 
   val separator: Char = ','
   val path: Path = Paths.get(getClass.getClassLoader.getResource("mars-weather.csv").toURI)
-  val parser: CSVParser[IO] = CSVParser.config.fieldDelimiter(separator).stripSpaces().get[IO]()
+  val parser: CSVParser[IO] = CSVParser.config.fieldDelimiter(separator).stripSpaces().parser[IO]()
 
   case class MarsWeather(
     id: Int,

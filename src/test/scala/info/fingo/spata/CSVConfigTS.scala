@@ -5,9 +5,10 @@
  */
 package info.fingo.spata
 
-import org.scalatest.funsuite.AnyFunSuite
 import scala.io.Source
 import cats.effect.IO
+import fs2.Stream
+import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.io.reader
 
 class CSVConfigTS extends AnyFunSuite {
@@ -23,11 +24,25 @@ class CSVConfigTS extends AnyFunSuite {
     val content = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
     val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader()
     val data = reader[IO]().read(Source.fromString(content))
-    val parser = config.get[IO]()
+    val parser = config.parser[IO]()
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)
     assert(result.head.size == 2)
     assert(result.head(1).contains("value '1B"))
+  }
+
+  test("Config should allow renderer creation with proper settings") {
+    val rs = 0x1E.toChar
+    val records = Seq(
+      Record.fromPairs("A" -> "value 1A", "B" -> "value '1B"),
+      Record.fromPairs("A" -> "value 2A", "B" -> "value '2B")
+    )
+    val csv = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
+    val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader().escapeAll()
+    val stream = Stream(records: _*).covaryAll[IO, Record]
+    val renderer = config.renderer[IO]()
+    val result = stream.through(renderer.render).compile.toList.unsafeRunSync().mkString
+    assert(result == csv)
   }
 
   test("Config should clearly present its composition through toString") {

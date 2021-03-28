@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.io.FileWriter
-
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
@@ -69,7 +68,7 @@ class FileITS extends AnyFunSuite {
       DTV(day, max - min)
     }
 
-    val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
+    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val outcome = for {
       // get stream of CSV records while ensuring source cleanup

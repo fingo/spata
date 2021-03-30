@@ -47,12 +47,14 @@ class CSVConfigTS extends AnyFunSuite {
 
   test("Config should clearly present its composition through toString") {
     val c1 = CSVConfig(',', '\n', '"')
-    assert(c1.toString == """CSVConfig(',', '\n', '"', header, no mapping, no trimming)""")
+    assert(c1.toString == """CSVConfig(',', '\n', '"', header, no mapping, no trimming, escape required)""")
     val c2 = CSVConfig('\t', '\r', '\'', hasHeader = false, Map("x" -> "y"), trimSpaces = true, Some(100))
-    assert(c2.toString == """CSVConfig('\t', '\r', ''', no header, header mapping, space trimming, 100)""")
-    val c3 = CSVConfig(';', ' ', '\"')
-    assert(c3.toString == """CSVConfig(';', ' ', '"', header, no mapping, no trimming)""")
+    assert(
+      c2.toString == """CSVConfig('\t', '\r', ''', no header, header mapping, space trimming, 100, escape required)"""
+    )
+    val c3 = CSVConfig(';', ' ', '\"', escapeMode = CSVConfig.EscapeSpaces)
+    assert(c3.toString == """CSVConfig(';', ' ', '"', header, no mapping, no trimming, escape spaces)""")
     val c4 = CSVConfig('\u001F', '\u001E', '|', fieldSizeLimit = Some(256))
-    assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, no trimming, 256)""")
+    assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, no trimming, 256, escape required)""")
   }
 }

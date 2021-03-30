@@ -8,52 +8,52 @@ package info.fingo.spata
 import cats.effect.Sync
 import info.fingo.spata.util.Logger
 
-/** CSV configuration used for creating [[CSVParser]] or [[CSVRenderer]].
+/** CSV configuration used to create [[CSVParser]] or [[CSVRenderer]].
   *
   * This config may be used as a builder to create a parser :
   * {{{ val parser = CSVConfig().fieldSizeLimit(1000).noHeader().parser[IO]() }}}
   * or renderer:
-  * {{{ val parser = CSVConfig().escapeSpaces().noHeader().renderer[IO]() }}}
+  * {{{ val renderer = CSVConfig().escapeSpaces().noHeader().renderer[IO]() }}}
   *
   * Field delimiter is `','` by default.
   *
-  * Record delimiter is `'\n'` by default. When the delimiter is line feed (`'\n'`, ASCII 10)
+  * Record delimiter is `'\n'` by default. When the delimiter is set to line feed (`'\n'`, ASCII 10)
   * and it is preceded by carriage return (`'\r'`, ASCII 13), they are treated as a single character.
   *
   * Quotation mark is `'"'` by default.
-  * It is required to wrap special characters in quotes - field and record delimiters.
-  * Quotation mark in content may appear only inside quotation marks.
+  * It is required to wrap special characters, field and record delimiters, in quotes.
+  * Quotation mark in actual content may appear only inside quotation marks.
   * It has to be doubled to be interpreted as part of actual data, not a control character.
   *
-  * While parsing, the header setting defines if the source has a header, which is true by default.
-  * Header is used as an keys to actual values and not included in data.
-  * If there is no header, a number-based keys are created (starting from `"_1"`).
+  * While parsing, the header setting defines if a header is present in source data, which is true by default.
+  * Header is used as keyset for actual values and not included in data.
+  * If there is no header, a number-based keys, in tuple style, are created (starting from `"_1"`).
   * While rendering, the header setting defines if header row should be added to output.
-  * If no header is explicitly defined, a number-based is used, like for parsing.
+  * If no header is explicitly defined, a number-based one is used, like for parsing.
   *
   * If CSV records are converted to case classes, header values are used as class fields and may require remapping.
   * This can be achieved through [[mapHeader(* mapHeader]]:
   * {{{config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))}}}
-  * or if there is no header line:
+  * or if an implicit header is generated:
   * {{{config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName")))}}}
   * Header mapping may be also position-based, which is especially handy when there are duplicates in header
   * and name-based remapping does not solve it (because it remaps all occurrences):
   * {{{config.mapHeader(Map(0 -> "firstName", 1 -> "lastName")))}}}
-  * Remapping may be used for renderer as well, allowing customized header while converting data from case classes.
+  * Remapping may be used for renderer as well,
+  * allowing customized header while converting data from case classes or tuples.
   *
   * Unescaped fields with leading or trailing spaces may be automatically trimmed while parsing
   * when `trimSpaces` is set to `true`.
   * This setting is `false` by default and white spaces are preserved, even for unescaped fields.
   *
   * Field size limit is used to stop processing input when it is significantly larger then expected
-  * and avoid `OutOfMemoryError`.
+  * to avoid `OutOfMemoryError`.
   * This might happen if the source structure is invalid, e.g. the closing quotation mark is missing.
   * There is no limit by default.
   *
   * While rendering CSV content, different quoting polices may be used, which is controlled by `escapeMode` setting.
-  * By default only field that have to are put into quotes -
-  * this means fields which contain field delimiter, record delimiter or quotation mark.
-  * When set to `EscapeSpaces` quotes are put additionally around field with leading or trailing spaces.
+  * By default only fields which contain field delimiter, record delimiter or quotation mark are put into quotes.
+  * When set to `EscapeSpaces` quotes are put additionally around fields with leading or trailing spaces.
   * `EscapeAll` results in putting quotes around all fields.
   *
   * @param fieldDelimiter field (cell) separator, `','` by default
@@ -103,13 +103,13 @@ case class CSVConfig private[spata] (
     */
   def fieldSizeLimit(fsl: Int): CSVConfig = this.copy(fieldSizeLimit = Some(fsl))
 
-  /**Gets new config from this one by changing escape mode to escaping fields with leading or trailing spaces.
+  /** Gets new config from this one by changing escape mode to quote fields with leading or trailing spaces.
     *
     * @note This setting is used only by renderer and ignored by parser.
     */
   def escapeSpaces(): CSVConfig = this.copy(escapeMode = CSVConfig.EscapeSpaces)
 
-  /**Gets new config from this one by changing escape mode to escaping all fields.
+  /** Gets new config from this one by changing escape mode to quote all fields.
     *
     * @note This setting is used only by renderer and ignored by parser.
     */
@@ -151,7 +151,8 @@ case class CSVConfig private[spata] (
     val hm = if (headerMap == NoHeaderMap) "no mapping" else "header mapping"
     val st = if (trimSpaces) "space trimming" else "no trimming"
     val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
-    s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm, $st$fsl)"
+    val em = escapeMode.toString
+    s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm, $st$fsl, $em)"
   }
 }
 
@@ -161,12 +162,24 @@ object CSVConfig {
   /** Method of escaping fields while rendering CSV. */
   sealed trait EscapeMode
 
-  /** Escape fields only when required - when they contain one of the delimiter or escape character. */
-  case object EscapeRequired extends EscapeMode
+  /** Escape fields only when required - when they contain one of the delimiters or escape character. */
+  case object EscapeRequired extends EscapeMode {
 
-  /** Escape fields only when required and and when field has leading or trailing white spaces. */
-  case object EscapeSpaces extends EscapeMode
+    /** Gets description of this escape mode. */
+    override def toString: String = "escape required"
+  }
+
+  /** Escape fields only when required or when field has leading or trailing white spaces. */
+  case object EscapeSpaces extends EscapeMode {
+
+    /** Gets description of this escape mode. */
+    override def toString: String = "escape spaces"
+  }
 
   /** Escape all fields regardless of their content. */
-  case object EscapeAll extends EscapeMode
+  case object EscapeAll extends EscapeMode {
+
+    /** Gets description of this escape mode. */
+    override def toString: String = "escape all"
+  }
 }

@@ -59,15 +59,18 @@ class CSVRenderer[F[_]: Sync: Logger](config: CSVConfig) {
     val sdq = doubleQuotes(s)
     val sl = s.length
     config.escapeMode match {
-      case CSVConfig.EscapeRequired => if (sdq.length != sl) sdq.mkString(sq, "", sq) else s
+      case CSVConfig.EscapeRequired => if (sdq.length != sl || hasDelimiters(s)) sdq.mkString(sq, "", sq) else s
       case CSVConfig.EscapeSpaces =>
-        if (sdq.length != sl || s.strip().length != sl) sdq.mkString(sq, "", sq) else s
+        if (sdq.length != sl || hasDelimiters(s) || s.strip().length != sl) sdq.mkString(sq, "", sq) else s
       case CSVConfig.EscapeAll =>
         sdq.mkString(sq, "", sq)
     }
   }
 
   private def doubleQuotes(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2) else s
+
+  @inline private def hasDelimiters(s: String): Boolean =
+    s.contains(config.fieldDelimiter) || s.contains(config.recordDelimiter)
 }
 
 /** [[CSVRenderer]] companion object with convenience methods to create renderers. */

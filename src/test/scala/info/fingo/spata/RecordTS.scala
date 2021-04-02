@@ -181,11 +181,22 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = Record(name, sDate, sValue)(header)
-      assert(record.isDefined)
-      assert(record.forall(_.header == header))
-      assert(record.forall(_("name").contains(name)))
-      assert(record.forall(_("value").contains(sValue)))
+      assert(record.header == header)
+      assert(record("name").contains(name))
+      assert(record("value").contains(sValue))
     }
+  }
+
+  test("Header is shrunk or extended if its length does not match values length") {
+    val header = Header("name", "date", "value")
+    val name = "Funky Koval"
+    val rs = Record(name, "01.01.2001")(header)
+    assert(rs.header.size == 2)
+    assert(rs("name").contains(name))
+    val re = Record(name, "01.01.2001", "3.14", "0")(header)
+    assert(re.header.size == 4)
+    assert(re("name").contains(name))
+    assert(re("_4").contains("0"))
   }
 
   test("Records may be created from string key-value pairs") {
@@ -195,6 +206,16 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(record("name").contains(name))
       assert(record("date").contains(sDate))
       assert(record("value").contains(sValue))
+    }
+  }
+
+  test("Records may be created from list of values") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record = Record.fromValues(name, sDate, sValue)
+      assert(record.header.names == Header("_1", "_2", "_3").names)
+      assert(record("_1").contains(name))
+      assert(record("_2").contains(sDate))
+      assert(record("_3").contains(sValue))
     }
   }
 

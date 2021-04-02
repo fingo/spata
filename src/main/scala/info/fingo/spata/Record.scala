@@ -293,17 +293,32 @@ object Record {
     else
       Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
 
-  /** Creates record. Requires number of values to match the size of header.
+  /** Creates record.
+    *
+    * The size of header has to match the number of values.
+    * In the rare case when it does not, the header is shrunk or extended accordingly.
+    * While extending, the new values are added in tuple-style, with values matching their position
+    * (e.g. extending `Header("X","Y","Z")` by 1 yields `Header("X","Y","Z","_4")`)
     *
     * @param values the values forming the record
     * @param header record header - keys for values (field names)
-    * @return new record wrapped in `Some` or `None` if values number does not match header size
+    * @return new record
     */
-  def apply(values: String*)(header: Header): Option[Record] =
-    if (values.size == header.size)
-      Some(new Record(values.toIndexedSeq, Position.none())(header))
-    else
-      None
+  def apply(values: String*)(header: Header): Record = {
+    val hdr =
+      if (values.size == header.size) header
+      else if (header.size > values.size) header.shrink(values.size)
+      else header.extend(values.size)
+    new Record(values.toIndexedSeq, Position.none())(hdr)
+  }
+
+  /** Creates record from list of values.
+    * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
+    *
+    * @param values list of values forming record
+    * @return new record
+    */
+  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none())(Header(values.size))
 
   /** Creates record from key-value pairs.
     * Keys are extracted as header.
@@ -312,11 +327,11 @@ object Record {
     * Providing duplicates does not cause any erroneous conditions while accessing record data,
     * however the values associated with second and next duplicated keys will be accessible only by index.
     *
-    * @param keyValues list of keys (names) and values forming record
+    * @param keysValues list of keys (names) and values forming record
     * @return new record
     */
-  def fromPairs(keyValues: (String, String)*): Record = {
-    val (k, v) = keyValues.unzip
+  def fromPairs(keysValues: (String, String)*): Record = {
+    val (k, v) = keysValues.unzip
     new Record(v.toIndexedSeq, Position.none())(Header(k: _*))
   }
 

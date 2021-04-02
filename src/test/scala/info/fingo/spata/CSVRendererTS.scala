@@ -31,7 +31,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
               val hdr = header(headerCase)
               val recs = records(contentCase, separator, hdr)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]()
-              val stream = Stream(recs: _*).unNone.covaryAll[IO, Record]
+              val stream = Stream(recs: _*).covaryAll[IO, Record]
               val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
               val out = stream.through(pipe)
               val res = out.compile.toList.unsafeRunSync().mkString
@@ -68,8 +68,8 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("renderer should raise error if any record does not match the header") {
     val hdr = header("basic")
-    val recs = Some(Record.fromPairs("x" -> "y")) :: records("basic", ',', hdr)
-    val stream = Stream(recs: _*).unNone.covaryAll[IO, Record]
+    val recs = Record.fromPairs("x" -> "y") :: records("basic", ',', hdr)
+    val stream = Stream(recs: _*).covaryAll[IO, Record]
     val renderer = CSVRenderer[IO]()
     val outHdr = stream.through(renderer.render(hdr)).attempt
     val resHdr = outHdr.compile.toList.unsafeRunSync()
@@ -111,7 +111,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     case "empty" => Header()
   }
 
-  private def records(testCase: String, separator: Char, header: Header): List[Option[Record]] = testCase match {
+  private def records(testCase: String, separator: Char, header: Header): List[Record] = testCase match {
     case "basic" =>
       Record("1", "Funky Koval", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva Solo", "31.12.2012", "123.45")(header) ::

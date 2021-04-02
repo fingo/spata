@@ -5,6 +5,7 @@
  */
 package info.fingo.spata
 
+import info.fingo.spata.Header.generate
 import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 
 /** CSV header with names of each field.
@@ -34,6 +35,12 @@ class Header private (val names: IndexedSeq[String]) {
 
   /** String representation of header */
   override def toString: String = names.mkString("Header(", ", ", ")")
+
+  /* Shrink this header to requested length. */
+  private[spata] def shrink(to: Int) = new Header(names.take(to))
+
+  /* Extend this header to requested length. */
+  private[spata] def extend(to: Int) = new Header(names ++ generate(to, size))
 }
 
 /** Header companion */
@@ -68,7 +75,7 @@ object Header {
   }
 
   /* Generate tuple-style sequence: _1, _2, _3 etc. */
-  private def generate(size: Int) = (0 until size).map(i => s"_${i + 1}")
+  private def generate(size: Int, start: Int = 0) = (start until size).map(i => s"_${i + 1}")
 
   /* Gets duplicates from a collection (single occurrences of them), preserving their sequence */
   private def duplicates[A](seq: Seq[A]): Seq[A] = {

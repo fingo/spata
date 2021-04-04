@@ -81,6 +81,27 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(resNoHdr.head.contains('x'))
   }
 
+  test("renderer should convert records to rows") {
+    forAll(separators) { separator =>
+      forAll(headerModes) { headerMode => // header mode must not influence row creation
+        forAll(escapeModes) { escapeMode =>
+          forAll(testCases) { (_: String, _: String, contentCase: String, headerModes: List[String]) =>
+            if (headerModes.contains(headerMode)) {
+              val recs = records(contentCase, separator)
+              val renderer = config(separator, escapeMode, headerMode).renderer[IO]()
+              val stream = Stream(recs: _*).covaryAll[IO, Record]
+              val out = stream.through(renderer.rows).intersperse("\n")
+              val res = out.compile.toList.unsafeRunSync().mkString
+              // header is never generated for parser.rows
+              val content = rendered("empty", contentCase, separator, escapeMode, headerMode)
+              assert(res == content)
+            }
+          }
+        }
+      }
+    }
+  }
+
   private def config(separator: Char, escapeMode: EscapeMode, headerMode: String) = {
     val c = CSVConfig().fieldDelimiter(separator)
     val cc = escapeMode match {
@@ -126,6 +147,25 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
       Record("1", "Funky Koval", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva Solo ", "31.12.2012", "123.45")(header) ::
         Record("3", "  Han Solo", "09.09.1999", "999.99")(header) ::
+        Nil
+    case "empty" => Nil
+  }
+
+  private def records(testCase: String, separator: Char): List[Record] = testCase match {
+    case "basic" =>
+      Record.fromValues("1", "Funky Koval", "01.01.2001", "100.0") ::
+        Record.fromValues("2", "Eva Solo", "31.12.2012", "123.45") ::
+        Record.fromValues("3", "Han Solo", "09.09.1999", "999.99") ::
+        Nil
+    case "quotes and seps" =>
+      Record.fromValues("1", s"Funky Koval$separator", "01.01.2001", "100.0") ::
+        Record.fromValues("2", "Eva\nSolo", "31.12.2012", "123.45") ::
+        Record.fromValues("3", """"Han" Solo""", "09.09.1999", "999.99") ::
+        Nil
+    case "spaces" =>
+      Record.fromValues("1", "Funky Koval", "01.01.2001", "100.0") ::
+        Record.fromValues("2", "Eva Solo ", "31.12.2012", "123.45") ::
+        Record.fromValues("3", "  Han Solo", "09.09.1999", "999.99") ::
         Nil
     case "empty" => Nil
   }

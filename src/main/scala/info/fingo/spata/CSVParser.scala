@@ -18,9 +18,10 @@ import info.fingo.spata.util.Logger
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
   * although some aspects of its format are configurable.
   *
-  * The parser may be created by providing full configuration with [[CSVConfig]]
-  * or through a helper [[CSVParser.config]] function from companion object, e.g.:
-  * {{{ val parser = CSVParser.config.fieldDelimiter(';').get[IO]() }}}
+  * The parser may be created with default configuration:
+  * {{{ val parser = CSVParser() }}}
+  * or through [[CSVParser.config]] helper function to set custom properties:
+  * {{{ val parser = CSVParser.config.fieldDelimiter(';').parser[IO]() }}}
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,

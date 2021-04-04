@@ -22,9 +22,9 @@ import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
   *
   * @param values core record data
   * @param position record position in source data
-  * @param header indexing header (field names)
+  * @param hdr indexing header (field names)
   */
-class Record private (val values: IndexedSeq[String], val position: Option[Position])(val header: Header) {
+class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]) {
   self =>
 
   /** Safely gets typed record value.
@@ -132,6 +132,9 @@ class Record private (val values: IndexedSeq[String], val position: Option[Posit
 
   /** Gets number of fields in record. */
   def size: Int = values.size
+
+  /** Indexing header - provided explicitly or generated in tuple style: `"_1"`, `"_2"` etc. */
+  lazy val header: Header = hdr.getOrElse(Header(size)) // generate header only if needed
 
   /** Row number in source data this record comes from or `0` if this information is not available
     * (i.e. record is not created through CSV parsing).
@@ -289,7 +292,7 @@ object Record {
     header: Header
   ): Either[StructureException, Record] =
     if (values.size == header.size)
-      Right(new Record(values, Position.some(rowNum, lineNum))(header))
+      Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
     else
       Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
 
@@ -309,16 +312,18 @@ object Record {
       if (values.size == header.size) header
       else if (header.size > values.size) header.shrink(values.size)
       else header.extend(values.size)
-    new Record(values.toIndexedSeq, Position.none())(hdr)
+    new Record(values.toIndexedSeq, Position.none())(Some(hdr))
   }
 
   /** Creates record from list of values.
     * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
+    * Header creation is postponed - records created in this way may be effectively headerless,
+    * if values are accessed by index only.
     *
     * @param values list of values forming record
     * @return new record
     */
-  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none())(Header(values.size))
+  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none())(None)
 
   /** Creates record from key-value pairs.
     * Keys are extracted as header.
@@ -332,7 +337,7 @@ object Record {
     */
   def fromPairs(keysValues: (String, String)*): Record = {
     val (k, v) = keysValues.unzip
-    new Record(v.toIndexedSeq, Position.none())(Header(k: _*))
+    new Record(v.toIndexedSeq, Position.none())(Some(Header(k: _*)))
   }
 
   /** Creates a record from [[scala.Product]], e.g. case class.

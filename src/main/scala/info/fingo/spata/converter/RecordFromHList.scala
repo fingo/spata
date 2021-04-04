@@ -10,7 +10,7 @@ import info.fingo.spata.text.StringRenderer
 import shapeless.labelled.FieldType
 import shapeless.{::, HList, HNil, Lazy, Witness}
 
-/** Converter from specific [[shapeless.HList]] to Record through RecordBuilder.
+/** Converter from specific [[shapeless.HList]] to `Record` through [[RecordBuilder]].
   *
   * This trait defines behavior to be implemented by concrete, implicit converters.
   *
@@ -18,15 +18,15 @@ import shapeless.{::, HList, HNil, Lazy, Witness}
   */
 trait RecordFromHList[L <: HList] {
 
-  /** Converts [[shapeless.HList]] to Record through RecordBuilder.
+  /** Converts [[shapeless.HList]] to `Record` through `RecordBuilder`.
     *
     * @param hList the source `HList` to be converted
-    * @return
+    * @return record builder used to create ultimate record
     */
   def apply(hList: L): RecordBuilder
 }
 
-/** Implicits to convert [[shapeless.HNil]] and [[shapeless.::]] to RecordBuilder. */
+/** Implicits to convert [[shapeless.HNil]] and [[shapeless.::]] to `RecordBuilder`. */
 object RecordFromHList {
 
   /** Converter from [[shapeless.HNil]] */

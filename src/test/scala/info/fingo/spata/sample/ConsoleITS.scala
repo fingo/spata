@@ -12,7 +12,7 @@ import cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.{CSVParser, Record}
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 
 /* Samples which use console to output CSV processing results */
 class ConsoleITS extends AnyFunSuite {
@@ -32,7 +32,7 @@ class ConsoleITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val aggregates = records
@@ -67,7 +67,7 @@ class ConsoleITS extends AnyFunSuite {
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         parser
-          .process(reader[IO]().read(source)) { record =>
+          .process(Reader[IO]().read(source)) { record =>
             if (record.get[Double]("max_temp").exists(_ > 0)) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
@@ -90,7 +90,7 @@ class ConsoleITS extends AnyFunSuite {
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
-        val records = parser.get(reader[IO]().read(source), 500).unsafeRunSync()
+        val records = parser.get(Reader[IO]().read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
         for (r <- over0)

@@ -10,7 +10,7 @@ import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVConfig
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.CSVSchema
 import info.fingo.spata.schema.validator.FiniteValidator
 import org.slf4j.LoggerFactory
@@ -30,7 +30,7 @@ class ValidateITS extends AnyFunSuite {
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
       .map {

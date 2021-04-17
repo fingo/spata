@@ -12,11 +12,10 @@ import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
-import info.fingo.spata.io.reader.Reader
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   // use smaller chunk size than the default one is some tests to avoid having all data in single chunk
@@ -27,7 +26,7 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
       forAll(readers) { (_: String, rdr: Reader[IO]) =>
         def stream = rdr.read(Source.fromString(data))
         stream
-          .zip(reader[IO]().read(Source.fromString(data)))
+          .zip(Reader[IO]().read(Source.fromString(data)))
           .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
           .compile
           .drain
@@ -105,19 +104,19 @@ class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
     implicit val codec: Codec = new Codec(StandardCharsets.UTF_8)
     val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
     val fis = IO(Files.newInputStream(path, StandardOpenOption.READ))
-    val stream = Stream.bracket(fis)(resource => IO { resource.close() }).through(reader.shifting[IO](chunkSize).by)
+    val stream = Stream.bracket(fis)(resource => IO { resource.close() }).through(Reader.shifting[IO](chunkSize).by)
     val content = stream.handleErrorWith(_ => Stream.emit(CAN)).compile.toList.unsafeRunSync()
     assert(content == List(CAN))
   }
 
   private lazy val readers = Table(
     ("name", "reader"),
-    ("plain", reader[IO]()),
-    ("plain custom", reader[IO](chunkSize)),
-    ("shifting", reader.shifting[IO]()),
-    ("shifting custom", reader.shifting[IO](chunkSize)),
-    ("blocker", reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global))),
-    ("blocker custom", reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global), chunkSize))
+    ("plain", Reader[IO]()),
+    ("plain custom", Reader[IO](chunkSize)),
+    ("shifting", Reader.shifting[IO]()),
+    ("shifting custom", Reader.shifting[IO](chunkSize)),
+    ("blocker", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global))),
+    ("blocker custom", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global), chunkSize))
   )
 
   private lazy val testCases = Table(

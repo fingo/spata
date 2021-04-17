@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.BeforeAndAfter
 import info.fingo.spata.{CSVConfig, CSVParser}
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.CSVSchema
 import info.fingo.spata.schema.validator.FiniteValidator
 import info.fingo.spata.util.Logger
@@ -36,7 +36,7 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse)
     // find maximum temperature
     val maximum = records
@@ -75,7 +75,7 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
       .map {

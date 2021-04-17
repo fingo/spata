@@ -13,13 +13,80 @@ import cats.syntax.all._
 import fs2.{io, text, Chunk, Pipe, Stream}
 import info.fingo.spata.util.Logger
 
+/** Writer interface with writing operations to various destinations.
+  * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.
+  *
+  * Processing I/O errors, manifested through [[java.io.IOException]],
+  * should be handled with [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
+  *
+  * @tparam F the effect type
+  */
+trait Writer[F[_]] {
+
+  /** Writes CSV to destination `OutputStream`.
+    *
+    * @note This function does not close the output stream after use,
+    * which is different from default behavior of `fs2-io` functions taking `OutputStream` as parameter.
+    * @param fos input stream containing CSV content, wrapped in effect F to defer its creation
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return pipe converting stream of characters to empty one
+    */
+  def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit]
+
+  /** Writes CSV to destination `OutputStream`.
+    *
+    * @note This function does not close the output stream after use,
+    * which is different from default behavior of `fs2-io` functions taking `OutputStream` as parameter.
+    * @param os input stream containing CSV content
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return pipe converting stream of characters to empty one
+    */
+  def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit]
+
+  /** Writes CSV to target path.
+    *
+    * @example
+    * {{{
+    * implicit val codec = new Codec(Charset.forName("UTF-8"))
+    * val path = Path.of("data.csv")
+    * val stream: Stream[IO, Char] = ???
+    * val handler: Stream[IO, Unit] = stream.through(Writer[IO]().write(path))
+    * }}}
+    *
+    * @param path the path to target file
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return pipe converting stream of characters to empty one
+    */
+  def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit]
+
+  /** Alias for various `write` methods.
+    *
+    * @param csv the CSV data destination
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @tparam A type of target
+    * @return pipe converting stream of characters to empty one
+    */
+  def apply[A: Writer.CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match {
+    case os: OutputStream => write(os)
+    case p: Path => write(p)
+  }
+
+  /** Alias for `write` method.
+    *
+    * @param csv the CSV data destination
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return pipe converting stream of characters to empty one
+    */
+  def apply(csv: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] = write(csv)
+}
+
 /** Utility to write external data from a stream of characters.
   * It is used through one of its inner classes:
-  *  - [[writer.Plain]] for standard writing operations executed on current thread,
-  *  - [[writer.Shifting]] to support context (thread) shifting for blocking operations
+  *  - [[Writer.Plain]] for standard writing operations executed on current thread,
+  *  - [[Writer.Shifting]] to support context (thread) shifting for blocking operations
   *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
   *
-  * The writing functions in [[writer.Shifting]] use [[https://fs2.io/io.html fs2-io]] library.
+  * The writing functions in [[Writer.Shifting]] use [[https://fs2.io/io.html fs2-io]] library.
   *
   * In every case, the caller of function taking resource (`java.io.OutputStream`) as a parameter
   * is responsible for its cleanup.
@@ -31,7 +98,7 @@ import info.fingo.spata.util.Logger
   *
   * All of above applies not only to `write` functions but also to `apply`, which internally make use of `write`.
   */
-object writer {
+object Writer {
 
   private val autoClose = false
   private val openOptions = Seq(StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE)
@@ -40,7 +107,7 @@ object writer {
     *
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
-    * @return basic writer
+    * @return basic `Writer`
     */
   def apply[F[_]: Sync: Logger](): Plain[F] = plain()
 
@@ -48,7 +115,7 @@ object writer {
     *
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
-    * @return basic writer
+    * @return basic `Writer`
     */
   def plain[F[_]: Sync: Logger](): Plain[F] = new Plain[F]()
 
@@ -57,7 +124,7 @@ object writer {
     * @param blocker an execution context to be used for blocking I/O operations
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return writer with support for context shifting
+    * @return `Writer` with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker): Shifting[F] =
     new Shifting[F](Some(blocker))
@@ -67,76 +134,9 @@ object writer {
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return writer with support for context shifting
+    * @return `Writer` with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift: Logger](): Shifting[F] = new Shifting[F](None)
-
-  /** Writer interface with writing operations to various destinations.
-    * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.
-    *
-    * Processing I/O errors, manifested through [[java.io.IOException]],
-    * should be handled with [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
-    *
-    * @tparam F the effect type
-    */
-  trait Writer[F[_]] {
-
-    /** Writes CSV to destination `OutputStream`.
-      *
-      * @note This function does not close the output stream after use,
-      * which is different from default behavior of `fs2-io` functions taking `OutputStream` as parameter.
-      * @param fos input stream containing CSV content, wrapped in effect F to defer its creation
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return pipe converting stream of characters to empty one
-      */
-    def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit]
-
-    /** Writes CSV to destination `OutputStream`.
-      *
-      * @note This function does not close the output stream after use,
-      * which is different from default behavior of `fs2-io` functions taking `OutputStream` as parameter.
-      * @param os input stream containing CSV content
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return pipe converting stream of characters to empty one
-      */
-    def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit]
-
-    /** Writes CSV to target path.
-      *
-      * @example
-      * {{{
-      * implicit val codec = new Codec(Charset.forName("UTF-8"))
-      * val path = Path.of("data.csv")
-      * val stream: Stream[IO, Char] = ???
-      * val handler: Stream[IO, Unit] = stream.through(writer[IO]().write(path))
-      * }}}
-      *
-      * @param path the path to target file
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return pipe converting stream of characters to empty one
-      */
-    def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit]
-
-    /** Alias for various `write` methods.
-      *
-      * @param csv the CSV data destination
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @tparam A type of target
-      * @return pipe converting stream of characters to empty one
-      */
-    def apply[A: CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match {
-      case os: OutputStream => write(os)
-      case p: Path => write(p)
-    }
-
-    /** Alias for `write` method.
-      *
-      * @param csv the CSV data destination
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return pipe converting stream of characters to empty one
-      */
-    def apply(csv: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] = write(csv)
-  }
 
   /** Writer which executes I/O operations on current thread, without context (thread) shifting.
     *
@@ -197,7 +197,7 @@ object writer {
       * implicit val codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
       * val stream: Stream[IO, Char] = ???
-      * val handler: Stream[IO, Unit] = stream.through(writer.shifting[IO]().write(path))
+      * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO]().write(path))
       * }}}
       */
     def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
@@ -221,13 +221,13 @@ object writer {
     */
   sealed trait CSV[-A]
 
-  /** Implicits to witness that given type is supported by writer as CSV destination */
+  /** Implicits to witness that given type is supported by `Writer` as CSV destination. */
   object CSV {
 
-    /** Witness that [[java.io.OutputStream]] may be used with writer functions */
+    /** Witness that [[java.io.OutputStream]] may be used with `Writer` methods. */
     implicit object outputStreamWitness extends CSV[OutputStream]
 
-    /** Witness that [[java.nio.file.Path]] may be used with writer functions */
+    /** Witness that [[java.nio.file.Path]] may be used with `Writer` methods. */
     implicit object pathWitness extends CSV[Path]
   }
 }

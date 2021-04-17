@@ -10,7 +10,7 @@ import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVConfig
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 
 /* Sample which converts CSV records to case classes. */
 class ConvertITS extends AnyFunSuite {
@@ -22,7 +22,7 @@ class ConvertITS extends AnyFunSuite {
     val parser = CSVConfig().mapHeader(mh).stripSpaces().parser[IO]() // parser with IO effect
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse) // get stream of CSV records
       .map(_.to[DayTemp]()) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error

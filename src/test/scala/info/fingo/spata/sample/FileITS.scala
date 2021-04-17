@@ -10,7 +10,7 @@ import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
-import info.fingo.spata.io.{reader, writer}
+import info.fingo.spata.io.{Reader, Writer}
 
 /* Samples which write processing results to another CSV file */
 class FileITS extends AnyFunSuite {
@@ -29,7 +29,7 @@ class FileITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader[IO]().by)
+      .through(Reader[IO]().by)
       .through(parser.parse)
     // converter and aggregate data, get stream of YTs
     val dtvs = records.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
@@ -39,7 +39,7 @@ class FileITS extends AnyFunSuite {
     val output = dtvs
       .map(dtv => Record.from(dtv))
       .through(renderer.render)
-      .through(writer[IO]().write(outFile.toPath))
+      .through(Writer[IO]().write(outFile.toPath))
       .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream.eval_(IO {
@@ -56,12 +56,12 @@ class FileITS extends AnyFunSuite {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       destination <- Stream.bracket(IO { new FileOutputStream(outFile) })(destination => IO { destination.close() })
-      out <- reader[IO]()
+      out <- Reader[IO]()
         .read(source)
         .through(CSVParser[IO]().parse) // parser with default configuration and IO effect
         .filter(record => !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN"))
         .through(CSVRenderer[IO]().render) // convert back to string representation
-        .through(writer[IO]().write(destination)) // write data to output file
+        .through(Writer[IO]().write(destination)) // write data to output file
         .handleErrorWith(ex => errorHandler(ex, outFile))
     } yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)

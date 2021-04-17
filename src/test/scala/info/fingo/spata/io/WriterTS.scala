@@ -8,18 +8,15 @@ package info.fingo.spata.io
 import java.io.{ByteArrayOutputStream, IOException, OutputStream}
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.Files
-
 import scala.concurrent.ExecutionContext
+import scala.io.Codec
 import fs2.{Chunk, Stream}
 import cats.effect.{Blocker, ContextShift, IO}
-import info.fingo.spata.io.writer.Writer
 import info.fingo.spata.sample.SampleTH
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-import scala.io.Codec
-
-class writerTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private val defaultCharset = StandardCharsets.UTF_8
@@ -114,9 +111,9 @@ class writerTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val writers = Table(
     ("name", "writer"),
-    ("plain", writer[IO]()),
-    ("shifting", writer.shifting[IO]()),
-    ("blocker", writer.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global)))
+    ("plain", Writer[IO]()),
+    ("shifting", Writer.shifting[IO]()),
+    ("blocker", Writer.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global)))
   )
 
   private lazy val testCases = Table(

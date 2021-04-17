@@ -52,13 +52,12 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * This function is intended to be used with [[fs2.Stream.through]].
     * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
-    * Processing of data sources may be achieved by combining this function with [[io.reader]], e.g.:
+    * Processing of data sources may be achieved by combining this function with [[io.Reader]], e.g.:
     * {{{
-    * val parser = CSVParser[IO]()
     * val stream: Stream[IO, Record] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(reader[IO].read)
-    *   .through(parser.parse)
+    *   .flatMap(Reader[IO]().read)
+    *   .through(CSVParser[IO]().parse)
     * }}}
     *
     * Transformation may result in [[error.StructureException]], to be handled with [[fs2.Stream.handleErrorWith]].

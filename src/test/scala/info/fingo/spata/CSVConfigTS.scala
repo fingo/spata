@@ -9,7 +9,7 @@ import scala.io.Source
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 
 class CSVConfigTS extends AnyFunSuite {
 
@@ -23,7 +23,7 @@ class CSVConfigTS extends AnyFunSuite {
     val rs = 0x1E.toChar
     val content = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
     val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader()
-    val data = reader[IO]().read(Source.fromString(content))
+    val data = Reader[IO]().read(Source.fromString(content))
     val parser = config.parser[IO]()
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)

@@ -146,6 +146,19 @@ object reader {
       *
       * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
       *
+      * @param fis input stream containing CSV content, wrapped in effect F to defer its creation
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+      * @return the stream of characters
+      */
+    def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char]
+
+    /** Reads a CSV source and returns a stream of character.
+      *
+      * @note This function does not close the input stream after use,
+      * which is different from default behavior of `fs2-io` functions taking `InputStream` as parameter.
+      *
+      * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
+      *
       * @param is input stream containing CSV content
       * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
       * @return the stream of characters
@@ -180,6 +193,14 @@ object reader {
       case p: Path => read(p)
     }
 
+    /** Alias for `read`.
+      *
+      * @param fis input stream containing CSV content, wrapped in effect F to defer its creation
+      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+      * @return the stream of characters
+      */
+    def apply(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] = read(fis)
+
     /** Pipe converting stream with CSV source to stream of characters.
       *
       * @example
@@ -207,6 +228,10 @@ object reader {
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
       Logger[F].debugS("Reading data on current thread") >> Stream.fromIterator[F](source, chunkSize).through(skipBom)
+
+    /** @inheritdoc */
+    def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] =
+      Stream.eval(fis).flatMap(is => read(new BufferedSource(is, chunkSize)))
 
     /** @inheritdoc */
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(new BufferedSource(is, chunkSize))
@@ -255,14 +280,15 @@ object reader {
       } yield char
 
     /** @inheritdoc */
-    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
+    def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
         _ <- Logger[F].debugS("Reading data from InputStream with context shift")
-        char <- io
-          .readInputStream(Sync[F].delay(is), chunkSize, blocker, autoClose)
-          .through(byte2char)
+        char <- io.readInputStream(fis, chunkSize, blocker, autoClose).through(byte2char)
       } yield char
+
+    /** @inheritdoc */
+    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(Sync[F].delay(is))
 
     /** @inheritdoc
       *

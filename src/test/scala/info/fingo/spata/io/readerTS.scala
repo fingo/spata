@@ -8,124 +8,117 @@ package info.fingo.spata.io
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Paths, StandardOpenOption}
-
 import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Codec, Source}
-import cats.effect.{ContextShift, IO}
+import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
+import info.fingo.spata.io.reader.Reader
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class readerTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-  // use smaller chunk size in tests than the default one to avoid having all data in single chunk
+  // use smaller chunk size than the default one is some tests to avoid having all data in single chunk
   private val chunkSize = 16
 
   test("reader should properly load characters from source") {
     forAll(testCases) { (_: String, data: String) =>
-      def stream = reader[IO](chunkSize).read(Source.fromString(data))
-      stream
-        .zip(reader[IO]().read(Source.fromString(data)))
-        .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
-        .compile
-        .drain
-        .unsafeRunSync()
-      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      forAll(readers) { (_: String, rdr: Reader[IO]) =>
+        def stream = rdr.read(Source.fromString(data))
+        stream
+          .zip(reader[IO]().read(Source.fromString(data)))
+          .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
+          .compile
+          .drain
+          .unsafeRunSync()
+        assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      }
     }
   }
 
   test("reader should allow handling exception with MonadError") {
     val source = new BufferedSource(() => throw new IOException("message"))
-    val stream = reader[IO]().read(source)
-    val eh = (ex: Throwable) => Stream.emit(ex.isInstanceOf[IOException])
-    val result = stream.map(_ => false).handleErrorWith(eh).compile.toList.unsafeRunSync()
-    assert(result.length == 1)
-    assert(result.head)
-  }
-
-  test("reader should properly load characters from source while shifting IO operations to blocking context") {
-    forAll(testCases) { (_: String, data: String) =>
-      def stream = reader.shifting[IO](chunkSize).read(Source.fromString(data))
-      stream
-        .zip(reader[IO]().read(Source.fromString(data)))
-        .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
-        .compile
-        .drain
-        .unsafeRunSync()
-      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+    forAll(readers) { (_: String, rdr: Reader[IO]) =>
+      val stream = rdr.read(source)
+      val eh = (ex: Throwable) => Stream.emit(ex.isInstanceOf[IOException])
+      val result = stream.map(_ => false).handleErrorWith(eh).compile.toList.unsafeRunSync()
+      assert(result.length == 1)
+      assert(result.head)
     }
   }
 
-  test("reader should properly read from InputSteam") {
+  test("reader should properly read from InputSteam wrapped in effect") {
     forAll(testCases) { (_: String, data: String) =>
-      val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
-      val stream = reader[IO](chunkSize).read(input)
-      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      forAll(readers) { (_: String, rdr: Reader[IO]) =>
+        val input = IO(new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8)))
+        val stream = rdr.read(input)
+        assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      }
     }
   }
 
-  test("reader should properly read from InputSteam on blocking context") {
+  test("reader should properly read from plain InputSteam") {
     forAll(testCases) { (_: String, data: String) =>
-      val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
-      val stream = reader.shifting[IO](chunkSize).read(input)
-      assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      forAll(readers) { (_: String, rdr: Reader[IO]) =>
+        val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
+        val stream = rdr.read(input)
+        assert(stream.compile.toList.unsafeRunSync() == data.toList)
+      }
     }
   }
 
   test("reader should properly read from path") {
     val path = Paths.get(getClass.getClassLoader.getResource("sample.csv").toURI)
-    val stream = reader[IO](chunkSize).read(path)
-    val content = stream.compile.toList.unsafeRunSync()
-    assert(content.mkString == Files.readString(path))
-  }
-
-  test("reader should properly read from path using blocking context") {
-    val path = Paths.get(getClass.getClassLoader.getResource("sample.csv").toURI)
-    val stream = reader.shifting[IO](chunkSize).read(path)
-    val content = stream.compile.toList.unsafeRunSync()
-    assert(content.mkString == Files.readString(path))
+    forAll(readers) { (_: String, rdr: Reader[IO]) =>
+      val stream = rdr.read(path)
+      val content = stream.compile.toList.unsafeRunSync()
+      assert(content.mkString == Files.readString(path))
+    }
   }
 
   test("reader should properly read UTF-8 files with BOM") {
     val localChar = 'ł'
     val path = Paths.get(getClass.getClassLoader.getResource("bom.csv").toURI)
-    val stream = reader[IO](chunkSize).apply(path)
-    val content = stream.compile.toList.unsafeRunSync()
-    assert(content.startsWith("author"))
-    assert(content.contains(localChar))
+    forAll(readers) { (_: String, rdr: Reader[IO]) =>
+      val stream = rdr(path)
+      val content = stream.compile.toList.unsafeRunSync()
+      assert(content.startsWith("author"))
+      assert(content.contains(localChar))
+    }
   }
 
   test("reader should properly read files with non-UTF encoding") {
     val localChar = 'ł'
     implicit val codec: Codec = new Codec(Charset.forName("windows-1250"))
     val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
-    val stream = reader[IO](chunkSize).read(path)
-    val content = stream.compile.toList.unsafeRunSync()
-    assert(content.startsWith("author"))
-    assert(content.contains(localChar))
-  }
-
-  test("reader should properly read files with non-UTF encoding using blocking context") {
-    val localChar = 'ł'
-    implicit val codec: Codec = new Codec(Charset.forName("windows-1250"))
-    val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
-    val is = Files.newInputStream(path, StandardOpenOption.READ)
-    val stream = Stream.bracket(IO(is))(resource => IO { resource.close() }).through(reader.shifting[IO](chunkSize).by)
-    val content = stream.compile.toList.unsafeRunSync()
-    assert(content.startsWith("author"))
-    assert(content.contains(localChar))
+    forAll(readers) { (_: String, rdr: Reader[IO]) =>
+      val stream = rdr.read(path)
+      val content = stream.compile.toList.unsafeRunSync()
+      assert(content.startsWith("author"))
+      assert(content.contains(localChar))
+    }
   }
 
   test("reader should properly handle charset conversion errors while using blocking context") {
     val CAN = 0x18.toChar
     implicit val codec: Codec = new Codec(StandardCharsets.UTF_8)
     val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
-    val is = Files.newInputStream(path, StandardOpenOption.READ)
-    val stream = Stream.bracket(IO(is))(resource => IO { resource.close() }).through(reader.shifting[IO](chunkSize).by)
+    val fis = IO(Files.newInputStream(path, StandardOpenOption.READ))
+    val stream = Stream.bracket(fis)(resource => IO { resource.close() }).through(reader.shifting[IO](chunkSize).by)
     val content = stream.handleErrorWith(_ => Stream.emit(CAN)).compile.toList.unsafeRunSync()
     assert(content == List(CAN))
   }
+
+  private lazy val readers = Table(
+    ("name", "reader"),
+    ("plain", reader[IO]()),
+    ("plain custom", reader[IO](chunkSize)),
+    ("shifting", reader.shifting[IO]()),
+    ("shifting custom", reader.shifting[IO](chunkSize)),
+    ("blocker", reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global))),
+    ("blocker custom", reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global), chunkSize))
+  )
 
   private lazy val testCases = Table(
     ("testCase", "data"),

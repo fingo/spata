@@ -381,7 +381,17 @@ object Record {
     */
   def from[P <: Product, R <: HList](
     product: P
-  )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed()
+  )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
+
+  /** Creates new [[RecordBuilder]]. */
+  def builder: RecordBuilder = new RecordBuilder(List[(String, String)]())
+
+  /** Implicitly converts [[RecordBuilder]] to [[Record]].
+    *
+    * @param rb the RecordBuilder to be converted
+    * @return new Record with values from provided builder
+    */
+  implicit def toRecord(rb: RecordBuilder): Record = rb.result
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *

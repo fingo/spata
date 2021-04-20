@@ -11,7 +11,7 @@ import fs2.{Pipe, Stream}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import info.fingo.spata.io.Reader
-import info.fingo.spata.{CSVParser, CSVRenderer, Header, Record, RecordBuilder}
+import info.fingo.spata.{CSVParser, CSVRenderer, Header, Record}
 import info.fingo.spata.error.CSVException
 
 class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
@@ -59,7 +59,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(es.last.isLeft)
     // implicit header
     val is = result { (i, t) =>
-      RecordBuilder().add("id", i).add("text", t).result()
+      Record.builder.add("id", i).add("text", t)
     }(renderer.render)
     assert(is.init.forall(_.isRight))
     assert(is.head.isRight)

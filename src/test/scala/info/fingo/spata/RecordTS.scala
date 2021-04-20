@@ -222,7 +222,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Records may be built from typed values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record: Record =
-        RecordBuilder()
+        Record.builder
           .add("name", name)
           .add("date", LocalDate.parse(sDate.strip()))
           .add("value", sValue.strip().toDouble)

@@ -11,18 +11,7 @@ import info.fingo.spata.text.StringRenderer
   *
   * @param buf buffer used to incrementally build record's content.
   */
-class RecordBuilder private (buf: List[(String, String)]) {
-
-  /** Gets final record from this builder.
-    *
-    * @return new record with values from this builder.
-    */
-  def result(): Record = Record.fromPairs(buf.reverse: _*)
-
-  /* Gets final record from this builder with reversed order of the fields,
-   * which really means preserving the order, because values ate prepended.
-   */
-  private[spata] def reversed(): Record = Record.fromPairs(buf: _*)
+class RecordBuilder private[spata] (buf: List[(String, String)]) {
 
   /** Enhance builder with a new value.
     *
@@ -34,18 +23,15 @@ class RecordBuilder private (buf: List[(String, String)]) {
     */
   def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): RecordBuilder =
     new RecordBuilder((key, renderer(value)) :: buf)
-}
 
-/** Record builder companion. */
-object RecordBuilder {
-
-  /** Creates new [[RecordBuilder]]. */
-  def apply(): RecordBuilder = new RecordBuilder(List[(String, String)]())
-
-  /** Implicitly converts [[RecordBuilder]] to [[Record]].
+  /** Gets final record from this builder.
     *
-    * @param rb the RecordBuilder to be converted
-    * @return new Record with values from provided builder
+    * @return new record with values from this builder.
     */
-  implicit def toRecord(rb: RecordBuilder): Record = rb.result()
+  def result: Record = Record.fromPairs(buf.reverse: _*)
+
+  /* Gets final record from this builder with reversed order of the fields,
+   * which really means preserving the order, because values ate prepended.
+   */
+  private[spata] def reversed: Record = Record.fromPairs(buf: _*)
 }

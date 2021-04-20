@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.converter
 
-import info.fingo.spata.RecordBuilder
+import info.fingo.spata.{Record, RecordBuilder}
 import info.fingo.spata.text.StringRenderer
 import shapeless.labelled.FieldType
 import shapeless.{::, HList, HNil, Lazy, Witness}
@@ -30,7 +30,7 @@ trait RecordFromHList[L <: HList] {
 object RecordFromHList {
 
   /** Converter from [[shapeless.HNil]] */
-  implicit val fromHNil: RecordFromHList[HNil] = _ => RecordBuilder()
+  implicit val fromHNil: RecordFromHList[HNil] = _ => Record.builder
 
   /** Converter from [[shapeless.::]].
     *

@@ -10,6 +10,7 @@ import info.fingo.spata.Record.ProductOps
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 
+/* Check performance of parser. */
 class CSVRendererPTS extends Bench.LocalTime {
 
   performance.of("renderer").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {

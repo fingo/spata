@@ -38,6 +38,18 @@ object PerformanceTH {
     wind_speed: Double,
     atmo_opacity: String
   )
+  val mwHeader: Header = Header(
+    "id",
+    "terrestrial_date",
+    "sol",
+    "ls",
+    "month",
+    "min_temp",
+    "max_temp",
+    "pressure",
+    "wind_speed",
+    "atmo_opacity"
+  )
 
   class TestSource(amount: Int) extends Source {
     private val cols = 10
@@ -58,6 +70,12 @@ object PerformanceTH {
     val header = Header((1 to cols).map(i => s"_$i"): _*)
     val record = Record((1 to cols).map(i => s"value$i"): _*)(header)
     val rows: LazyList[Record] = LazyList.fill(amount)(record)
+    Stream(rows: _*).covary[IO]
+  }
+
+  def testMarsWeather(amount: Int): Stream[IO, MarsWeather] = {
+    val mw = MarsWeather(1, LocalDate.of(2018, 2, 18), 1968, 133, "Month 5", -76, -19, 732, Double.NaN, "Sunny")
+    val rows = LazyList.fill(amount)(mw)
     Stream(rows: _*).covary[IO]
   }
 }

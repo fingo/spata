@@ -26,7 +26,7 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
       forAll(readers) { (_: String, rdr: Reader[IO]) =>
         def stream = rdr.read(Source.fromString(data))
         stream
-          .zip(Reader[IO]().read(Source.fromString(data)))
+          .zip(Reader[IO].read(Source.fromString(data)))
           .map { case (chunkedChar, notChunkedChar) => assert(chunkedChar == notChunkedChar) }
           .compile
           .drain
@@ -111,9 +111,9 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val readers = Table(
     ("name", "reader"),
-    ("plain", Reader[IO]()),
+    ("plain", Reader[IO]),
     ("plain custom", Reader[IO](chunkSize)),
-    ("shifting", Reader.shifting[IO]()),
+    ("shifting", Reader.shifting[IO]),
     ("shifting custom", Reader.shifting[IO](chunkSize)),
     ("blocker", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global))),
     ("blocker custom", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global), chunkSize))

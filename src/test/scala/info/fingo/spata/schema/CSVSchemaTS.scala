@@ -251,8 +251,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val content = csvContent(dataSet)
     val header = csvHeader(dataSet)
     val source = Source.fromString(s"$header\n$content")
-    val parser = CSVParser[IO]()
-    Reader[IO]().read(source).through(parser.parse)
+    Reader[IO].read(source).through(CSVParser[IO].parse)
   }
 
   private def csvHeader(dataSet: String) = dataSet match {

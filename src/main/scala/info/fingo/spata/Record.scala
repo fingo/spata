@@ -312,7 +312,7 @@ object Record {
       if (values.size == header.size) header
       else if (header.size > values.size) header.shrink(values.size)
       else header.extend(values.size)
-    new Record(values.toIndexedSeq, Position.none())(Some(hdr))
+    new Record(values.toIndexedSeq, Position.none)(Some(hdr))
   }
 
   /** Creates record from list of values.
@@ -323,7 +323,7 @@ object Record {
     * @param values list of values forming record
     * @return new record
     */
-  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none())(None)
+  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none)(None)
 
   /** Creates record from key-value pairs.
     * Keys are extracted as header.
@@ -337,7 +337,7 @@ object Record {
     */
   def fromPairs(keysValues: (String, String)*): Record = {
     val (k, v) = keysValues.unzip
-    new Record(v.toIndexedSeq, Position.none())(Some(Header(k: _*)))
+    new Record(v.toIndexedSeq, Position.none)(Some(Header(k: _*)))
   }
 
   /** Creates a record from [[scala.Product]], e.g. case class.

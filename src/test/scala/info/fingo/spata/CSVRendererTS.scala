@@ -30,7 +30,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
             if (headerModes.contains(headerMode)) {
               val hdr = header(headerCase)
               val recs = records(contentCase, separator, hdr)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]()
+              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
               val stream = Stream(recs: _*).covaryAll[IO, Record]
               val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
               val out = stream.through(pipe)
@@ -52,7 +52,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
             if (headerModes.contains(headerMode)) {
               val hdr = header(headerCase)
               val clss = classes(contentCase, separator)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]()
+              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
               val stream = Stream(clss: _*).covaryAll[IO, Data].map(Record.from(_))
               val pipe = if (headerMode != "implicit") renderer.render(hdr) else renderer.render
               val out = stream.through(pipe)
@@ -70,12 +70,11 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val hdr = header("basic")
     val recs = Record.fromPairs("x" -> "y") :: records("basic", ',', hdr)
     val stream = Stream(recs: _*).covaryAll[IO, Record]
-    val renderer = CSVRenderer[IO]()
-    val outHdr = stream.through(renderer.render(hdr)).attempt
+    val outHdr = stream.through(CSVRenderer[IO].render(hdr)).attempt
     val resHdr = outHdr.compile.toList.unsafeRunSync()
     assert(resHdr.last.isLeft)
     assert(resHdr.map(_.getOrElse('?')).mkString.startsWith(hdr.names.mkString(",")))
-    val outNoHdr = stream.through(renderer.render).attempt
+    val outNoHdr = stream.through(CSVRenderer[IO].render).attempt
     val resNoHdr = outNoHdr.compile.toList.unsafeRunSync()
     assert(resNoHdr.last.isLeft)
     assert(resNoHdr.head.contains('x'))
@@ -88,7 +87,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
           forAll(testCases) { (_: String, _: String, contentCase: String, headerModes: List[String]) =>
             if (headerModes.contains(headerMode)) {
               val recs = records(contentCase, separator)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]()
+              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
               val stream = Stream(recs: _*).covaryAll[IO, Record]
               val out = stream.through(renderer.rows).intersperse("\n")
               val res = out.compile.toList.unsafeRunSync().mkString
@@ -105,11 +104,11 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private def config(separator: Char, escapeMode: EscapeMode, headerMode: String) = {
     val c = CSVConfig().fieldDelimiter(separator)
     val cc = escapeMode match {
-      case EscapeAll => c.escapeAll()
-      case EscapeSpaces => c.escapeSpaces()
+      case EscapeAll => c.escapeAll
+      case EscapeSpaces => c.escapeSpaces
       case EscapeRequired => c
     }
-    if (headerMode == "none") cc.noHeader() else cc
+    if (headerMode == "none") cc.noHeader else cc
   }
 
   private lazy val separators = Table("separator", ',', ';', '\t')

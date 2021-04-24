@@ -18,7 +18,7 @@ private[spata] case class StateFP(
   buffer: StringBuilder = new StringBuilder,
   done: Boolean = false
 ) extends State {
-  def finish(): StateFP = copy(done = true)
+  def finish: StateFP = copy(done = true)
 }
 
 /* Converter from character symbols to CSV fields.
@@ -47,7 +47,7 @@ private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
     input match {
       case _ if fieldTooLong(state.lc) =>
         val chunk = Chunk.vector(output :+ fail(FieldTooLong, state.counters, state.lc))
-        (state.finish(), chunk)
+        (state.finish, chunk)
       case (cs: CharState) :: tail if cs.finished =>
         val content = state.buffer.toString().dropRight(state.lc.toTrim)
         val field = RawField(content, state.counters, cs.position == FinishedRecord)
@@ -60,7 +60,7 @@ private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
         parseChunk(tail, output, StateFP(newCounters, newLC, state.buffer))
       case (cf: CharFailure) :: _ =>
         val chunk = Chunk.vector(output :+ fail(cf.code, state.counters, state.lc))
-        (state.finish(), chunk)
+        (state.finish, chunk)
       case _ => (state, Chunk.vector(output))
     }
 
@@ -75,10 +75,10 @@ private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
 
   private def recalculateLocalCounts(lc: LocalCounts, cs: CharState): LocalCounts =
     cs.position match {
-      case Start => lc.incLeading()
-      case End => lc.incTrailing()
-      case Trailing => lc.incTrimming()
-      case _ => if (cs.hasChar) lc.incCharacters() else lc.resetTrimming()
+      case Start => lc.incLeading
+      case End => lc.incTrailing
+      case Trailing => lc.incTrimming
+      case _ => if (cs.hasChar) lc.incCharacters else lc.resetTrimming
     }
 
   private def recalculateCountersAtFailure(error: ErrorCode, counters: Location, lc: LocalCounts): Location =
@@ -105,10 +105,10 @@ private[spata] object FieldParser {
     trailSpaces: Int = 0,
     toTrim: Int = 0
   ) {
-    def incCharacters(): LocalCounts = copy(characters = this.characters + 1, toTrim = 0)
-    def incLeading(): LocalCounts = copy(leadSpaces = this.leadSpaces + 1, toTrim = 0)
-    def incTrailing(): LocalCounts = copy(trailSpaces = this.trailSpaces + 1, toTrim = 0)
-    def incTrimming(): LocalCounts = copy(characters = this.characters + 1, toTrim = this.toTrim + 1)
-    def resetTrimming(): LocalCounts = copy(toTrim = 0)
+    def incCharacters: LocalCounts = copy(characters = this.characters + 1, toTrim = 0)
+    def incLeading: LocalCounts = copy(leadSpaces = this.leadSpaces + 1, toTrim = 0)
+    def incTrailing: LocalCounts = copy(trailSpaces = this.trailSpaces + 1, toTrim = 0)
+    def incTrimming: LocalCounts = copy(characters = this.characters + 1, toTrim = this.toTrim + 1)
+    def resetTrimming: LocalCounts = copy(toTrim = 0)
   }
 }

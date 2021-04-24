@@ -23,5 +23,5 @@ case class Position(row: Int, line: Int)
 
 private[spata] object Position {
   def some(row: Int, line: Int): Option[Position] = Some(Position(row, line))
-  def none(): Option[Position] = None
+  def none: Option[Position] = None
 }

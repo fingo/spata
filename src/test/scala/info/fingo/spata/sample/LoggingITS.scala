@@ -32,11 +32,11 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("spata allows logging basic operations") {
-    val parser = CSVConfig().mapHeader(Map("max_temp" -> "temp")).stripSpaces().parser[IO]() // parser with IO effect
+    val parser = CSVConfig().mapHeader(Map("max_temp" -> "temp")).stripSpaces.parser[IO] // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(Reader[IO]().by)
+      .through(Reader[IO].by)
       .through(parser.parse)
     // find maximum temperature
     val maximum = records
@@ -68,14 +68,14 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("spata allows logging validation information") {
-    val parser = CSVParser.config.stripSpaces().parser[IO]() // parser with IO effect
+    val parser = CSVParser.config.stripSpaces.parser[IO] // parser with IO effect
     val schema = CSVSchema()
       .add[LocalDate]("terrestrial_date")
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(Reader[IO]().by)
+      .through(Reader[IO].by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
       .map {

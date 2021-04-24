@@ -19,9 +19,9 @@ import info.fingo.spata.util.Logger
   * although some aspects of its format are configurable.
   *
   * The parser may be created with default configuration:
-  * {{{ val parser = CSVParser() }}}
+  * {{{ val parser = CSVParser[IO] }}}
   * or through [[CSVParser.config]] helper function to set custom properties:
-  * {{{ val parser = CSVParser.config.fieldDelimiter(';').parser[IO]() }}}
+  * {{{ val parser = CSVParser.config.fieldDelimiter(';').parser[IO] }}}
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
@@ -56,8 +56,8 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * {{{
     * val stream: Stream[IO, Record] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(Reader[IO]().read)
-    *   .through(CSVParser[IO]().parse)
+    *   .flatMap(Reader[IO].read)
+    *   .through(CSVParser[IO].parse)
     * }}}
     *
     * Transformation may result in [[error.StructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
@@ -191,7 +191,7 @@ object CSVParser {
     * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return new parser
     */
-  def apply[F[_]: Sync: Logger](): CSVParser[F] = new CSVParser(config)
+  def apply[F[_]: Sync: Logger]: CSVParser[F] = new CSVParser(config)
 
   /** Provides default configuration, as defined in RFC 4180. */
   lazy val config: CSVConfig = CSVConfig()

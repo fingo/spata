@@ -25,21 +25,19 @@ class FileITS extends AnyFunSuite {
         min <- record.get[Double]("min_temp")
       } yield DTV(day, max - min)
 
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(Reader[IO]().by)
-      .through(parser.parse)
+      .through(Reader[IO].by)
+      .through(CSVParser[IO].parse) // parser with default configuration and IO effect
     // converter and aggregate data, get stream of YTs
     val dtvs = records.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
     // write data to output file
-    val renderer = CSVRenderer[IO]() // renderer with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val output = dtvs
       .map(dtv => Record.from(dtv))
-      .through(renderer.render)
-      .through(Writer[IO]().write(outFile.toPath))
+      .through(CSVRenderer[IO].render) // renderer with default configuration and IO effect
+      .through(Writer[IO].write(outFile.toPath))
       .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream.eval_(IO {
@@ -56,12 +54,12 @@ class FileITS extends AnyFunSuite {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       destination <- Stream.bracket(IO { new FileOutputStream(outFile) })(destination => IO { destination.close() })
-      out <- Reader[IO]()
+      out <- Reader[IO]
         .read(source)
-        .through(CSVParser[IO]().parse) // parser with default configuration and IO effect
+        .through(CSVParser[IO].parse) // parser with default configuration and IO effect
         .filter(record => !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN"))
-        .through(CSVRenderer[IO]().render) // convert back to string representation
-        .through(Writer[IO]().write(destination)) // write data to output file
+        .through(CSVRenderer[IO].render) // convert back to string representation
+        .through(Writer[IO].write(destination)) // write data to output file
         .handleErrorWith(ex => errorHandler(ex, outFile))
     } yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)

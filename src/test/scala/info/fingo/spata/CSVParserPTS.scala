@@ -34,7 +34,7 @@ object CSVParserPTS extends Bench.LocalTime {
     }
     measure.method("parse_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
-        Reader[IO]()
+        Reader[IO]
           .read(input)
           .through(parser.parse)
           .map(_.to[MarsWeather]())

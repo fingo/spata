@@ -13,9 +13,9 @@ import info.fingo.spata.util.Logger
 /** A utility for rendering data to CSV representation.
   *
   * The renderer may be created with default configuration:
-  * {{{ val renderer = CSVRenderer() }}}
+  * {{{ val renderer = CSVRenderer[IO] }}}
   * or through [[CSVRenderer.config]] helper function to set custom properties:
-  * {{{ val renderer = CSVRenderer.config.fieldDelimiter(';').renderer[IO]() }}}
+  * {{{ val renderer = CSVRenderer.config.fieldDelimiter(';').renderer[IO] }}}
   *
   * Actual rendering is done through one of the 2 groups of methods:
   *  - [[render(* render]] to transform a stream of records into stream of character, which represent full CSV content.
@@ -55,7 +55,7 @@ class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     * @example
     * {{{
     *   val input: Stream[IO, Record] = ???
-    *   val renderer = CSVRenderer.config.escapeSpaces().renderer[IO]()
+    *   val renderer = CSVRenderer.config.escapeSpaces.renderer[IO]
     *   val header = Header("date", "location", "temperature")
     *   val output = input.through(renderer.render(header))
     * }}}
@@ -105,7 +105,7 @@ class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     *
     * Records delimiters are to added to the output. To get full CSV content, `Stream.intersperse` should be called:
     * {{{
-    *   val renderer: CSVRenderer = CSVRenderer()
+    *   val renderer: CSVRenderer = CSVRenderer[IO]
     *   val in: Stream[IO, Record] = ???
     *   val out: Stream[IO, String] = in.through(renderer.rows).intersperse("\n")
     * }}}
@@ -126,7 +126,7 @@ class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
 
   private def renderRow(record: Record, header: Header): Either[HeaderError, String] =
     header.names.map { name =>
-      record(name).map(escape).toRight(new HeaderError(Position.none(), name))
+      record(name).map(escape).toRight(new HeaderError(Position.none, name))
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 
@@ -159,7 +159,7 @@ object CSVRenderer {
     * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return new renderer
     */
-  def apply[F[_]: Sync: Logger](): CSVRenderer[F] = new CSVRenderer(config)
+  def apply[F[_]: Sync: Logger]: CSVRenderer[F] = new CSVRenderer(config)
 
   /** Provides default configuration, as defined in RFC 4180. */
   lazy val config: CSVConfig = CSVConfig()

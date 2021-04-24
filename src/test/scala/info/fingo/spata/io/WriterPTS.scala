@@ -43,20 +43,20 @@ object WriterPTS extends Bench.LocalTime {
       "outputstream",
       (path: Path, source: Stream[IO, Char]) =>
         bracket(outputStream(path)).flatMap { os =>
-          source.through(Writer[IO]().write(os))
+          source.through(Writer[IO].write(os))
         }
     ),
     WriteMethod(
       "outputstream-fs2io",
       (path: Path, source: Stream[IO, Char]) =>
         bracket(outputStream(path)).flatMap { os =>
-          source.through(Writer.shifting[IO]().write(os))
+          source.through(Writer.shifting[IO].write(os))
         }
     ),
-    WriteMethod("path", (path: Path, source: Stream[IO, Char]) => source.through(Writer[IO]().write(path))),
+    WriteMethod("path", (path: Path, source: Stream[IO, Char]) => source.through(Writer[IO].write(path))),
     WriteMethod(
       "path-fs2io",
-      (path: Path, source: Stream[IO, Char]) => source.through(Writer.shifting[IO]().write(path))
+      (path: Path, source: Stream[IO, Char]) => source.through(Writer.shifting[IO].write(path))
     )
   )
 

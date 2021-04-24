@@ -14,7 +14,7 @@ import info.fingo.spata.io.Reader
 class CSVConfigTS extends AnyFunSuite {
 
   test("Config should be build correctly") {
-    val config = CSVConfig().fieldDelimiter(';').noHeader().fieldSizeLimit(100)
+    val config = CSVConfig().fieldDelimiter(';').noHeader.fieldSizeLimit(100)
     val expected = CSVConfig(';', '\n', '"', hasHeader = false, NoHeaderMap, trimSpaces = false, Some(100))
     assert(config == expected)
   }
@@ -22,9 +22,9 @@ class CSVConfigTS extends AnyFunSuite {
   test("Config should allow parser creation with proper settings") {
     val rs = 0x1E.toChar
     val content = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
-    val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader()
-    val data = Reader[IO]().read(Source.fromString(content))
-    val parser = config.parser[IO]()
+    val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader
+    val data = Reader[IO].read(Source.fromString(content))
+    val parser = config.parser[IO]
     val result = parser.get(data).unsafeRunSync()
     assert(result.length == 2)
     assert(result.head.size == 2)
@@ -38,9 +38,9 @@ class CSVConfigTS extends AnyFunSuite {
       Record.fromPairs("A" -> "value 2A", "B" -> "value '2B")
     )
     val csv = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
-    val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader().escapeAll()
+    val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader.escapeAll
     val stream = Stream(records: _*).covaryAll[IO, Record]
-    val renderer = config.renderer[IO]()
+    val renderer = config.renderer[IO]
     val result = stream.through(renderer.render).compile.toList.unsafeRunSync().mkString
     assert(result == csv)
   }

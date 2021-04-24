@@ -23,8 +23,8 @@ object PerformanceTH {
     temp.toPath
   }
 
-  val parser: CSVParser[IO] = CSVParser.config.fieldDelimiter(separator).stripSpaces().parser[IO]()
-  val renderer: CSVRenderer[IO] = CSVRenderer.config.fieldDelimiter(separator).renderer[IO]()
+  val parser: CSVParser[IO] = CSVParser.config.fieldDelimiter(separator).stripSpaces.parser[IO]
+  val renderer: CSVRenderer[IO] = CSVRenderer.config.fieldDelimiter(separator).renderer[IO]
 
   case class MarsWeather(
     id: Int,

@@ -17,7 +17,7 @@ private[spata] case class StateRP(
   buffer: VectorBuilder[String] = new VectorBuilder[String](),
   done: Boolean = false
 ) extends State {
-  def finish(): StateRP = copy(done = true)
+  def finish: StateRP = copy(done = true)
 }
 
 /* Converter from CSV fields to records. */
@@ -46,7 +46,7 @@ private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult,
       case (ff: FieldFailure) :: _ =>
         val fieldNum = state.buffer.result().size + 1
         val chunk = Chunk.vector(output :+ RecordFailure(ff.code, ff.counters, state.recNum, fieldNum))
-        (state.finish(), chunk)
+        (state.finish, chunk)
       case _ => (state, Chunk.vector(output))
     }
 }

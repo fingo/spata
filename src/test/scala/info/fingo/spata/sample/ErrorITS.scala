@@ -20,11 +20,10 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("spata allows consistently handling parsing errors") {
     forAll(files) { (testCase: String, file: String, row: Int) =>
-      val parser = CSVParser[IO]()
       val stream = Stream
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
-        .flatMap(Reader.plain[IO]().read)
-        .through(parser.parse)
+        .flatMap(Reader.plain[IO].read)
+        .through(CSVParser[IO].parse)
         .map(_.to[Book]())
         .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
       val result = stream.compile.toList.unsafeRunSync()
@@ -49,18 +48,17 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
       //  render and execute
       records.through(render).map(Right.apply).handleErrorWith(eh).compile.toList.unsafeRunSync()
     }
-    val renderer = CSVRenderer[IO]()
     // explicit header
     val header = Header("id", "text")
     val es = result { (i, t) =>
       Record(i.toString, t)(header)
-    }(renderer.render(header))
+    }(CSVRenderer[IO].render(header))
     assert(es.init.forall(_.isRight))
     assert(es.last.isLeft)
     // implicit header
     val is = result { (i, t) =>
       Record.builder.add("id", i).add("text", t)
-    }(renderer.render)
+    }(CSVRenderer[IO].render)
     assert(is.init.forall(_.isRight))
     assert(is.head.isRight)
   }

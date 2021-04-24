@@ -109,7 +109,7 @@ object Writer {
     * and logging (provided internally by spata)
     * @return basic `Writer`
     */
-  def apply[F[_]: Sync: Logger](): Plain[F] = plain()
+  def apply[F[_]: Sync: Logger]: Plain[F] = plain
 
   /** Provides basic writer executing I/O on current thread.
     *
@@ -117,7 +117,7 @@ object Writer {
     * and logging (provided internally by spata)
     * @return basic `Writer`
     */
-  def plain[F[_]: Sync: Logger](): Plain[F] = new Plain[F]()
+  def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F]()
 
   /** Provides writer with support of context shifting for I/O operations.
     *
@@ -136,7 +136,7 @@ object Writer {
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Writer` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger](): Shifting[F] = new Shifting[F](None)
+  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None)
 
   /** Writer which executes I/O operations on current thread, without context (thread) shifting.
     *

@@ -11,9 +11,9 @@ import info.fingo.spata.util.Logger
 /** CSV configuration used to create [[CSVParser]] or [[CSVRenderer]].
   *
   * This config may be used as a builder to create a parser :
-  * {{{ val parser = CSVConfig().fieldSizeLimit(1000).noHeader().parser[IO]() }}}
+  * {{{ val parser = CSVConfig().fieldSizeLimit(1000).noHeader.parser[IO] }}}
   * or renderer:
-  * {{{ val renderer = CSVConfig().escapeSpaces().noHeader().renderer[IO]() }}}
+  * {{{ val renderer = CSVConfig().escapeSpaces.noHeader.renderer[IO] }}}
   *
   * Field delimiter is `','` by default.
   *
@@ -86,7 +86,7 @@ case class CSVConfig private[spata] (
   def quoteMark(qm: Char): CSVConfig = this.copy(quoteMark = qm)
 
   /** Gets new config from this one by switching off header presence. */
-  def noHeader(): CSVConfig = this.copy(hasHeader = false)
+  def noHeader: CSVConfig = this.copy(hasHeader = false)
 
   /** Remap selected fields names. */
   def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
@@ -95,7 +95,7 @@ case class CSVConfig private[spata] (
     *
     * @note This setting is used only by parser and ignored by renderer.
     */
-  def stripSpaces(): CSVConfig = this.copy(trimSpaces = true)
+  def stripSpaces: CSVConfig = this.copy(trimSpaces = true)
 
   /** Gets new config from this one by replacing field size limit with provided one.
     *
@@ -107,13 +107,13 @@ case class CSVConfig private[spata] (
     *
     * @note This setting is used only by renderer and ignored by parser.
     */
-  def escapeSpaces(): CSVConfig = this.copy(escapeMode = CSVConfig.EscapeSpaces)
+  def escapeSpaces: CSVConfig = this.copy(escapeMode = CSVConfig.EscapeSpaces)
 
   /** Gets new config from this one by changing escape mode to quote all fields.
     *
     * @note This setting is used only by renderer and ignored by parser.
     */
-  def escapeAll(): CSVConfig = this.copy(escapeMode = CSVConfig.EscapeAll)
+  def escapeAll: CSVConfig = this.copy(escapeMode = CSVConfig.EscapeAll)
 
   /** Creates [[CSVParser]] from this config.
     *
@@ -121,7 +121,7 @@ case class CSVConfig private[spata] (
     * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return parser configured according to provided settings
     */
-  def parser[F[_]: Sync: Logger](): CSVParser[F] = new CSVParser(this)
+  def parser[F[_]: Sync: Logger]: CSVParser[F] = new CSVParser(this)
 
   /** Creates [[CSVRenderer]] from this config.
     *
@@ -129,7 +129,7 @@ case class CSVConfig private[spata] (
     * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return renderer configured according to provided settings
     */
-  def renderer[F[_]: Sync: Logger](): CSVRenderer[F] = new CSVRenderer(this)
+  def renderer[F[_]: Sync: Logger]: CSVRenderer[F] = new CSVRenderer(this)
 
   /** Provides configuration description
     *

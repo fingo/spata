@@ -162,14 +162,22 @@ object Reader {
   private val bom = "\uFEFF".head
   private val UTFCharsetPrefix = "UTF-"
 
-  /** Alias for [[plain]].
+  /** Alias for [[[plain[F[_]](chunkSize* plain]]].
     *
     * @param chunkSize size of data chunk - see [[https://fs2.io/guide.html#chunks FS2 Chunks]].
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     * @return basic `Reader`
     */
-  def apply[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = plain(chunkSize)
+  def apply[F[_]: Sync: Logger](chunkSize: Int): Plain[F] = plain(chunkSize)
+
+  /** Alias for [[[plain[F[_]](implicit* plain]]].
+    *
+    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
+    * @return basic `Reader`
+    */
+  def apply[F[_]: Sync: Logger]: Plain[F] = plain(defaultChunkSize)
 
   /** Provides basic reader executing I/O on current thread.
     *
@@ -178,7 +186,15 @@ object Reader {
     * and logging (provided internally by spata)
     * @return basic `Reader`
     */
-  def plain[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = new Plain[F](chunkSize)
+  def plain[F[_]: Sync: Logger](chunkSize: Int): Plain[F] = new Plain[F](chunkSize)
+
+  /** Provides basic reader executing I/O on current thread. Uses default chunk size.
+    *
+    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
+    * @return basic `Reader`
+    */
+  def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F](defaultChunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     *
@@ -208,7 +224,7 @@ object Reader {
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Reader` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger](): Shifting[F] = new Shifting[F](None, defaultChunkSize)
+  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None, defaultChunkSize)
 
   /* Skip BOM from UTF encoded streams */
   private def skipBom[F[_]: Logger](implicit codec: Codec): Pipe[F, Char, Char] =

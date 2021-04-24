@@ -45,7 +45,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
   performance.of("schema").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
     measure.method("validate_gen") in {
       using(amounts) in { amount =>
-        Reader[IO]()
+        Reader[IO]
           .read(new TestSource(amount))
           .through(parser.parse)
           .through(schemaGen.validate)
@@ -56,7 +56,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
     }
     measure.method("validate_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
-        Reader[IO]()
+        Reader[IO]
           .read(input)
           .through(parser.parse)
           .through(schemaFile.validate)

@@ -41,12 +41,12 @@ object ReaderPTS extends Bench.LocalTime {
   }
 
   private lazy val methods = Gen.enumeration("method")(
-    ReadMethod("source", (path: Path) => bracket(source(path)).through(Reader[IO]().by)),
-    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(Reader.shifting[IO]().by)),
-    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(Reader[IO]().by)),
-    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(Reader.shifting[IO]().by)),
-    ReadMethod("path", (path: Path) => Reader[IO]().read(path)),
-    ReadMethod("path-fs2io", (path: Path) => Reader.shifting[IO]().read(path))
+    ReadMethod("source", (path: Path) => bracket(source(path)).through(Reader[IO].by)),
+    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(Reader.shifting[IO].by)),
+    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(Reader[IO].by)),
+    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(Reader.shifting[IO].by)),
+    ReadMethod("path", (path: Path) => Reader[IO].read(path)),
+    ReadMethod("path-fs2io", (path: Path) => Reader.shifting[IO].read(path))
   )
 
   private def inputStream(path: Path) = Files.newInputStream(path, StandardOpenOption.READ)

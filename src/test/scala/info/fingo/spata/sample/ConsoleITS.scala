@@ -28,12 +28,11 @@ class ConsoleITS extends AnyFunSuite {
         temp <- record.get[Double]("max_temp")
       } yield YT(date.getYear, temp)
 
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(Reader[IO]().by)
-      .through(parser.parse)
+      .through(Reader[IO].by)
+      .through(CSVParser[IO].parse) // parser with default configuration and IO effect
     // converter and aggregate data, get stream of YTs
     val aggregates = records
       .map(ytFromRecord)
@@ -63,11 +62,10 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-        parser
-          .process(Reader[IO]().read(source)) { record =>
+        CSVParser[IO] // parser with default configuration and IO effect
+          .process(Reader[IO].read(source)) { record =>
             if (record.get[Double]("max_temp").exists(_ > 0)) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
@@ -86,11 +84,10 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allow processing csv data as list") {
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
-        val records = parser.get(Reader[IO]().read(source), 500).unsafeRunSync()
+        val records = CSVParser[IO].get(Reader[IO].read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
         for (r <- over0)

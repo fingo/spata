@@ -11,7 +11,7 @@ import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.validator.RangeValidator
-import info.fingo.spata.PerformanceTH._
+import info.fingo.spata.PerformanceTH.{input, parser, MarsWeather, TestSource}
 
 /* Check performance of schema validation.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
@@ -46,7 +46,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
     measure.method("validate_gen") in {
       using(amounts) in { amount =>
         Reader[IO]()
-          .read(new TestSource(separator, amount))
+          .read(new TestSource(amount))
           .through(parser.parse)
           .through(schemaGen.validate)
           .compile
@@ -57,7 +57,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
     measure.method("validate_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
         Reader[IO]()
-          .read(path)
+          .read(input)
           .through(parser.parse)
           .through(schemaFile.validate)
           .map(_.map(_.to[MarsWeather]()))

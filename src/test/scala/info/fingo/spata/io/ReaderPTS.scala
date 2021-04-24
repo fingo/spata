@@ -13,7 +13,7 @@ import fs2.Stream
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import org.scalameter.picklers.noPickler._
-import info.fingo.spata.PerformanceTH.{parser, path}
+import info.fingo.spata.PerformanceTH.{input, parser}
 
 /* Check performance of Reader using different implementations.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
@@ -30,12 +30,12 @@ object ReaderPTS extends Bench.LocalTime {
   performance.of("reader").config(exec.maxWarmupRuns -> 3, exec.benchRuns -> 3) in {
     measure.method("read") in {
       using(methods) in { method =>
-        method(path).compile.drain.unsafeRunSync()
+        method(input).compile.drain.unsafeRunSync()
       }
     }
     measure.method("read_and_parse") in {
       using(methods) in { method =>
-        method(path).through(parser.parse).compile.drain.unsafeRunSync()
+        method(input).through(parser.parse).compile.drain.unsafeRunSync()
       }
     }
   }

@@ -10,7 +10,7 @@ import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
-import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
+import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -383,15 +383,15 @@ object Record {
     product: P
   )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
 
-  /** Creates new [[RecordBuilder]]. */
-  def builder: RecordBuilder = new RecordBuilder(List[(String, String)]())
+  /** Creates new record builder. */
+  def builder: Builder = new Builder(List[(String, String)]())
 
-  /** Implicitly converts [[RecordBuilder]] to [[Record]].
+  /** Implicitly converts record builder to record.
     *
-    * @param rb the RecordBuilder to be converted
+    * @param rb the record builder to be converted
     * @return new Record with values from provided builder
     */
-  implicit def toRecord(rb: RecordBuilder): Record = rb.result
+  implicit def toRecord(rb: Builder): Record = rb.result
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
@@ -402,7 +402,7 @@ object Record {
     * @param record the record to convert
     * @tparam P the target type for conversion
     */
-  class ToProduct[P <: Product](record: Record) {
+  final class ToProduct[P <: Product](record: Record) {
 
     /** Converts record to [[scala.Product]], e.g. case class.
       *
@@ -424,7 +424,7 @@ object Record {
 
     /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
       *
-      * @see [[Record$.from Record.from]] for more information.
+      * @see [[Record.from]] for more information.
       * @param gen the generic for specified source type and [[shapeless.HList]] representation
       * @param rHL intermediary converter from [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s to record
       * @tparam R [[shapeless.HList]] representation type
@@ -432,5 +432,34 @@ object Record {
       */
     def toRecord[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
       Record.from(product)
+  }
+
+  /** Helper to incrementally build records from typed values.
+    *
+    * @param buf buffer used to incrementally build record's content.
+    */
+  final class Builder private[spata] (buf: List[(String, String)]) {
+
+    /** Enhance builder with a new value.
+      *
+      * @param key the key (field name) of added value
+      * @param value the added value
+      * @param renderer the renderer to convert the value to string
+      * @tparam A value type
+      * @return builder augmented with the new value
+      */
+    def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): Builder =
+      new Builder((key, renderer(value)) :: buf)
+
+    /** Gets final record from this builder.
+      *
+      * @return new record with values from this builder.
+      */
+    def result: Record = Record.fromPairs(buf.reverse: _*)
+
+    /* Gets final record from this builder with reversed order of the fields,
+     * which really means preserving the order, because values ate prepended.
+     */
+    private[spata] def reversed: Record = Record.fromPairs(buf: _*)
   }
 }

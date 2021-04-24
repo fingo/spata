@@ -23,11 +23,11 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("writer should properly write to OutputSteam wrapped in effect") {
     forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, wrt: Writer[IO]) =>
+      forAll(writers) { (_: String, writer: Writer[IO]) =>
         val os = new ByteArrayOutputStream()
         val fos = IO[OutputStream](os)
         val input = source(data)
-        val output = input.through(wrt(fos))
+        val output = input.through(writer(fos))
         output.compile.drain.unsafeRunSync()
         assert(os.toByteArray.sameElements(data.getBytes(defaultCharset)))
       }
@@ -36,10 +36,10 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("writer should properly write to plain OutputSteam") {
     forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, wrt: Writer[IO]) =>
+      forAll(writers) { (_: String, writer: Writer[IO]) =>
         val os = new ByteArrayOutputStream()
         val input = source(data)
-        val output = input.through(wrt(os))
+        val output = input.through(writer(os))
         output.compile.drain.unsafeRunSync()
         assert(os.toByteArray.sameElements(data.getBytes(defaultCharset)))
       }
@@ -48,10 +48,10 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("writer should properly write to path") {
     forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, wrt: Writer[IO]) =>
+      forAll(writers) { (_: String, writer: Writer[IO]) =>
         val path = SampleTH.getTempFile.toPath
         val input = source(data)
-        val output = input.through(wrt(path))
+        val output = input.through(writer(path))
         output.compile.drain.unsafeRunSync()
         assert(data == Files.readString(path))
         Files.delete(path) // deleteOnExit sometimes does not work
@@ -64,11 +64,11 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
     implicit val codec: Codec = new Codec(charset)
     forAll(testCases) { (testCase: String, data: String) =>
       if (testCase != "extended chars") { // not supported by encoding
-        forAll(writers) { (_: String, wrt: Writer[IO]) =>
+        forAll(writers) { (_: String, writer: Writer[IO]) =>
           val os = new ByteArrayOutputStream()
           val fos = IO[OutputStream](os)
           val input = source(data)
-          val output = input.through(wrt(fos))
+          val output = input.through(writer(fos))
           output.compile.drain.unsafeRunSync()
           assert(os.toByteArray.sameElements(data.getBytes(charset)))
         }
@@ -81,10 +81,10 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
     implicit val codec: Codec = new Codec(charset)
     forAll(testCases) { (testCase: String, data: String) =>
       if (testCase != "extended chars") { // not supported by encoding
-        forAll(writers) { (_: String, wrt: Writer[IO]) =>
+        forAll(writers) { (_: String, writer: Writer[IO]) =>
           val path = SampleTH.getTempFile.toPath
           val input = source(data)
-          val output = input.through(wrt(path))
+          val output = input.through(writer(path))
           output.compile.drain.unsafeRunSync()
           assert(data == Files.readString(path, charset))
           Files.delete(path) // deleteOnExit sometimes does not work
@@ -97,8 +97,8 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val target = new OutputStream {
       override def write(b: Int): Unit = throw new IOException("message")
     }
-    forAll(writers) { (_: String, wrt: Writer[IO]) =>
-      val stream = Stream('a', 'n', 'y').lift[IO].through(wrt(target)).map(_ => false)
+    forAll(writers) { (_: String, writer: Writer[IO]) =>
+      val stream = Stream('a', 'n', 'y').lift[IO].through(writer(target)).map(_ => false)
       val eh = (ex: Throwable) => Stream.emit(ex.isInstanceOf[IOException])
       val result = stream.handleErrorWith(eh).compile.toList.unsafeRunSync()
       assert(result.length == 1)

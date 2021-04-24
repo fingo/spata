@@ -54,7 +54,7 @@ class CSVConfigTS extends AnyFunSuite {
     )
     val c3 = CSVConfig(';', ' ', '\"', escapeMode = CSVConfig.EscapeSpaces)
     assert(c3.toString == """CSVConfig(';', ' ', '"', header, no mapping, no trimming, escape spaces)""")
-    val c4 = CSVConfig('\u001F', '\u001E', '|', fieldSizeLimit = Some(256))
-    assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, no trimming, 256, escape required)""")
+    val c4 = CSVConfig('\u001F', '\u001E', '|', fieldSizeLimit = Some(256), escapeMode = CSVConfig.EscapeAll)
+    assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, no trimming, 256, escape all)""")
   }
 }

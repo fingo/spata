@@ -24,7 +24,7 @@ import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, 
   * @param position record position in source data
   * @param hdr indexing header (field names)
   */
-class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]) {
+final class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]) {
   self =>
 
   /** Safely gets typed record value.
@@ -179,7 +179,7 @@ class Record private (val values: IndexedSeq[String], val position: Option[Posit
     *
     * @tparam A target type for parsing
     */
-  class Field[A] {
+  final class Field[A] {
 
     /** Safely parses string to desired type based on provided format.
       *
@@ -265,7 +265,7 @@ class Record private (val values: IndexedSeq[String], val position: Option[Posit
       *
       * @tparam A target type for parsing
       */
-    class Field[A] {
+    final class Field[A] {
 
       /** Parses field to desired type based on provided format.
         *

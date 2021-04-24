@@ -14,7 +14,7 @@ import info.fingo.spata.util.Logger
 /* Intermediate entity used to converter raw records into key-values indexed by header.
  * It converts additionally CSV parsing failures into stream error by raising StructureException.
  */
-private[spata] class Content[F[_]: Sync: Logger] private (
+final private[spata] class Content[F[_]: Sync: Logger] private (
   data: Stream[F, RecordResult],
   header: Header,
   hasHeaderRecord: Boolean = true

@@ -29,7 +29,7 @@ import info.fingo.spata.schema.TypedRecord.ToProduct
   * @param rowNum row number in source file this record comes from
   * @tparam L data type - heterogeneous list
   */
-class TypedRecord[+L <: HList] private (private[schema] val data: L, val lineNum: Int, val rowNum: Int) {
+final class TypedRecord[+L <: HList] private (private[schema] val data: L, val lineNum: Int, val rowNum: Int) {
 
   /** Gets record value in type-safe manner.
     *

@@ -6,7 +6,6 @@
 package info.fingo.spata.error
 
 import java.util.NoSuchElementException
-
 import ParsingErrorCode.ErrorCode
 import info.fingo.spata.Position
 import info.fingo.spata.text.StringParser
@@ -68,7 +67,7 @@ private[spata] object CSVException {
   * @param col column (character) at which error occurred
   * @param field field name at which error occurred
   */
-class StructureException private[spata] (
+final class StructureException private[spata] (
   errorCode: ErrorCode,
   position: Option[Position],
   col: Option[Int] = None,
@@ -126,7 +125,7 @@ sealed abstract class ContentError private[spata] (
   * @param position source row (record) and line at which error occurred
   * @param field field name (header key) at which error occurred
   */
-class HeaderError private[spata] (
+final class HeaderError private[spata] (
   position: Option[Position],
   field: String
 ) extends ContentError(
@@ -157,7 +156,7 @@ private object HeaderError {
   * @param field field name at which error occurred
   * @param cause the root exception
   */
-class DataError private[spata] (
+final class DataError private[spata] (
   value: String,
   position: Option[Position],
   field: String,

@@ -49,7 +49,7 @@ import info.fingo.spata.util.Logger
   * @param columns the list of typed columns with optional validators
   * @tparam L heterogeneous list encoding the schema
   */
-class CSVSchema[L <: HList] private (columns: L) {
+final class CSVSchema[L <: HList] private (columns: L) {
 
   /** Gets string representation of schema.
     *
@@ -163,7 +163,7 @@ object CSVSchema {
   * @tparam K type of column name - the singleton string
   * @tparam V column type - CSV field value type
   */
-class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validators: Seq[Validator[V]]) {
+final class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validators: Seq[Validator[V]]) {
 
   /** Gets string representation of column.
     *
@@ -205,7 +205,7 @@ private[schema] object Column {
   *
   * @tparam L the heterogeneous list (of columns) representing schema
   */
-trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
+sealed trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
 
   /** Output type of apply method - schema validation core result type. */
   type Out <: ValidatedRecord[HList]
@@ -270,7 +270,7 @@ object SchemaEnforcer {
   * @tparam K type of column name
   * @tparam L type of column list
   */
-trait NotPresent[K <: Key, L <: HList]
+sealed trait NotPresent[K <: Key, L <: HList]
 
 /** Implicits for [[NotPresent]]. */
 object NotPresent {

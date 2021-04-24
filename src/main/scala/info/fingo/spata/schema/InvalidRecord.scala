@@ -14,7 +14,7 @@ import info.fingo.spata.schema.error.SchemaError
   * @param record the original record
   * @param flaws list of conflicting fields with their errors
   */
-class InvalidRecord private (val record: Record, val flaws: NonEmptyList[FieldFlaw]) {
+final class InvalidRecord private (val record: Record, val flaws: NonEmptyList[FieldFlaw]) {
 
   /** Gets description of all validation errors for record.
     *
@@ -36,7 +36,7 @@ private[schema] object InvalidRecord {
   * @param name the name of this field
   * @param error validation error
   */
-class FieldFlaw private (val name: String, val error: SchemaError) {
+final class FieldFlaw private (val name: String, val error: SchemaError) {
 
   /** Gets description of validation error for field.
     *

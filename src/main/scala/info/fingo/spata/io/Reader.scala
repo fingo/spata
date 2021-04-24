@@ -28,7 +28,7 @@ import info.fingo.spata.util.Logger
   *
   * @tparam F the effect type
   */
-trait Reader[F[_]] {
+sealed trait Reader[F[_]] {
 
   /** Size of data chunk loaded at once when reading from source.
     * See also [[https://fs2.io/guide.html#chunks FS2 Chunks]].

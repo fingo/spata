@@ -91,7 +91,7 @@ object StringParser {
     *
     * @tparam A target type for parsing
     */
-  class Pattern[A] {
+  final class Pattern[A] {
 
     /** Parses string to desired type based on provided format.
       *

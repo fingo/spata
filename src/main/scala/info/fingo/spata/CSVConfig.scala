@@ -65,7 +65,7 @@ import info.fingo.spata.util.Logger
   * @param fieldSizeLimit maximal size of a field, `None` by default, valid only for parsing
   * @param escapeMode method of escaping fields, `EscapeRequired` by default, valid only for rendering
   */
-case class CSVConfig private[spata] (
+final case class CSVConfig private[spata] (
   fieldDelimiter: Char = ',',
   recordDelimiter: Char = '\n',
   quoteMark: Char = '"',

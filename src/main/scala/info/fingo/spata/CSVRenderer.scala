@@ -36,7 +36,7 @@ import info.fingo.spata.util.Logger
   * @tparam F the effect type, with a type class providing support for suspended execution
   * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
   */
-class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
+final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
 
   private val sfd = config.fieldDelimiter.toString
   private val srd = config.recordDelimiter.toString

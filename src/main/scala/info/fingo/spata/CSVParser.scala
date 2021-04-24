@@ -46,7 +46,7 @@ import info.fingo.spata.util.Logger
   * @tparam F the effect type, with a type class providing support for suspended execution
   * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
   */
-class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
+final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
 
   /** Transforms stream of characters representing CSV data into records.
     * This function is intended to be used with [[fs2.Stream.through]].

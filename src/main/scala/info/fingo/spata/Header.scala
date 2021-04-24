@@ -17,7 +17,7 @@ import info.fingo.spata.error.{ParsingErrorCode, StructureException}
   *
   * @param names the sequence of names
   */
-class Header private (val names: IndexedSeq[String]) {
+final class Header private (val names: IndexedSeq[String]) {
 
   /** Size of header. */
   val size: Int = names.size
@@ -127,7 +127,7 @@ private[spata] object NoHeaderMap extends HeaderMap {
 }
 
 /* String to string implementation of HeaderMap. */
-private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
+final private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
   def remap(header: IndexedSeq[String]): IndexedSeq[String] = {
     val mapName = (name: String) => if (f.isDefinedAt(name)) f(name) else name
     header.map(mapName)
@@ -135,7 +135,7 @@ private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
 }
 
 /* Int to string implementation of HeaderMap. */
-private[spata] class IndexHeaderMap(f: I2S) extends HeaderMap {
+final private[spata] class IndexHeaderMap(f: I2S) extends HeaderMap {
   def remap(header: IndexedSeq[String]): IndexedSeq[String] = {
     val mapName = (name: String, index: Int) => if (f.isDefinedAt(index)) f(index) else name
     header.zipWithIndex.map { case (name, index) => mapName(name, index) }

@@ -19,7 +19,7 @@ package info.fingo.spata
   * @param row the row number
   * @param line the line number
   */
-case class Position(row: Int, line: Int)
+final case class Position(row: Int, line: Int)
 
 private[spata] object Position {
   def some(row: Int, line: Int): Option[Position] = Some(Position(row, line))

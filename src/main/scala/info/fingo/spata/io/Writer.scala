@@ -21,7 +21,7 @@ import info.fingo.spata.util.Logger
   *
   * @tparam F the effect type
   */
-trait Writer[F[_]] {
+sealed trait Writer[F[_]] {
 
   /** Writes CSV to destination `OutputStream`.
     *

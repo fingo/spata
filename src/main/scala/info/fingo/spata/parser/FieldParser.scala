@@ -12,7 +12,7 @@ import FieldParser._
 import CharParser.CharResult
 
 /* Carrier for counters, partial field content and information about finished parsing. */
-private[spata] case class StateFP(
+final private[spata] case class StateFP(
   counters: Location,
   lc: LocalCounts,
   buffer: StringBuilder = new StringBuilder,
@@ -24,7 +24,7 @@ private[spata] case class StateFP(
 /* Converter from character symbols to CSV fields.
  * This class tracks source position while consuming symbols to report it precisely, especially in case of failure.
  */
-private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
+final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
   extends ChunkAwareParser[F, CharResult, FieldResult, StateFP] {
 
   import CharParser._
@@ -39,7 +39,7 @@ private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
   /* Parse chunks of CharResults (converted to list) into chunks of FieldResults.
    * The state value carries partial field content and counters. */
   @tailrec
-  final override def parseChunk(
+  override def parseChunk(
     input: List[CharResult],
     output: Vector[FieldResult],
     state: StateFP
@@ -94,6 +94,7 @@ private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
 }
 
 private[spata] object FieldParser {
+
   sealed trait FieldResult
   case class FieldFailure(code: ErrorCode, counters: Location) extends FieldResult
   case class RawField(value: String, counters: Location, endOfRecord: Boolean = false) extends FieldResult

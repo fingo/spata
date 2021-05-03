@@ -5,11 +5,15 @@
  */
 package info.fingo.spata
 
+import java.io.{ByteArrayOutputStream, OutputStream}
+import java.nio.charset.Charset
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import scala.io.Codec
 import cats.effect.IO
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import info.fingo.spata.CSVConfig.{EscapeAll, EscapeMode, EscapeRequired, EscapeSpaces}
+import info.fingo.spata.io.Writer
 import info.fingo.spata.text.StringRenderer
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -32,8 +36,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
               val recs = records(contentCase, separator, hdr)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
               val stream = Stream(recs: _*).covaryAll[IO, Record]
-              val pipe = if (headerMode == "explicit") renderer.render(hdr) else renderer.render
-              val out = stream.through(pipe)
+              val out = stream.through(render(renderer, hdr, headerMode))
               val res = out.compile.toList.unsafeRunSync().mkString
               val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
               assert(res == content)
@@ -54,8 +57,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
               val clss = classes(contentCase, separator)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
               val stream = Stream(clss: _*).covaryAll[IO, Data].map(Record.from(_))
-              val pipe = if (headerMode != "implicit") renderer.render(hdr) else renderer.render
-              val out = stream.through(pipe)
+              val out = stream.through(render(renderer, hdr, headerMode))
               val res = out.compile.toList.unsafeRunSync().mkString
               val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
               assert(res == content)
@@ -101,7 +103,32 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  private def config(separator: Char, escapeMode: EscapeMode, headerMode: String) = {
+  test("renderer converted data should be properly encoded and handled by writer") {
+    val charset = Charset.forName("ISO-8859-2")
+    implicit val codec = new Codec(charset)
+    forAll(separators) { separator =>
+      forAll(headerModes) { headerMode =>
+        forAll(escapeModes) { escapeMode =>
+          forAll(testCases) { (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            if (headerModes.contains(headerMode)) {
+              val os = new ByteArrayOutputStream()
+              val hdr = header(headerCase)
+              val recs = records(contentCase, separator, hdr)
+              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+              val stream = Stream(recs: _*).covaryAll[IO, Record]
+              val out =
+                stream.through(render(renderer, hdr, headerMode)).through(Writer[IO].write(IO[OutputStream](os)))
+              out.compile.drain.unsafeRunSync() // run
+              val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
+              assert(os.toByteArray.sameElements(content.getBytes(charset)))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private def config(separator: Char, escapeMode: EscapeMode, headerMode: String): CSVConfig = {
     val c = CSVConfig().fieldDelimiter(separator)
     val cc = escapeMode match {
       case EscapeAll => c.escapeAll
@@ -110,6 +137,9 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
     if (headerMode == "none") cc.noHeader else cc
   }
+
+  private def render(renderer: CSVRenderer[IO], header: Header, headerMode: String): Pipe[IO, Record, Char] =
+    if (headerMode == "explicit") renderer.render(header) else renderer.render
 
   private lazy val separators = Table("separator", ',', ';', '\t')
 
@@ -135,17 +165,17 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     case "basic" =>
       Record("1", "Funky Koval", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva Solo", "31.12.2012", "123.45")(header) ::
-        Record("3", "Han Solo", "09.09.1999", "999.99")(header) ::
+        Record("3", "Koziołek Matołek", "09.09.1999", "999.99")(header) ::
         Nil
     case "quotes and seps" =>
       Record("1", s"Funky Koval$separator", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva\nSolo", "31.12.2012", "123.45")(header) ::
-        Record("3", """"Han" Solo""", "09.09.1999", "999.99")(header) ::
+        Record("3", """"Koziołek" Matołek""", "09.09.1999", "999.99")(header) ::
         Nil
     case "spaces" =>
       Record("1", "Funky Koval", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva Solo ", "31.12.2012", "123.45")(header) ::
-        Record("3", "  Han Solo", "09.09.1999", "999.99")(header) ::
+        Record("3", "  Koziołek Matołek", "09.09.1999", "999.99")(header) ::
         Nil
     case "empty" => Nil
   }
@@ -154,17 +184,17 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     case "basic" =>
       Record.fromValues("1", "Funky Koval", "01.01.2001", "100.0") ::
         Record.fromValues("2", "Eva Solo", "31.12.2012", "123.45") ::
-        Record.fromValues("3", "Han Solo", "09.09.1999", "999.99") ::
+        Record.fromValues("3", "Koziołek Matołek", "09.09.1999", "999.99") ::
         Nil
     case "quotes and seps" =>
       Record.fromValues("1", s"Funky Koval$separator", "01.01.2001", "100.0") ::
         Record.fromValues("2", "Eva\nSolo", "31.12.2012", "123.45") ::
-        Record.fromValues("3", """"Han" Solo""", "09.09.1999", "999.99") ::
+        Record.fromValues("3", """"Koziołek" Matołek""", "09.09.1999", "999.99") ::
         Nil
     case "spaces" =>
       Record.fromValues("1", "Funky Koval", "01.01.2001", "100.0") ::
         Record.fromValues("2", "Eva Solo ", "31.12.2012", "123.45") ::
-        Record.fromValues("3", "  Han Solo", "09.09.1999", "999.99") ::
+        Record.fromValues("3", "  Koziołek Matołek", "09.09.1999", "999.99") ::
         Nil
     case "empty" => Nil
   }
@@ -173,17 +203,17 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     case "basic" =>
       Data(1, "Funky Koval", LocalDate.of(2001, 1, 1), 100.00) ::
         Data(2, "Eva Solo", LocalDate.of(2012, 12, 31), 123.45) ::
-        Data(3, "Han Solo", LocalDate.of(1999, 9, 9), 999.99) ::
+        Data(3, "Koziołek Matołek", LocalDate.of(1999, 9, 9), 999.99) ::
         Nil
     case "quotes and seps" =>
       Data(1, s"Funky Koval$separator", LocalDate.of(2001, 1, 1), 100.00) ::
         Data(2, "Eva\nSolo", LocalDate.of(2012, 12, 31), 123.45) ::
-        Data(3, """"Han" Solo""", LocalDate.of(1999, 9, 9), 999.99) ::
+        Data(3, """"Koziołek" Matołek""", LocalDate.of(1999, 9, 9), 999.99) ::
         Nil
     case "spaces" =>
       Data(1, "Funky Koval", LocalDate.of(2001, 1, 1), 100.00) ::
         Data(2, "Eva Solo ", LocalDate.of(2012, 12, 31), 123.45) ::
-        Data(3, "  Han Solo", LocalDate.of(1999, 9, 9), 999.99) ::
+        Data(3, "  Koziołek Matołek", LocalDate.of(1999, 9, 9), 999.99) ::
         Nil
     case "empty" => Nil
   }
@@ -220,37 +250,37 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
           case EscapeAll =>
             s""""1"$s"Funky Koval"$s"01.01.2001"$s"100.0"
                |"2"$s"Eva Solo"$s"31.12.2012"$s"123.45"
-               |"3"$s"Han Solo"$s"09.09.1999"$s"999.99"""".stripMargin
+               |"3"$s"Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case _ =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
                |2${s}Eva Solo${s}31.12.2012${s}123.45
-               |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+               |3${s}Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
         }
       case "quotes and seps" =>
         escapeMode match {
           case EscapeAll =>
             s""""1"$s"Funky Koval$s"$s"01.01.2001"$s"100.0"
                |\"2"$s"Eva\nSolo"$s"31.12.2012"$s"123.45"
-               |"3"$s"\""Han"" Solo"$s"09.09.1999"$s"999.99"""".stripMargin
+               |"3"$s"\""Koziołek"" Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case _ =>
             s"""1$s"Funky Koval$s"${s}01.01.2001${s}100.0
                |2$s"Eva\nSolo"${s}31.12.2012${s}123.45
-               |3$s"\""Han"" Solo"${s}09.09.1999${s}999.99""".stripMargin
+               |3$s"\""Koziołek"" Matołek"${s}09.09.1999${s}999.99""".stripMargin
         }
       case "spaces" =>
         escapeMode match {
           case EscapeAll =>
             s""""1"$s"Funky Koval"$s"01.01.2001"$s"100.0"
                |"2"$s"Eva Solo "$s"31.12.2012"$s"123.45"
-               |"3"$s"  Han Solo"$s"09.09.1999"$s"999.99"""".stripMargin
+               |"3"$s"  Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case EscapeSpaces =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
                |2$s"Eva Solo "${s}31.12.2012${s}123.45
-               |3$s"  Han Solo"${s}09.09.1999${s}999.99""".stripMargin
+               |3$s"  Koziołek Matołek"${s}09.09.1999${s}999.99""".stripMargin
           case EscapeRequired =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
                |2${s}Eva Solo ${s}31.12.2012${s}123.45
-               |3$s  Han Solo${s}09.09.1999${s}999.99""".stripMargin
+               |3$s  Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
         }
       case "empty" => ""
     }

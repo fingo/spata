@@ -5,10 +5,8 @@
  */
 package info.fingo.spata
 
-import cats.effect.Sync
 import fs2.{Chunk, Pipe, Pull, RaiseThrowable, Stream}
 import info.fingo.spata.error.HeaderError
-import info.fingo.spata.util.Logger
 
 /** A utility for rendering data to CSV representation.
   *
@@ -33,11 +31,11 @@ import info.fingo.spata.util.Logger
   * Concurrency or asynchronous execution may be introduced through various [[fs2.Stream]] methods.
   *
   * @param config the configuration for CSV rendering (delimiters, header presence etc.)
-  * @tparam F the effect type, with a type class providing support for suspended execution
-  * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
+  * @tparam F the effect type, with a type class providing support for raising and handling errors
   */
 final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
 
+  // String versions of CSV special characters, provided for convenience.
   private val sfd = config.fieldDelimiter.toString
   private val srd = config.recordDelimiter.toString
   private val sq = config.quoteMark.toString
@@ -46,7 +44,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     * This function is intended to be used with [[fs2.Stream.through]].
     *
     * The output is basically [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
-    * with the possibility to have custom delimiters and quotes, as configured in [[CSVConfig]].
+    * with the possibility to have custom delimiters and quotes, as configured by [[CSVConfig]].
     *
     * If any record does not have the field required by header,
     * transformation will cause an [[error.HeaderError]], to be handled with [[fs2.Stream.handleErrorWith]].
@@ -55,18 +53,19 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     * @example
     * {{{
     *   val input: Stream[IO, Record] = ???
-    *   val renderer = CSVRenderer.config.escapeSpaces.renderer[IO]
-    *   val header = Header("date", "location", "temperature")
-    *   val output = input.through(renderer.render(header))
+    *   val renderer: CVSRenderer[IO] = CSVRenderer.config.escapeSpaces.renderer[IO]
+    *   val header: Header = Header("date", "location", "temperature")
+    *   val output: Stream[IO, Char] = input.through(renderer.render(header))
+    *   val eff: Stream[IO, Unit] = output.through(Writer[IO].write("output.csv"))
     * }}}
     * @see [[https://fs2.io/ FS2]] documentation for further guidance.
     * @param header header to be potentially written into target stream and used to select required data from records
     * @return a pipe to converter [[Record]]s into [[scala.Char]]s
     */
   def render(header: Header): Pipe[F, Record, Char] = (in: Stream[F, Record]) => {
-    val hs = Stream.emit(renderHeader(header))
+    val hs = if (config.hasHeader) Stream.emit(renderHeader(header)) else Stream.empty
     val cs = in.map(renderRow(_, header))
-    val stream = if (config.hasHeader) hs ++ cs else cs
+    val stream = hs ++ cs
     stream.through(toChars)
   }
 
@@ -103,20 +102,23 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     * It does not require records to be the same length, either.
     * With records of different size the resulting output may not form proper CSV content.
     *
-    * Records delimiters are to added to the output. To get full CSV content, `Stream.intersperse` should be called:
+    * Records delimiters are to be added to the output. To get full CSV content, `Stream.intersperse` should be called:
     * {{{
-    *   val renderer: CSVRenderer = CSVRenderer[IO]
+    *   val renderer: CSVRenderer[IO] = CSVRenderer[IO]
     *   val in: Stream[IO, Record] = ???
     *   val out: Stream[IO, String] = in.through(renderer.rows).intersperse("\n")
     * }}}
-    * Nevertheless record delimiter is properly escaped in content, so it has to be set accordingly in config.
+    * Nevertheless record delimiter is escaped in content, so it has to be set accordingly in config.
     *
     * This method does not put header in output stream, regardless of `CSVConfig.hasHeader` setting.
     *
-    * @return
+    * @return a pipe to converter [[Record]]s into `String`s
     */
   def rows: Pipe[F, Record, String] = (in: Stream[F, Record]) => in.map(_.values.map(escape).mkString(sfd))
 
+  /* Converts stream of strings (or errors) into stream of characters.
+   * The resulting stream may "throw" an error, which has to be handled with `handleErrorWith`.
+   */
   private def toChars: Pipe[F, Either[HeaderError, String], Char] =
     (in: Stream[F, Either[HeaderError, String]]) =>
       in.rethrow
@@ -124,14 +126,17 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
         .map(s => Chunk.chars(s.toCharArray))
         .flatMap(Stream.chunk)
 
+  /* Renders single record into CSV string. */
   private def renderRow(record: Record, header: Header): Either[HeaderError, String] =
     header.names.map { name =>
       record(name).map(escape).toRight(new HeaderError(Position.none, name))
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 
+  /* Renders header into CSV string. */
   private def renderHeader(header: Header): Either[Nothing, String] = Right(header.names.map(escape).mkString(sfd))
 
+  /* Escapes record field with delimiters or quote characters. */
   private def escape(s: String): String = {
     val sdq = doubleQuotes(s)
     val sl = s.length
@@ -144,6 +149,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     }
   }
 
+  /* Duplicates quote characters to escape them. */
   private def doubleQuotes(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2) else s
 
   @inline private def hasDelimiters(s: String): Boolean =
@@ -155,12 +161,11 @@ object CSVRenderer {
 
   /** Creates a [[CSVRenderer]] with default configuration, as defined in RFC 4180.
     *
-    * @tparam F the effect type, with a type class providing support for suspended execution
-    * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
+    * @tparam F the effect type, with a type class providing support for raising and handling errors
     * @return new renderer
     */
-  def apply[F[_]: Sync: Logger]: CSVRenderer[F] = new CSVRenderer(config)
+  def apply[F[_]: RaiseThrowable]: CSVRenderer[F] = new CSVRenderer(config)
 
-  /** Provides default configuration, as defined in RFC 4180. */
+  /** Provides default CSV configuration, as defined in RFC 4180. */
   lazy val config: CSVConfig = CSVConfig()
 }

@@ -308,10 +308,12 @@ object Record {
     * @return new record
     */
   def apply(values: String*)(header: Header): Record = {
-    val hdr =
-      if (values.size == header.size) header
-      else if (header.size > values.size) header.shrink(values.size)
-      else header.extend(values.size)
+    val HS = header.size
+    val hdr = values.size match {
+      case HS => header
+      case vs if vs < HS => header.shrink(vs)
+      case vs => header.extend(vs)
+    }
     new Record(values.toIndexedSeq, Position.none)(Some(hdr))
   }
 
@@ -391,7 +393,7 @@ object Record {
     * @param rb the record builder to be converted
     * @return new Record with values from provided builder
     */
-  implicit def toRecord(rb: Builder): Record = rb.result
+  implicit def builderToRecord(rb: Builder): Record = rb.result
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *

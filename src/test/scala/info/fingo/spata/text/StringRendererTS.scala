@@ -24,7 +24,7 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(render(Some(string)) == str)
     }
     assert(render(none[String]) == "")
-    assert(render(null: String) == "")
+    assert(render(None.orNull[String]) == "")
   }
 
   test("StringRenderer should correctly render ints") {
@@ -51,28 +51,28 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(decimals) { (_: String, decimal: BigDecimal, fmt: Option[DecimalFormat], str: String) =>
       assertRendering(decimal, fmt, str)
     }
-    assert(render(null: BigDecimal) == "")
+    assert(render(None.orNull[BigDecimal]) == "")
   }
 
   test("StringRenderer should correctly render local dates") {
     forAll(dates) { (_: String, date: LocalDate, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(date, fmt, str)
     }
-    assert(render(null: LocalDate) == "")
+    assert(render(None.orNull[LocalDate]) == "")
   }
 
   test("StringRenderer should correctly render local times") {
     forAll(times) { (_: String, time: LocalTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(time, fmt, str)
     }
-    assert(render(null: LocalTime) == "")
+    assert(render(None.orNull[LocalTime]) == "")
   }
 
   test("StringRenderer should correctly render local date-times") {
     forAll(dateTimes) { (_: String, dateTime: LocalDateTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(dateTime, fmt, str)
     }
-    assert(render(null: LocalDateTime) == "")
+    assert(render(None.orNull[LocalDateTime]) == "")
   }
 
   test("StringRenderer should correctly render booleans") {

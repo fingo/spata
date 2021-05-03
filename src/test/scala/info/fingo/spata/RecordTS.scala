@@ -296,7 +296,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   private def createRecord(name: String, date: String, value: String)(header: Header): Record =
-    Record.create(Vector(name, date, value), 1, 1)(header).toOption.get
+    Record.create(Vector(name, date, value), 1, 1)(header).toOption.getOrElse(Record()(header))
 
   private lazy val basicCases = Table(
     ("testCase", "name", "sDate", "sValue"),

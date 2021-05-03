@@ -393,7 +393,7 @@ object Record {
     * @param rb the record builder to be converted
     * @return new Record with values from provided builder
     */
-  implicit def builderToRecord(rb: Builder): Record = rb.result
+  implicit def buildRecord(rb: Builder): Record = rb.get
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
@@ -457,7 +457,7 @@ object Record {
       *
       * @return new record with values from this builder.
       */
-    def result: Record = Record.fromPairs(buf.reverse: _*)
+    def get: Record = Record.fromPairs(buf.reverse: _*)
 
     /* Gets final record from this builder with reversed order of the fields,
      * which really means preserving the order, because values ate prepended.

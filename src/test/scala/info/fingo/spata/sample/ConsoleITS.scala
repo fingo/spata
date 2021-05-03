@@ -6,7 +6,7 @@
 package info.fingo.spata.sample
 
 import java.time.LocalDate
-import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 import cats.effect.IO
 import cats.implicits._
 import fs2.Stream
@@ -41,11 +41,11 @@ class ConsoleITS extends AnyFunSuite {
       }
       .rethrow // rethrow to get rid of Either, which is safe because of above filter
       .groupAdjacentBy(_.year) // we assume here that data is sorted by date
-      .map(_._2)
-      .map { chunk =>
-        val year = chunk(0).year
-        val temp = chunk.map(_.temp).foldLeft(0.0)(_ + _) / chunk.size
-        YT(year, temp)
+      .map {
+        case (_, chunk) =>
+          val year = chunk(0).year
+          val temp = chunk.map(_.temp).foldLeft(0.0)(_ + _) / chunk.size
+          YT(year, temp)
       }
       .handleErrorWith { ex =>
         println(s"An error has been detected while processing ${SampleTH.dataFile}: ${ex.getMessage}")
@@ -62,7 +62,7 @@ class ConsoleITS extends AnyFunSuite {
   }
 
   test("spata allows executing simple side effects through callbacks") {
-    try {
+    Try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         CSVParser[IO] // parser with default configuration and IO effect
           .process(Reader[IO].read(source)) { record =>
@@ -76,25 +76,27 @@ class ConsoleITS extends AnyFunSuite {
           }
           .unsafeRunSync()
       }
-    } catch {
-      case NonFatal(ex) =>
+    } match {
+      case Success(_) => // do nothing
+      case Failure(ex) =>
         println(ex.getMessage)
         fail()
     }
   }
 
   test("spata allow processing csv data as list") {
-    try {
+    Try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
         val records = CSVParser[IO].get(Reader[IO].read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
-        for (r <- over0)
-          println(s"Over 0 temperature found on ${r("terrestrial_date")}")
+        val info = over0.map(r => s"Over 0 temperature found on ${r("terrestrial_date")}")
+        info.getOrElse("Over 0 temperature not found")
       }
-    } catch {
-      case NonFatal(ex) =>
+    } match {
+      case Success(info) => println(info)
+      case Failure(ex) =>
         println(ex.getMessage)
         fail()
     }

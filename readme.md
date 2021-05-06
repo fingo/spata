@@ -5,21 +5,21 @@ spata
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://www.codacy.com/gh/fingo/spata/dashboard)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
 [![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_2.13%22)
-[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_2.13/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_2.13)
+[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_2.13/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_2.13/latest/info/fingo/spata/index.html)
 [![Gitter](https://badges.gitter.im/fingo-spata/community.svg)](https://gitter.im/fingo-spata/community)
 
-**spata** is a functional Scala parser for tabular data (`CSV`).
+**spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
 The main goal of the library is to provide handy, functional, stream-based API
-with easy conversion of records to case classes and precise information about possible flaws
-and their location in source data while maintaining good performance.
+with easy conversion between records and case classes, completed with precise information about possible flaws
+and their location in source data for parsing, while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse a well-formatted CSV file,
 but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.   
 
-The source data format is assumed to basically conform to [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
-but allows some variations - see `CSVConfig` for details.
+The source (while parsing) and destination (while rendering) data format is assumed to conform basically to
+[RFC 4180](https://www.ietf.org/rfc/rfc4180.txt), but allows some variations - see `CSVConfig` for details.
 
 *   [Getting started](#getting-started)
 *   [Basic usage](#basic-usage)
@@ -48,15 +48,14 @@ import scala.io.Source
 import cats.effect.IO
 import fs2.Stream
 import info.fingo.spata.CSVParser
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 
 case class Data(item: String, value: Double)
-val parser = CSVParser[IO]() // parser with default configuration
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-  .through(reader[IO]().by) // produce stream of chars from source
-  .through(parser.parse)  // parse CSV file and get CSV records 
+  .through(Reader[IO].by) // produce stream of chars from source
+  .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
   .map(_.to[Data]()) // convert records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
@@ -64,7 +63,7 @@ val result = records.compile.toList.unsafeRunSync // run everything while conver
 ```
 
 Another example may be taken from [FS2 readme](https://fs2.io/),
-assuming that the data is stored in CSV format with two fields, `date` and `temp`:
+assuming that the data is stored and written back in CSV format with two fields, `date` and `temp`:
 ```scala
 import java.nio.file.Paths
 import scala.io.Codec
@@ -73,35 +72,32 @@ import cats.implicits._
 import fs2.Stream
 import fs2.io
 import fs2.text
-import info.fingo.spata.CSVParser
-import info.fingo.spata.io.reader
+import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
   val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
     blocker =>
       implicit val codec: Codec = Codec.UTF8
-      val parser: CSVParser[IO] = CSVParser.config.get[IO]()
-      def fahrenheitToCelsius(f: Double): Double =
-        (f - 32.0) * (5.0 / 9.0)
+      val config: Config = CSVConfig()
+      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-      reader
+      Reader
         .shifting[IO](blocker)
         .read(Paths.get("testdata/fahrenheit.txt"))
-        .through(parser.parse)
-        .filter(r => r("temp").exists(!_.isBlank)
+        .through(config.parser[IO].parse)
+        .filter(r => r("temp").exists(!_.isBlank))
         .map { r =>
           val date = r.unsafe("date")
           val temp = fahrenheitToCelsius(r.unsafe.get[Double]("temp"))
-          s"$date,$temp"
+          Record.builder.add("date", date).add("temp", temp).get
         }
-        .intersperse("\n")
-        .through(text.utf8Encode)
-        .through(io.file.writeAll(Paths.get("testdata/celsius.txt"), blocker))
+        .through(config.renderer[IO].render)
+        .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 
-  def run(args: List[String]): IO[ExitCode] =
-    converter.compile.drain.as(ExitCode.Success)
+  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
 }
 ```
 (This example uses exception throwing methods for brevity and to keep it closer to original snippet.
@@ -114,10 +110,12 @@ Tutorial
 --------
 
 *   [Parsing](#parsing)
+*   [Rendering](#rendering)
 *   [Configuration](#configuration)
-*   [Reading source data](#reading-source-data)
+*   [Reading and writing data](#reading-and-writing-data)
 *   [Getting actual data](#getting-actual-data)
-*   [Text parsing](#text-parsing)
+*   [Creating records](#creating-records)
+*   [Text parsing and rendering](#text-parsing-and-rendering)
 *   [Schema validation](#schema-validation)
 *   [Error handling](#error-handling)
 *   [Logging](#logging)
@@ -125,11 +123,11 @@ Tutorial
 ### Parsing
 
 Core spata operation is a transformation from a stream of characters into a stream of `Record`s.
-This is available through `CSVParser.parse` function (supplying FS2 `Pipe`)
+This is available through `CSVParser.parse` method (supplying FS2 `Pipe`)
 and is probably the best way to include CSV parsing into any FS2 stream processing pipeline:
 ```scala
 val input: Stream[IO, Char] = ???
-val parser: CSVParser[IO] = CSVParser[IO]()
+val parser: CSVParser[IO] = CSVParser[IO]
 val output: Stream[IO, Record] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
@@ -148,7 +146,7 @@ Field and record delimiters are required to be single characters.
 There are however no other assumptions about them - particularly the record delimiter does not have to be a line break
 and spata does not assume line break presence in the source data - it does not read the data by lines.
 
-If newline (`LF`, `\n`, `0x0A`) is however used as the record delimiter,
+If newline (`LF`, `\n`, `0x0A`) is used as the record delimiter,
 carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not escaped, to support `CRLF` line breaks.     
 
 Fields containing delimiters (field or record) or quotes have to be wrapped in quotation marks.
@@ -186,7 +184,7 @@ The three above functions return the result (`List` or `Unit`) wrapped in an eff
 "at the end of the world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
 ```scala
 val stream: Stream[IO, Char] = ???
-val parser: CSVParser[IO] = CSVParser[IO]()
+val parser: CSVParser[IO] = CSVParser[IO]
 val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
@@ -198,15 +196,60 @@ val ss: Stream[IO, String] = ???
 val sc: Stream[IO, Char] = ss.map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
 ```
 
-See [Reading source data](#reading-source-data) for helper methods to get stream of characters from various sources.
+See [Reading and writing data](#reading-and-writing-data) for helper methods
+to get stream of characters from various sources.
+
+### Rendering
+
+Complementary to parsing, spata offers CSV rendering feature -
+it allows conversion from stream of `Record`s to stream of characters.
+This is available through `CSVRenderer.render` method (supplying FS2 `Pipe`):
+```scala
+val input: Stream[IO, Record] = ???
+val renderer: CSVRenderer[IO] = CSVRenderer[IO]
+val output: Stream[IO, Char] = input.through(renderer.render)
+```
+Similarly to parsing, rendering is polymorphic in the effect type and may be used with different effect implementations.
+Renderer has weaker demands for its effect type than parser. It requires only the `MonadError` type class implementation.
+
+The `render` method may encode only subset of fields in a record. This is controlled by the `header` parameter,
+being optionally passed to the method:
+```scala
+val input: Stream[IO, Record] = ???
+val header: Header = ???
+val renderer: CSVRenderer[IO] = CSVRenderer[IO]
+val output: Stream[IO, Char] = input.through(renderer.render(header))
+```
+Provided header is used to select fields and does not cause adding header row to output.
+This is controlled by `CSVConfig.hasHeader` and may be induced even for `render` method without header parameter.
+
+If no explicit header is passed to `render`, it is extracted from first record in input stream.
+
+The main advantage of using `CSVRenderer` over `makeString` and `intersperse` methods
+is its ability to properly escape special characters (delimiters and quotation mark) in source data.
+The escape policy is set through configuration and by default quotes the fields only when required.
+
+Like parser, renderer supports any single-character field and record delimiters.
+As result, `render` method does not allow separating records with `CRLF`.
+If this is required, the `rows` method has to be used:
+```scala
+val input: Stream[IO, Record] = ???
+val output: Stream[IO, String] = input.through(CSVRenderer[IO].rows).intersperse("\r\n")
+```
+The above stream of strings may be converted to stream of characters as presented in [renderig](#rendering) part. 
+
+Unlike `render`, the `rows` method outputs all fields from each record and never outputs header row.
+
+See [Reading and writing data](#reading-and-writing-data) for helper methods
+to transmit stream of characters to various destinations.
 
 ### Configuration
 
-`CSVParser` is configured through `CSVConfig`, which is a parameter to its constructor.
-A more convenient way may be a builder-like method, which takes the defaults provided by `CSVParser` object
-and allows altering selected parameters:
+`CSVParser` and `CSVRenderer` are configured through `CSVConfig`, which is a parameter to their constructors.
+A more convenient way may be a builder-like method, which takes the defaults and allows altering selected parameters:
 ```scala
-val parser = CSVReader.config.fieldDelimiter(';').noHeader().get[IO]()
+val parser = CSVParser.config.fieldDelimiter(';').noHeader.parser[IO]
+val renderer = CSVRenderer.config.fieldDelimiter(';').noHeader.renderer[IO]
 ```
 
 Individual configuration parameters are described in
@@ -224,7 +267,7 @@ date,max temparature,min temparature
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
-  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]()
+  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]
 val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
 ```
 It may also be defined for more fields than there are present in any particular data source,
@@ -239,8 +282,16 @@ date,temparature,temparature
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
-  CSVParser.config.mapHeader(Map(1 -> "tempMax", 2 -> "tempMin")).get[IO]()
+  CSVParser.config.mapHeader(Map(1 -> "tempMax", 2 -> "tempMin")).get[IO]
 val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
+```
+
+Header mapping may be used for renderer too, to output different header values from those used by `Record` / case class:
+```scala
+val stream: Stream[IO, Record] = ???
+val renderer: CSVRenderer[IO] =
+  CSVRenderer.config.mapHeader(Map("tempMax" -> "max temparature", "tempMin" -> "min temparature")).get[IO]
+val frosty: Stream[IO, Char] = stream.filter(_.get[Double]("minTemp").exists(_ < 0)).through(renderer.render)
 ```
 
 FS2 takes care of limiting the amount of processed data and consumed memory to the required level.
@@ -254,38 +305,47 @@ spata can be configured to limit the maximum size of a single field using `field
 If this limit is exceeded during parsing, the processing stops with an error. 
 By default, no limit is specified.
 
-### Reading source data
+### Reading and writing data
 
 As mentioned earlier, `CSVParser` requires a stream of characters as its input.
 To simplify working with common data sources, like files or sockets, spata provides a few convenience methods,
-available through its `io.reader` object.
+available through its `io.Reader` object.
 
-There are two groups of `read` methods in `reader`:
+Similarly, `io.Writer` simplifies the process of writing stream of characters produced by `CSVRenderer`
+to an external destination.
 
-*   basic ones, accessible through `reader.plain`, where reading is done synchronously on the current thread,
+There are two groups of `read` and `write` methods in `Reader` and `Writer`:
+
+*   basic ones, accessible through `Reader.plain` and `Writer.plain`,
+    where reading and writing is done synchronously on the current thread,
 
 *   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
-    accessible through `reader.shifting`.
+    accessible through `Reader.shifting` and `Writer.shifting`.
 
-It is recommended to use the thread shifting version, especially for long reading operation,
+It is recommended to use the thread shifting version, especially for long reading operations,
 for better thread pools utilization.
 See [a post from Daniel Spiewak](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
 about thread pools configuration.
 More information about threading may be found in
 [Cats Concurrency Basics](https://typelevel.org/cats-effect/concurrency/basics.html).
 
-The simplest way to read a file is:
+The simplest way to read data from and write to a file is:
 ```scala
-val stream: Stream[IO, Char] = reader.plain[IO]().read(Path.of("data.csv"))
+val stream: Stream[IO, Char] = Reader.plain[IO].read(Path.of("data.csv"))
+// do some processing on stream
+val eff: Stream[IO, Unit] = stream.through(Writer.plain[IO].write(Path.of("data.csv")))
 ```
 or even:
 ```scala
-val stream: Stream[IO, Char] = reader[IO]().read(Path.of("data.csv")) // reader.apply is an alias for reader.plain
+val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.apply is an alias for Reader.plain
+// do some processing on stream
+val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.plain
 ```
-The thread shifting reader provides a similar method, but requires implicit `ContextShift`:
+The thread shifting reader and writer provide similar methods, but require implicit `ContextShift`:
 ```scala
 implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-val stream: Stream[IO, Char] = reader.shifting[IO]().read(Path.of("data.csv"))
+val stream: Stream[IO, Char] = Reader.shifting[IO].read(Path.of("data.csv"))
+val eff: Stream[IO, Unit] = stream.through(Writer.shifting[IO].write(Path.of("data.csv")))
 ```
 The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
 used for regular, non-blocking operation, after the blocking I/O operation finishes.
@@ -294,43 +354,52 @@ The `Blocker`, which provides the thread pool for blocking I/O, may be passed to
 All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
 Chunk size may be supplied while creating a reader:
 ```scala
-val stream: Stream[IO, Char] = reader.plain[IO](1024).read(Path.of("data.csv"))
+val stream: Stream[IO, Char] = Reader.plain[IO](1024).read(Path.of("data.csv"))
 ```
 If not provided explicitly, a default chunk size will be used.
 
-Except for `Source`, which is already character-based, other data sources require an implicit `Codec`
-to convert bytes into characters:
+Except for `Source`, which is already character-based,
+other data sources and all data destinations require an implicit `Codec` to convert bytes into characters:
 ```scala
 implicit val codec: Codec = Codec.UTF8
 ```
 
-The caller to a `read` function which takes a resource as parameter (`Source` or `InputStream`)
+The caller to a `read` or `write` method which takes a resource as parameter (`Source`, `InputStream` or `OutputStream`)
 is responsible for resource cleanup. This may be achieved through FS2 `Stream.bracket`:
 ```scala
-val stream: Stream[IO, Char] = for {
-   source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-   char <- reader.shifting[IO]().read(source)
-} yield char
+val stream: Stream[IO, Unit] = for {
+  source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
+  destination <- Stream.bracket(IO { FileOutputStream("data.csv") })(fos => IO { fos.close() })
+  out <- Reader.shifting[IO].read(source)
+    // do some processing
+    .through(Writer[IO].write(destination))
+} yield out
 ```
 Other methods of resource acquisition and releasing are described in
 [Cats Effect tutorial](https://typelevel.org/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources).
 
-In addition to the `read` function, `reader` provides a `by` function, to be used with `Stream.through`.
-The above example may be rewritten by using `by` into:
+Unlike `Reader.read` method, which creates a new stream, `Writer.write` operates on existing stream.
+Being often the last operation in stream pipeline, it has to allow access to the final stream,
+as a handle to run the whole processing.
+This is why `write` returns a `Pipe`, converting a stream of characters to a unit stream.
+
+There is a `by` method in `Reader`, which returns a `Pipe` too.
+It converts a single-element stream containing data source into stream of characters:
 ```scala
 val stream: Stream[IO, Char] = Stream
   .bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-  .through(reader.shifting[IO]().by)
+  .through(Reader.shifting[IO].by)
 ```
 
 ### Getting actual data
 
 Sole CSV parsing operation produces a stream of `Record`s.
-Each record may be seen as a map from `String` to `String`, where the keys are shared among all records.
-The basic method to obtain individual values is through the `apply` function, by key (taken from header):
+Each record may be seen as a map from `String` to `String`, where the keys, forming a header,
+are shared among all records.
+The basic method to obtain individual values is through the call to `apply`, by key (taken from header):
 ```scala
 val record: Record = ???
-val value: Option[String] = record("key")
+val value: Option[String] = record("some key")
 ```
 or index:
 ```scala
@@ -341,21 +410,22 @@ val value: Option[String] = record(0)
 `CSVRecord` supports retrieval of typed values.
 In simple cases, when the value is serialized in its canonical form,
 which does not require any additional format information, like ISO format for dates,
-this may be done with single-parameter `get` function:
+or the formatting is fixed for all data, this may be done with single-parameter `get` function:
 ```scala
 val record: Record = ???
 val num: Decoded[Double] = record.get[Double]("123.45")
 ```
 `Decoded[A]` is an alias for `Either[ContentError, A]`.
-This method requires a `text.StringParser[A]`, which is described in [the next chapter](#text-parsing).
+This method requires a `text.StringParser[A]`, which is described in [Text parsing](#text-parsing-and-rendering).
 
-`get` has sn overloaded versions, which support formatting-aware parsing:
+`get` has overloaded versions, which support formatting-aware parsing:
 ```scala
 val record: Record = ???
 val df = new DecimalFormat("#,###")
 val num: Decoded[Double] = record.get[Double]("123,45", df)
 ```
-This methods requires a `text.FormattedStringParser[A, B]`, which is described in [the next chapter](#text-parsing).
+This methods requires a `text.FormattedStringParser[A, B]`,
+which is described in [Text parsing](#text-parsing-and-rendering).
 (It uses an intermediary class `Field` to provide a nice syntax, this should be however transparent in most cases).
 
 Above methods are available also in unsafe, exception-throwing version, accessible through `Record.unsafe` object:
@@ -420,7 +490,82 @@ implicit val nsp: StringParser[Double] = (str: String) => nf.parse(str).doubleVa
 val element: Decoded[Element] = record.to[Element]()
 ```
 
-### Text parsing
+### Creating records
+
+`Record` is not only the result of parsing. It is also the source for CSV rendering.
+To let renderer do its work, the we need to convert the data to records first.
+As mentioned above, `Record` is basically a map from `String` (key) to `String` (value).
+The keys form a header, which is, when only possible, shared among records.
+This sharing is always effective for records parsing by spata, but require some attention,
+when records are created by application code, especially when performance and memory usage matter.
+
+The basic way is to create a record from values provided as variable-arguments:
+```scala
+val header = Header("symbol", "melting", "boiling")
+val record = Record("H","13.99","20.271")(header)
+val value = record("melting")  // returns Some("13.99")
+```
+Header length is expected to match number of values (arguments).
+If it does not, it is reduced (the last keys are omitted) or extended (tuple-style keys are added).
+
+It is possible to create a record without providing header and rely on the one which is implicitly generated:
+```scala
+val record = Record.fromValues("H","13.99","20.271")
+val header = record.header  // returns Header("_1", "_2", "_3")
+val value = record("_2")  // returns Some("13.99")
+```
+Because record's header maybe be needless in some scenarions (e.g. while using index-based `CSVRenderer.rows` method),
+this header creation is lazy - it is created only when accessed. If created, each record gets its own copy of header.
+
+Similar option is record creation from key-value pairs:
+```scala
+val record = Record("symbol" -> "H", "melting" -> "13.99", "boiling" -> "20.271")
+val value = record("melting")  // returns Some("13.99")
+```
+Even though convient, this method creates a header per record, and should be probably not used with large data sets.
+
+All three above methods require record's values to be already converted to strings.
+However, what we often need, it to create a record from typed data, with proper formatting / locale.
+There are two methods to achive that.
+
+The first is through record builder, which allows adding typed values to the record one by one:
+```scala
+val record = Record.builder.add("symbol", "H").add("melting", 13.99).add("boiling", 20.271).get
+val value = record("melting")  // returns Some("13.99")
+```
+To convert typed value to strings, this method requires an implicit `StringRenderer[A]`,
+which is described in [Text rendering](#text-parsing-and-rendering).
+Similarly to `StringParser`, renderers for basic types and formats are provided out of the box
+and specific ones may be defined:
+```scala
+val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
+implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
+val record = Record.builder.add("symbol", "H").add("melting", 13.99).add("boiling", 20.271).get
+val value = record("melting")  // returns Some("13,99")
+```
+
+The second method allows direct conversion of cases classes or tuples to records:
+```scala
+case class Element(symbol: String, melting: Double, boiling: Double)
+val element = Element("H", 13.99, 20.271)
+val record = Record.from(element)
+val value = record("melting")  // returns Some("13.99")
+```
+This approach relies on `StringParser` for data formatting as well.
+It may be used even more comfortably by calling an method directly on case class:
+```scala
+val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
+implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
+case class Element(symbol: String, melting: Double, boiling: Double)
+val element = Element("H", 13.99, 20.2(71)
+val record = element.toRecord)()
+val value = record("melting")  // returns Some("13,99")
+```
+
+A disadvantage of both above methods operating on typed values is header creation for each record.
+They may be not the optimal choice for large data sets when performance really matters.
+
+### Text parsing and rendering
 
 CSV data is parsed as `String`s.
 We often need typed values, e.g. numbers or dates, for further processing.
@@ -430,7 +575,17 @@ Dates and times through `parse` methods in `java.time.LocalDate` or `LocalTime`,
 This is awkward when providing single interface for various types, like `Record` does.
 This is the place where spata's `text.StringParser` comes in handy.
 
-`StringParser` object provides methods for parsing strings with default format:
+The situation is similar when typed values have to be converted to strings to create a CSV data.
+Although there is a `toString` method available for each value, it is often insufficient,
+because we need specific format of dates, numbers and other values.
+Again, there is no single interface for encoding different types to strings.
+spata provides `text.StringRenderer` to help with this.
+
+Similar solutions in other librararies are often called `Decoder` and `Encoder` instead of `Parser` and `Renderer`.
+
+#### Parsing
+
+`StringParser` object provides methods for parsing strings with default or implicitly provided format:
 ```scala
 val num: ParseResult[Double] = StringParser.parse[Double]("123.45")
 ```
@@ -494,7 +649,64 @@ Although this design decision might be seen as questionable,
 as returning `Either` instead of throwing an exception could be the better choice,
 it is made deliberately - all available Java parsing methods throw an exception,
 so it is more convenient to use them directly while implementing `StringParser` traits,
-leaving all exception handling in a single place, i.e. the `StringParser.parse` method.  
+leaving all exception handling in a single place, i.e. the `StringParser.parse` method.
+
+#### Rendering
+
+Rendering is symmetrical to parsing. 
+`StringRenderer` object provides methods for rendering strings with default or implicitly provided format:
+```scala
+val str: String = StringRenderer.render(123.45)
+```
+
+When a specific format has to be provided, an overloaded version of above method is available: 
+```scala
+val df = new DecimalFormat("#,###")
+val str: String = StringRenderer.render(123.45, df)
+```
+
+These functions require implicit `StringRenderer` or `FormattedStringRenderer` respectively.
+Implicits for a few basic types are already available - see Scaladoc for `StringRenderer`.
+When additional renderers are required,
+they may be easily provided by implementing `StringRenderer` or `FormattedStringRenderer` traits.
+
+Let's take again `java.sql.Date` as an example. Having implemented `StringRenderer[Date]`:
+```scala
+import java.sql.Date
+import java.time.Instant
+import info.fingo.spata.text.StringRenderer
+
+implicit val sdf: StringRenderer[Date] = (d: Date) => if(d == null) "" else d.toString
+```
+We can use it as follows:
+```scala
+val date = Date.from(Instant.now)
+val str = StringRenderer.render(date)
+```
+
+Defining a renderer with support for custom formatting requires the implementation of `FormattedStringRenderer`:
+```scala
+import java.sql.Date
+import java.text.DateFormat
+import info.fingo.spata.text.FormattedStringRenderer
+
+implicit val sdf: FormattedStringRenderer[Date, DateFormat] =
+  new FormattedStringRenderer[Date, DateFormat] {
+      override def apply(date: Date): String = date.toString
+      override def apply(date: Date, fmt: DateFormat): String = fmt.format(date)
+  }
+```
+And can be used as follows:
+```scala
+import java.sql.Date
+import java.text.DateFormat
+import java.time.Instant
+import info.fingo.spata.text.StringRenderer
+
+val df = DateFormat.getDateInstance(DateFormat.SHORT, new Locale("pl", "PL"))
+val date = Date.from(Instant.now)
+val str = StringRenderer.render(date, df)
+```
 
 ### Schema validation
 
@@ -523,8 +735,7 @@ Schema is validated as part of a regular stream processing pipeline:
 ```scala
 val schema = ???
 val stream: Stream[IO, Char] = ???
-val parser: CSVParser[IO] = CSVParser[IO]()
-val validatedStream = stream.through(parser.parse).through(schema.validate)
+val validatedStream = stream.through(CSVParser[IO].parse).through(schema.validate)
 ```
 As a result of the validation process, the ordinary CSV `Record` is converted to `ValidatedRecord[T]`,
 which is an alias for `Validated[InvalidRecord, TypedRecord[T]]`.
@@ -607,7 +818,7 @@ validatedStream.map { validated =>
 Schema validation requires string parsing, described in the previous chapter.
 Similarly to conversion to case classes, we are not able to directly pass a formatter to validation,
 so a regular `StringParser` implicit with correct format has to be provided for each parsed type.
-All remarks described in [Text parsing](#text-parsing) apply to the validation process.
+All remarks described in [Text parsing and rendering](#text-parsing-and-rendering) apply to the validation process.
 
 Type verification, although probably the most important aspect of schema validation,
 is often not the only constraint on CSV which is required to successfully process the data.
@@ -646,8 +857,8 @@ import cats.implicits._
 import fs2.Stream
 import fs2.io
 import fs2.text
-import info.fingo.spata.CSVParser
-import info.fingo.spata.io.reader
+import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.io.{Reader, Writer}
 import info.fingo.spata.schema.CSVSchema
 
 object Converter extends IOApp {
@@ -655,31 +866,28 @@ object Converter extends IOApp {
   val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
     blocker =>
       implicit val codec: Codec = Codec.UTF8
-      val parser: CSVParser[IO] = CSVParser.config.get[IO]()
+      val config: Config = CSVConfig()
       val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
-      def fahrenheitToCelsius(f: Double): Double =
-        (f - 32.0) * (5.0 / 9.0)
+      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
       reader
         .shifting[IO](blocker)
         .read(Paths.get("testdata/fahrenheit.txt"))
-        .through(parser.parse)
+        .through(config.parser[IO].parse)
         .through(schema.validate)
         .map {
           _.leftMap(println).map { tr =>
             val date = tr("date")
             val temp = fahrenheitToCelsius(tr("temp"))
-            s"$date,$temp"
+            Record.builder.add("date", date).add("temp", temp).get
           }.toOption
         }
         .unNone
-        .intersperse("\n")
-        .through(text.utf8Encode)
-        .through(io.file.writeAll(Paths.get("testdata/celsius.txt"), blocker))
+        .through(config.renderer[IO].render)
+        .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 
-  def run(args: List[String]): IO[ExitCode] =
-    converter.compile.drain.as(ExitCode.Success)
+  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
 }
 ```
 
@@ -689,7 +897,7 @@ There are three types of errors which may arise while parsing CSV:
 
 *   Various I/O errors, including but not limited to `IOException`.
     They are not directly related to parsing logic but CSV is typically read from an external, unreliable source.
-    They may be raised by `reader` operations.
+    They may be raised by `Reader` operations.
 
 *   Errors caused by malformed CSV structure, reported as `StructureException`.
     They may be caused by `CSVParser`'s methods.
@@ -709,11 +917,18 @@ The last category is reported on the record level and allows for different handl
 Please notice however, that if the error is not handled locally (e.g. using safe functions returning `Decoded`)
 and propagates through the stream, further processing of input data is stopped, like for the above error categories.
 
+As for rendering, there are basically two types of errors possible"
+
+*   Errors caused by missing records keys, including records of different structure rendered together.
+    They are reported on record level with `HeaderError`.
+
+*   Similarly to parsing, various I/O errors, when using `Writer`.
+
 Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
 FS2 captures exceptions thrown or reported explicitly with `raiseError`
 and in both cases is able to handle them with `handleErrorWith`.
-To fully support this, `CSVParser` requires the `RaiseThrowable` type class instance for its effect `F`,
-which is covered with `cats.effect.Sync` type class.
+To fully support this, `CSVParser` and `CSVRenderer` require the `RaiseThrowable` type class instance for its effect `F`,
+which is covered with `cats.effect.Sync` type class for parser.
 
 The converter example presented in [Basic usage](#basic-usage) may be enriched with explicit error handling:
 ```scala
@@ -724,16 +939,14 @@ import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import fs2.Stream
 import fs2.io
 import fs2.text
-import info.fingo.spata.CSVParser
-import info.fingo.spata.io.reader
+import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
   val converter: Stream[IO, ExitCode] = Stream.resource(Blocker[IO]).flatMap {
     blocker =>
-      def fahrenheitToCelsius(f: Double): Double =
-        (f - 32.0) * (5.0 / 9.0)
-      val parser: CSVParser[IO] = CSVParser[IO]()
+      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
       implicit val codec: Codec = Codec.UTF8
       val src = Paths.get("testdata/fahrenheit.txt")
       val dst = Paths.get("testdata/celsius.txt")
@@ -741,29 +954,26 @@ object Converter extends IOApp {
       reader
         .shifting[IO](blocker)
         .read(src)
-        .through(parser.parse)
+        .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank)
         .map { r =>
           for {
             date <- r.get[String]("date")
             fTemp <- r.get[Double]("temp")
             cTemp = fahrenheitToCelsius(fTemp)
-          } yield s"$date,$cTemp"
+          } yield Record.builder.add("date", date).add("temp", temp).get
         }
         .rethrow
-        .intersperse("\n")
-        .through(text.utf8Encode)
-        .through(io.file.writeAll(dst, blocker))
+        .through(Renderer[IO].render)
+        .through(Writer.shifting[IO](blocker).write(dst))
         .fold(ExitCode.Success)((z, _) => z)
         .handleErrorWith(ex => {
-          println(ex)
           Try(dst.toFile.delete())
-          Stream.eval(IO(ExitCode.Error))
+          Stream.eval(IO(println(ex)) *> IO(ExitCode.Error))
         })
   }
 
-  def run(args: List[String]): IO[ExitCode] =
-    converter.compile.lastOrError
+  def run(args: List[String]): IO[ExitCode] = converter.compile.lastOrError
 }
 ```
 
@@ -805,7 +1015,7 @@ Alternatives
 
 For those who need a different characteristic of a CSV library, there are a few alternatives available for Scala:
 *   [Itto-CSV](https://github.com/gekomad/itto-csv) - CSV handling library based on FS2 and Cats with support for case class conversion.
-*   [fs2  data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including CSV.
+*   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including CSV.
 *   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented CSV parser/serializer with support for different parsing engines.
 *   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use CSV reader/writer.
 

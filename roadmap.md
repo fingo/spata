@@ -10,5 +10,5 @@ Although the library already provides a fully functional solution,
 there are plans on how to make it even more versatile and useful.
 
 Future versions may include:
-*   CSV writer,
-*   support for Scala 3.
+*   support for updating `Record`,
+*   support for Scala 3 (including FS2 3, Cats Effect 3 and shapeless 3).

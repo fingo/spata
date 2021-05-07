@@ -257,7 +257,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
         implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
         implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
-        val record = data.toRecord()
+        val record = data.toRecord
         assert(record("num").contains(sNum.strip()))
         assert(record("date").contains(sDate.strip()))
         assert(record("value").contains(sValue.strip()))
@@ -288,7 +288,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
         implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
         implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
-        val record = data.toRecord()
+        val record = data.toRecord
         assert(record("_1").contains(sNum.strip()))
         assert(record("_2").contains(sValue.strip()))
         assert(record("_3").contains(sDate.strip()))

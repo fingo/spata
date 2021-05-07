@@ -432,7 +432,7 @@ object Record {
       * @tparam R [[shapeless.HList]] representation type
       * @return new record
       */
-    def toRecord[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
+    def toRecord[R <: HList](implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
       Record.from(product)
   }
 

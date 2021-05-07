@@ -21,12 +21,12 @@ class CSVRendererPTS extends Bench.LocalTime {
     }
     measure.method("convert_and_render_gen") in {
       using(amounts) in { amount =>
-        testMarsWeather(amount).map(_.toRecord()).through(renderer.render).compile.drain.unsafeRunSync()
+        testMarsWeather(amount).map(_.toRecord).through(renderer.render).compile.drain.unsafeRunSync()
       }
     }
     measure.method("convert_and_render_with_header_gen") in {
       using(amounts) in { amount =>
-        testMarsWeather(amount).map(_.toRecord()).through(renderer.render(mwHeader)).compile.drain.unsafeRunSync()
+        testMarsWeather(amount).map(_.toRecord).through(renderer.render(mwHeader)).compile.drain.unsafeRunSync()
       }
     }
   }

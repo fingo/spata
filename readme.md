@@ -59,42 +59,38 @@ val records = Stream
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
   .map(_.to[Data]()) // convert records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
-val result = records.compile.toList.unsafeRunSync // run everything while converting result to list
+val result = records.compile.toList.unsafeRunSync() // run everything while converting result to list
 ```
 
 Another example may be taken from [FS2 readme](https://fs2.io/),
 assuming that the data is stored and written back in CSV format with two fields, `date` and `temp`:
 ```scala
-import java.nio.file.Paths
 import scala.io.Codec
+import java.nio.file.Paths
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
-import cats.implicits._
 import fs2.Stream
-import fs2.io
-import fs2.text
-import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.{CSVConfig, Record}
 import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
-    blocker =>
-      implicit val codec: Codec = Codec.UTF8
-      val config: Config = CSVConfig()
-      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
+  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+    implicit val codec: Codec = Codec.UTF8
+    val config: CSVConfig = CSVConfig()
+    def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-      Reader
-        .shifting[IO](blocker)
-        .read(Paths.get("testdata/fahrenheit.txt"))
-        .through(config.parser[IO].parse)
-        .filter(r => r("temp").exists(!_.isBlank))
-        .map { r =>
-          val date = r.unsafe("date")
-          val temp = fahrenheitToCelsius(r.unsafe.get[Double]("temp"))
-          Record.builder.add("date", date).add("temp", temp).get
-        }
-        .through(config.renderer[IO].render)
-        .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
+    Reader
+      .shifting[IO](blocker)
+      .read(Paths.get("testdata/fahrenheit.txt"))
+      .through(config.parser[IO].parse)
+      .filter(r => r("temp").exists(!_.isBlank))
+      .map { r =>
+        val date = r.unsafe("date")
+        val temp = fahrenheitToCelsius(r.unsafe.get[Double]("temp"))
+        Record.builder.add("date", date).add("temp", temp).get
+      }
+      .through(config.renderer[IO].render)
+      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
@@ -267,8 +263,8 @@ date,max temparature,min temparature
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
-  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).get[IO]
-val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
+  CSVParser.config.mapHeader(Map("max temparature" -> "tempMax", "min temparature" -> "tempMin")).parser[IO]
+val frosty: Stream[IO, Record] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
 ```
 It may also be defined for more fields than there are present in any particular data source,
 which allows using a single parser for multiple data sets with different headers.
@@ -282,15 +278,15 @@ date,temparature,temparature
 ```scala
 val stream: Stream[IO, Char] = ???
 val parser: CSVParser[IO] =
-  CSVParser.config.mapHeader(Map(1 -> "tempMax", 2 -> "tempMin")).get[IO]
-val frosty: Stream[IO, Char] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
+  CSVParser.config.mapHeader(Map(1 -> "tempMax", 2 -> "tempMin")).parser[IO]
+val frosty: Stream[IO, Record] = stream.through(parser.parse).filter(_.get[Double]("minTemp").exists(_ < 0))
 ```
 
 Header mapping may be used for renderer too, to output different header values from those used by `Record` / case class:
 ```scala
 val stream: Stream[IO, Record] = ???
 val renderer: CSVRenderer[IO] =
-  CSVRenderer.config.mapHeader(Map("tempMax" -> "max temparature", "tempMin" -> "min temparature")).get[IO]
+  CSVRenderer.config.mapHeader(Map("tempMax" -> "max temparature", "tempMin" -> "min temparature")).renderer[IO]
 val frosty: Stream[IO, Char] = stream.filter(_.get[Double]("minTemp").exists(_ < 0)).through(renderer.render)
 ```
 
@@ -369,7 +365,7 @@ is responsible for resource cleanup. This may be achieved through FS2 `Stream.br
 ```scala
 val stream: Stream[IO, Unit] = for {
   source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-  destination <- Stream.bracket(IO { FileOutputStream("data.csv") })(fos => IO { fos.close() })
+  destination <- Stream.bracket(IO { new FileOutputStream("data.csv") })(fos => IO { fos.close() })
   out <- Reader.shifting[IO].read(source)
     // do some processing
     .through(Writer[IO].write(destination))
@@ -519,7 +515,7 @@ this header creation is lazy - it is created only when accessed. If created, eac
 
 Similar option is record creation from key-value pairs:
 ```scala
-val record = Record("symbol" -> "H", "melting" -> "13.99", "boiling" -> "20.271")
+val record = Record.fromPairs("symbol" -> "H", "melting" -> "13.99", "boiling" -> "20.271")
 val value = record("melting")  // returns Some("13.99")
 ```
 Even though convient, this method creates a header per record, and should be probably not used with large data sets.
@@ -557,8 +553,8 @@ It may be used even more comfortably by calling an method directly on case class
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
 implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
 case class Element(symbol: String, melting: Double, boiling: Double)
-val element = Element("H", 13.99, 20.2(71)
-val record = element.toRecord)()
+val element = Element("H", 13.99, 20.271)
+val record = element.toRecord
 val value = record("melting")  // returns Some("13,99")
 ```
 
@@ -583,7 +579,7 @@ spata provides `text.StringRenderer` to help with this.
 
 Similar solutions in other librararies are often called `Decoder` and `Encoder` instead of `Parser` and `Renderer`.
 
-#### Parsing
+#### Parsing text
 
 `StringParser` object provides methods for parsing strings with default or implicitly provided format:
 ```scala
@@ -606,9 +602,6 @@ they may be easily provided by implementing `StringParser` or `FormattedStringPa
 
 Let's take `java.sql.Date` as an example. Having implemented `StringParser[Date]`:
 ```scala
-import java.sql.Date
-import info.fingo.spata.text.StringParser
-
 implicit val sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
 ```
 We can use it as follows:
@@ -618,10 +611,6 @@ val date = StringParser.parse[Date]("2020-02-02")
 
 Defining a parser with support for custom formatting requires the implementation of `FormattedStringParser`:
 ```scala
-import java.sql.Date
-import java.text.DateFormat
-import info.fingo.spata.text.FormattedStringParser
-
 implicit val sdf: FormattedStringParser[Date, DateFormat] =
   new FormattedStringParser[Date, DateFormat] {
       override def apply(str: String): Date = Date.valueOf(str.strip)
@@ -630,9 +619,6 @@ implicit val sdf: FormattedStringParser[Date, DateFormat] =
 ```
 And can be used as follows:
 ```scala
-import info.fingo.spata.text.StringParser
-import java.util.Locale
-
 val df = DateFormat.getDateInstance(DateFormat.SHORT, new Locale("pl", "PL"))
 val date = StringParser.parse[Date]("02.02.2020", df)
 ```
@@ -651,7 +637,7 @@ it is made deliberately - all available Java parsing methods throw an exception,
 so it is more convenient to use them directly while implementing `StringParser` traits,
 leaving all exception handling in a single place, i.e. the `StringParser.parse` method.
 
-#### Rendering
+#### Rendering text
 
 Rendering is symmetrical to parsing. 
 `StringRenderer` object provides methods for rendering strings with default or implicitly provided format:
@@ -672,24 +658,16 @@ they may be easily provided by implementing `StringRenderer` or `FormattedString
 
 Let's take again `java.sql.Date` as an example. Having implemented `StringRenderer[Date]`:
 ```scala
-import java.sql.Date
-import java.time.Instant
-import info.fingo.spata.text.StringRenderer
-
 implicit val sdf: StringRenderer[Date] = (d: Date) => if(d == null) "" else d.toString
 ```
 We can use it as follows:
 ```scala
-val date = Date.from(Instant.now)
+val date = Date.valueOf(LocalDate.now)
 val str = StringRenderer.render(date)
 ```
 
 Defining a renderer with support for custom formatting requires the implementation of `FormattedStringRenderer`:
 ```scala
-import java.sql.Date
-import java.text.DateFormat
-import info.fingo.spata.text.FormattedStringRenderer
-
 implicit val sdf: FormattedStringRenderer[Date, DateFormat] =
   new FormattedStringRenderer[Date, DateFormat] {
       override def apply(date: Date): String = date.toString
@@ -698,13 +676,8 @@ implicit val sdf: FormattedStringRenderer[Date, DateFormat] =
 ```
 And can be used as follows:
 ```scala
-import java.sql.Date
-import java.text.DateFormat
-import java.time.Instant
-import info.fingo.spata.text.StringRenderer
-
 val df = DateFormat.getDateInstance(DateFormat.SHORT, new Locale("pl", "PL"))
-val date = Date.from(Instant.now)
+val date = Date.valueOf(LocalDate.now)
 val str = StringRenderer.render(date, df)
 ```
 
@@ -717,9 +690,6 @@ spata supports basic fields' format definition and validation.
 
 CSV schema can be defined using `schema.CSVSchema`:
 ```scala
-import info.fingo.spata.schema.CSVSchema
-import java.time.LocalDateTime
-
 val schema = CSVSchema()
   .add[String]("symbol")
   .add[LocalDateTime]("time")
@@ -766,6 +736,7 @@ we always get the straight type out of typed record.
 If we try to access a non-existing field (not defined by schema) or assign it to a wrong value type,
 we will get a compilation error:
 ```scala
+val typedRecord = ???
 val price: BigDecimal = typedRecord("prce") // does not compile 
 ```
 
@@ -825,14 +796,10 @@ is often not the only constraint on CSV which is required to successfully proces
 We often have to check if the values match many other business rules.
 spata provides a mean to declaratively verify basic constraints on the field level:
 ```scala
-import info.fingo.spata.schema.CSVSchema
-import java.time.LocalDateTime
-import info.fingo.spata.schema.validator._
-
 val schema = CSVSchema()
   .add[String]("symbol", LengthValidator(3, 5))
   .add[LocalDateTime]("time")
-  .add[BigDecimal]("price", MinValidator(0.01))
+  .add[BigDecimal]("price", MinValidator(BigDecimal(0.01)))
   .add[String]("currency", LengthValidator(3))
 ```
 Records which do not pass the provided schema validators render the result invalid, as in the case of a wrong type.
@@ -853,38 +820,34 @@ import java.nio.file.Paths
 import java.time.LocalDate
 import scala.io.Codec
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
-import cats.implicits._
 import fs2.Stream
-import fs2.io
-import fs2.text
-import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.{CSVConfig, Record}
 import info.fingo.spata.io.{Reader, Writer}
 import info.fingo.spata.schema.CSVSchema
 
 object Converter extends IOApp {
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap {
-    blocker =>
-      implicit val codec: Codec = Codec.UTF8
-      val config: Config = CSVConfig()
-      val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
-      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
+  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+    implicit val codec: Codec = Codec.UTF8
+    val config: CSVConfig = CSVConfig()
+    val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
+    def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-      reader
-        .shifting[IO](blocker)
-        .read(Paths.get("testdata/fahrenheit.txt"))
-        .through(config.parser[IO].parse)
-        .through(schema.validate)
-        .map {
-          _.leftMap(println).map { tr =>
-            val date = tr("date")
-            val temp = fahrenheitToCelsius(tr("temp"))
-            Record.builder.add("date", date).add("temp", temp).get
-          }.toOption
-        }
-        .unNone
-        .through(config.renderer[IO].render)
-        .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
+    Reader
+      .shifting[IO](blocker)
+      .read(Paths.get("testdata/fahrenheit.txt"))
+      .through(config.parser[IO].parse)
+      .through(schema.validate)
+      .map {
+        _.leftMap(println).map { tr =>
+          val date = tr("date")
+          val temp = fahrenheitToCelsius(tr("temp"))
+          Record.builder.add("date", date).add("temp", temp).get
+        }.toOption
+      }
+      .unNone
+      .through(config.renderer[IO].render)
+      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
@@ -937,40 +900,37 @@ import scala.io.Codec
 import scala.util.Try
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import fs2.Stream
-import fs2.io
-import fs2.text
-import info.fingo.spata.{CSVParser, CSVRenderer}
+import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
-  val converter: Stream[IO, ExitCode] = Stream.resource(Blocker[IO]).flatMap {
-    blocker =>
-      def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
-      implicit val codec: Codec = Codec.UTF8
-      val src = Paths.get("testdata/fahrenheit.txt")
-      val dst = Paths.get("testdata/celsius.txt")
+  val converter: Stream[IO, ExitCode] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+    def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
+    implicit val codec: Codec = Codec.UTF8
+    val src = Paths.get("testdata/fahrenheit.txt")
+    val dst = Paths.get("testdata/celsius.txt")
 
-      reader
-        .shifting[IO](blocker)
-        .read(src)
-        .through(CSVParser[IO].parse)
-        .filter(r => r("temp").exists(!_.isBlank)
-        .map { r =>
-          for {
-            date <- r.get[String]("date")
-            fTemp <- r.get[Double]("temp")
-            cTemp = fahrenheitToCelsius(fTemp)
-          } yield Record.builder.add("date", date).add("temp", temp).get
-        }
-        .rethrow
-        .through(Renderer[IO].render)
-        .through(Writer.shifting[IO](blocker).write(dst))
-        .fold(ExitCode.Success)((z, _) => z)
-        .handleErrorWith(ex => {
-          Try(dst.toFile.delete())
-          Stream.eval(IO(println(ex)) *> IO(ExitCode.Error))
-        })
+    Reader
+      .shifting[IO](blocker)
+      .read(src)
+      .through(CSVParser[IO].parse)
+      .filter(r => r("temp").exists(!_.isBlank))
+      .map { r =>
+        for {
+          date <- r.get[String]("date")
+          fTemp <- r.get[Double]("temp")
+          cTemp = fahrenheitToCelsius(fTemp)
+        } yield Record.builder.add("date", date).add("temp", cTemp).get
+      }
+      .rethrow
+      .through(CSVRenderer[IO].render)
+      .through(Writer.shifting[IO](blocker).write(dst))
+      .fold(ExitCode.Success)((z, _) => z)
+      .handleErrorWith { ex =>
+        Try(dst.toFile.delete())
+        Stream.eval(IO(println(ex)) *> IO(ExitCode.Error))
+      }
   }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.lastOrError
@@ -988,9 +948,6 @@ See the first code snippet in [Basic usage](#basic-usage) for sample.
 Logging is turned off by default in spata (no-op logger) and may be activated by defining an implicit `util.Logger`,
 passing an SLF4J logger instance to it:
 ```scala
-import org.slf4j.LoggerFactory
-import info.fingo.spata.util.Logger
-
 val slf4jLogger = LoggerFactory.getLogger("spata")
 implicit val spataLogger: Logger[IO] = new Logger[IO](slf4jLogger)
 ```

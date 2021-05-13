@@ -18,9 +18,10 @@ import info.fingo.spata.util.Logger
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,
   * although some aspects of its format are configurable.
   *
-  * The parser may be created by providing full configuration with [[CSVConfig]]
-  * or through a helper [[CSVParser.config]] function from companion object, e.g.:
-  * {{{ val parser = CSVParser.config.fieldDelimiter(';').get[IO]() }}}
+  * The parser may be created with default configuration:
+  * {{{ val parser = CSVParser[IO] }}}
+  * or through [[CSVParser.config]] helper function to set custom properties:
+  * {{{ val parser = CSVParser.config.fieldDelimiter(';').parser[IO] }}}
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
@@ -45,19 +46,18 @@ import info.fingo.spata.util.Logger
   * @tparam F the effect type, with a type class providing support for suspended execution
   * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
   */
-class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
+final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
 
   /** Transforms stream of characters representing CSV data into records.
     * This function is intended to be used with [[fs2.Stream.through]].
     * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
-    * Processing of data sources may be achieved by combining this function with [[io.reader]], e.g.:
+    * Processing of data sources may be achieved by combining this function with [[io.Reader]], e.g.:
     * {{{
-    * val parser = CSVParser[IO]()
     * val stream: Stream[IO, Record] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(reader[IO].read)
-    *   .through(parser.parse)
+    *   .flatMap(Reader[IO].read)
+    *   .through(CSVParser[IO].parse)
     * }}}
     *
     * Transformation may result in [[error.StructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
@@ -84,7 +84,7 @@ class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
     stream.pull.uncons1.flatMap {
       case Some((h, t)) => Pull.output1(Content(h, t, config.headerMap))
-      case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, 1, 0))
+      case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, Position.some(0, 1)))
     }
 
   /* Adds numeric header to source data - provides record size to construct it. */
@@ -191,7 +191,7 @@ object CSVParser {
     * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
     * @return new parser
     */
-  def apply[F[_]: Sync: Logger](): CSVParser[F] = new CSVParser(config)
+  def apply[F[_]: Sync: Logger]: CSVParser[F] = new CSVParser(config)
 
   /** Provides default configuration, as defined in RFC 4180. */
   lazy val config: CSVConfig = CSVConfig()

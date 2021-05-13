@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 /*
- * Part of this code (reader.Shifting.decode) is derived under Apache-2.0 license from http4s.
+ * Part of this code (Reader.Shifting.decode) is derived under Apache-2.0 license from http4s.
  * Copyright 2013-2020 http4s.org
  */
 package info.fingo.spata.io
@@ -19,13 +19,126 @@ import cats.syntax.all._
 import fs2.{io, Chunk, Pipe, Pull, Stream}
 import info.fingo.spata.util.Logger
 
+/** Reader interface with reading operations from various sources.
+  * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.
+  * The returned [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
+  *
+  * Processing I/O errors, manifested through [[java.io.IOException]],
+  * should be handled with [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
+  *
+  * @tparam F the effect type
+  */
+sealed trait Reader[F[_]] {
+
+  /** Size of data chunk loaded at once when reading from source.
+    * See also [[https://fs2.io/guide.html#chunks FS2 Chunks]].
+    */
+  val chunkSize: Int
+
+  /** Reads a CSV source and returns a stream of character.
+    *
+    * The caller of this function is responsible for proper resource acquisition and release.
+    * This may be done with [[fs2.Stream.bracket]].
+    *
+    * Character encoding has to be handled while creating [[scala.io.Source]].
+    *
+    * @example
+    * {{{
+    * val stream = Stream
+    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .flatMap(Reader[IO]().read)
+    * }}}
+    *
+    * @param source the source containing CSV content
+    * @return the stream of characters
+    */
+  def read(source: Source): Stream[F, Char]
+
+  /** Reads a CSV source and returns a stream of character.
+    *
+    * @note This function does not close the input stream after use,
+    * which is different from default behavior of `fs2-io` functions taking `InputStream` as parameter.
+    *
+    * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
+    *
+    * @param fis input stream containing CSV content, wrapped in effect F to defer its creation
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return the stream of characters
+    */
+  def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char]
+
+  /** Reads a CSV source and returns a stream of character.
+    *
+    * @note This function does not close the input stream after use,
+    * which is different from default behavior of `fs2-io` functions taking `InputStream` as parameter.
+    *
+    * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
+    *
+    * @param is input stream containing CSV content
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return the stream of characters
+    */
+  def read(is: InputStream)(implicit codec: Codec): Stream[F, Char]
+
+  /** Reads a CSV file and returns a stream of character.
+    *
+    * @example
+    * {{{
+    * implicit val codec = new Codec(Charset.forName("UTF-8"))
+    * val path = Path.of("data.csv")
+    * val stream = Reader[IO](1024).read(path)
+    * }}}
+    *
+    * @param path the path to source file
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return the stream of characters
+    */
+  def read(path: Path)(implicit codec: Codec): Stream[F, Char]
+
+  /** Alias for various `read` methods.
+    *
+    * @param csv the CSV data
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @tparam A type of source
+    * @return the stream of characters
+    */
+  def apply[A: Reader.CSV](csv: A)(implicit codec: Codec): Stream[F, Char] = csv match {
+    case s: Source => read(s)
+    case is: InputStream => read(is)
+    case p: Path => read(p)
+  }
+
+  /** Alias for `read`.
+    *
+    * @param fis input stream containing CSV content, wrapped in effect F to defer its creation
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @return the stream of characters
+    */
+  def apply(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] = read(fis)
+
+  /** Pipe converting stream with CSV source to stream of characters.
+    *
+    * @example
+    * {{{
+    * val stream = Stream
+    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .through(Reader[IO]().by)
+    * }}}
+    *
+    * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
+    * @tparam A type of source
+    * @return a pipe to converter CSV source into [[scala.Char]]s
+    */
+  def by[A: Reader.CSV](implicit codec: Codec): Pipe[F, A, Char] = _.flatMap(apply(_))
+}
+
 /** Utility to read external data and provide stream of characters.
   * It is used through one of its inner classes:
-  *  - [[reader.Plain]] for standard reading operations executed on current thread,
-  *  - [[reader.Shifting]] to support context (thread) shifting for blocking operations
+  *  - [[Reader.Plain]] for standard reading operations executed on current thread,
+  *  - [[Reader.Shifting]] to support context (thread) shifting for blocking operations
   *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
   *
-  * The reading functions in [[reader.Shifting]], except the one reading from [[scala.io.Source]],
+  * The reading functions in [[Reader.Shifting]], except the one reading from [[scala.io.Source]],
   * use [[https://fs2.io/io.html fs2-io]] library.
   *
   * In every case, the caller of function taking resource ([[scala.io.Source]] or `java.io.InputStream`) as a parameter
@@ -40,7 +153,7 @@ import info.fingo.spata.util.Logger
   *
   * All of above applies not only to `read` functions but also to `apply` and `by`, which internally make use of `read`.
   */
-object reader {
+object Reader {
 
   /** Default size of data chunk: 4096. Read more about chunks in see [[https://fs2.io/guide.html#chunks FS2 Guide]]. */
   val defaultChunkSize = 4096
@@ -49,23 +162,39 @@ object reader {
   private val bom = "\uFEFF".head
   private val UTFCharsetPrefix = "UTF-"
 
-  /** Alias for [[plain]].
+  /** Alias for [[[plain[F[_]](chunkSize* plain]]].
     *
     * @param chunkSize size of data chunk - see [[https://fs2.io/guide.html#chunks FS2 Chunks]].
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
-    * @return basic reader
+    * @return basic `Reader`
     */
-  def apply[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = plain(chunkSize)
+  def apply[F[_]: Sync: Logger](chunkSize: Int): Plain[F] = plain(chunkSize)
+
+  /** Alias for [[[plain[F[_]](implicit* plain]]].
+    *
+    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
+    * @return basic `Reader`
+    */
+  def apply[F[_]: Sync: Logger]: Plain[F] = plain(defaultChunkSize)
 
   /** Provides basic reader executing I/O on current thread.
     *
     * @param chunkSize size of data chunk
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
-    * @return basic reader
+    * @return basic `Reader`
     */
-  def plain[F[_]: Sync: Logger](chunkSize: Int = defaultChunkSize): Plain[F] = new Plain[F](chunkSize)
+  def plain[F[_]: Sync: Logger](chunkSize: Int): Plain[F] = new Plain[F](chunkSize)
+
+  /** Provides basic reader executing I/O on current thread. Uses default chunk size.
+    *
+    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
+    * and logging (provided internally by spata)
+    * @return basic `Reader`
+    */
+  def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F](defaultChunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     *
@@ -73,7 +202,7 @@ object reader {
     * @param chunkSize size of data chunk
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return reader with support for context shifting
+    * @return `Reader` with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker, chunkSize: Int = defaultChunkSize): Shifting[F] =
     new Shifting[F](Some(blocker), chunkSize)
@@ -84,7 +213,7 @@ object reader {
     * @param chunkSize size of data chunk
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return reader with support for context shifting
+    * @return `Reader` with support for context shifting
     */
   def shifting[F[_]: Sync: ContextShift: Logger](chunkSize: Int): Shifting[F] = new Shifting[F](None, chunkSize)
 
@@ -93,9 +222,9 @@ object reader {
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return reader with support for context shifting
+    * @return `Reader` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger](): Shifting[F] = new Shifting[F](None, defaultChunkSize)
+  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None, defaultChunkSize)
 
   /* Skip BOM from UTF encoded streams */
   private def skipBom[F[_]: Logger](implicit codec: Codec): Pipe[F, Char, Char] =
@@ -103,98 +232,6 @@ object reader {
       if (codec.charSet.name.startsWith(UTFCharsetPrefix))
         Logger[F].debugS("UTF charset provided - skipping BOM if present") >> stream.dropWhile(_ == bom)
       else stream
-
-  /** Reader interface with reading operations from various sources.
-    * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.
-    * The returned [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
-    *
-    * Processing I/O errors, manifested through [[java.io.IOException]],
-    * should be handled with [[fs2.Stream.handleErrorWith]]. If not handled, they will propagate as exceptions.
-    *
-    * @tparam F the effect type
-    */
-  trait Reader[F[_]] {
-
-    /** Size of data chunk loaded at once when reading from source.
-      * See also [[https://fs2.io/guide.html#chunks FS2 Chunks]].
-      */
-    val chunkSize: Int
-
-    /** Reads a CSV source and returns a stream of character.
-      *
-      * The caller of this function is responsible for proper resource acquisition and release.
-      * This may be done with [[fs2.Stream.bracket]].
-      *
-      * Character encoding has to be handled while creating [[scala.io.Source]].
-      *
-      * @example
-      * {{{
-      * val stream = Stream
-      *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .flatMap(reader[IO]().read)
-      * }}}
-      *
-      * @param source the source containing CSV content
-      * @return the stream of characters
-      */
-    def read(source: Source): Stream[F, Char]
-
-    /** Reads a CSV source and returns a stream of character.
-      *
-      * @note This function does not close the input stream after use,
-      * which is different from default behavior of `fs2-io` functions taking `InputStream` as parameter.
-      *
-      * @see [[read(source:scala\.io\.Source)* read(source)]] for more information.
-      *
-      * @param is input stream containing CSV content
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return the stream of characters
-      */
-    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char]
-
-    /** Reads a CSV file and returns a stream of character.
-      *
-      * @example
-      * {{{
-      * implicit val codec = new Codec(Charset.forName("UTF-8"))
-      * val path = Path.of("data.csv")
-      * val stream = reader[IO](1024).read(path)
-      * }}}
-      *
-      * @param path the path to source file
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @return the stream of characters
-      */
-    def read(path: Path)(implicit codec: Codec): Stream[F, Char]
-
-    /** Alias for various `read` methods.
-      *
-      * @param csv the CSV data
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @tparam A type of source
-      * @return the stream of characters
-      */
-    def apply[A: CSV](csv: A)(implicit codec: Codec): Stream[F, Char] = csv match {
-      case s: Source => read(s)
-      case is: InputStream => read(is)
-      case p: Path => read(p)
-    }
-
-    /** Pipe converting stream with CSV source to stream of characters.
-      *
-      * @example
-      * {{{
-      * val stream = Stream
-      *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .through(reader[IO]().by)
-      * }}}
-      *
-      * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
-      * @tparam A type of source
-      * @return a pipe to converter CSV source into [[scala.Char]]s
-      */
-    def by[A: CSV](implicit codec: Codec): Pipe[F, A, Char] = _.flatMap(apply(_))
-  }
 
   /** Reader which executes I/O operations on current thread, without context (thread) shifting.
     *
@@ -207,6 +244,10 @@ object reader {
     /** @inheritdoc */
     def read(source: Source): Stream[F, Char] =
       Logger[F].debugS("Reading data on current thread") >> Stream.fromIterator[F](source, chunkSize).through(skipBom)
+
+    /** @inheritdoc */
+    def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] =
+      Stream.eval(fis).flatMap(is => read(new BufferedSource(is, chunkSize)))
 
     /** @inheritdoc */
     def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(new BufferedSource(is, chunkSize))
@@ -239,7 +280,7 @@ object reader {
       * {{{
       * val stream = Stream
       *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .flatMap(reader.shifting[IO].read)
+      *   .flatMap(Reader.shifting[IO]().read)
       * }}}
       *
       * @note This function is much less efficient for most use cases than its non-shifting counterpart,
@@ -251,18 +292,19 @@ object reader {
       for {
         b <- Stream.resource(br)
         _ <- Logger[F].debugS("Reading data from Source with context shift")
-        char <- Stream.fromBlockingIterator[F](b, source, chunkSize).through(reader.skipBom)
+        char <- Stream.fromBlockingIterator[F](b, source, chunkSize).through(skipBom)
       } yield char
 
     /** @inheritdoc */
-    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] =
+    def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] =
       for {
         blocker <- Stream.resource(br)
         _ <- Logger[F].debugS("Reading data from InputStream with context shift")
-        char <- io
-          .readInputStream(Sync[F].delay(is), chunkSize, blocker, autoClose)
-          .through(byte2char)
+        char <- io.readInputStream(fis, chunkSize, blocker, autoClose).through(byte2char)
       } yield char
+
+    /** @inheritdoc */
+    def read(is: InputStream)(implicit codec: Codec): Stream[F, Char] = read(Sync[F].delay(is))
 
     /** @inheritdoc
       *
@@ -270,7 +312,7 @@ object reader {
       * {{{
       * implicit val codec = new Codec(Charset.forName("ISO-8859-2"))
       * val path = Path.of("data.csv")
-      * val stream = reader.shifting[IO]().read(path)
+      * val stream = Reader.shifting[IO]().read(path)
       * }}}
       */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
@@ -287,7 +329,7 @@ object reader {
       blocker.map(b => Resource(Sync[F].delay((b, Sync[F].unit)))).getOrElse(Blocker[F])
 
     private def byte2char(implicit codec: Codec): Pipe[F, Byte, Char] =
-      _.through(decode(codec)).through(reader.skipBom)
+      _.through(decode(codec)).through(skipBom)
 
     /* Decode bytes to chars based on provided codec.
      * This function is ported from org.http4s.util.decode with slight modifications */
@@ -331,16 +373,16 @@ object reader {
     */
   sealed trait CSV[-A]
 
-  /** Implicits to witness that given type is supported by reader as CSV source */
+  /** Implicits to witness that given type is supported by `Reader` as CSV source. */
   object CSV {
 
-    /** Witness that [[scala.io.Source]] may be used with reader functions */
+    /** Witness that [[scala.io.Source]] may be used with `Reader` methods. */
     implicit object sourceWitness extends CSV[Source]
 
-    /** Witness that [[java.io.InputStream]] may be used with reader functions */
+    /** Witness that [[java.io.InputStream]] may be used with `Reader` methods. */
     implicit object inputStreamWitness extends CSV[InputStream]
 
-    /** Witness that [[java.nio.file.Path]] may be used with reader functions */
+    /** Witness that [[java.nio.file.Path]] may be used with `Reader` methods. */
     implicit object pathWitness extends CSV[Path]
   }
 }

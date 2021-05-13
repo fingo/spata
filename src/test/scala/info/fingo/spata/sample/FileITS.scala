@@ -5,13 +5,12 @@
  */
 package info.fingo.spata.sample
 
-import java.io.FileWriter
-
+import java.io.{File, FileOutputStream}
 import cats.effect.IO
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, Record}
-import info.fingo.spata.io.reader
+import info.fingo.spata.{CSVParser, CSVRenderer, Record}
+import info.fingo.spata.io.{Reader, Writer}
 
 /* Samples which write processing results to another CSV file */
 class FileITS extends AnyFunSuite {
@@ -26,29 +25,20 @@ class FileITS extends AnyFunSuite {
         min <- record.get[Double]("min_temp")
       } yield DTV(day, max - min)
 
-    val parser = CSVParser[IO]() // parser with default configuration and IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(reader[IO]().by)
-      .through(parser.parse)
+      .through(Reader[IO].by)
+      .through(CSVParser[IO].parse) // parser with default configuration and IO effect
     // converter and aggregate data, get stream of YTs
-    val dtvs = records.filter { record =>
-      !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
-    }.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
+    val dtvs = records.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
     // write data to output file
     val outFile = SampleTH.getTempFile
-    val output = Stream
-      .bracket(IO { new FileWriter(outFile) })(writer => IO { writer.close() })
-      .flatMap { writer =>
-        dtvs.evalMap { dtv =>
-          IO(writer.write(s"${dtv.day},${dtv.tempVar}\n"))
-        }
-      }
-      .handleErrorWith { ex =>
-        println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}")
-        Stream.empty[IO]
-      }
+    val output = dtvs
+      .map(dtv => Record.from(dtv))
+      .through(CSVRenderer[IO].render) // renderer with default configuration and IO effect
+      .through(Writer[IO].write(outFile.toPath))
+      .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream.eval_(IO {
       assert(outFile.length > 16000)
@@ -59,37 +49,18 @@ class FileITS extends AnyFunSuite {
   }
 
   test("spata allows data conversion to another file using for comprehension") {
-    case class DTV(day: String, tempVar: Double) // diurnal temperature variation
-
-    // this method may throw exception
-    def dtvFromRecordUnsafe(record: Record) = {
-      val day = record.unsafe("sol")
-      val max = record.unsafe.get[Double]("max_temp")
-      val min = record.unsafe.get[Double]("min_temp")
-      DTV(day, max - min)
-    }
-
-    val parser = CSVParser.config.get[IO]() // parser with default configuration and IO effect
     val outFile = SampleTH.getTempFile
     val outcome = for {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      writer <- Stream.bracket(IO { new FileWriter(outFile) })(writer => IO { writer.close() })
-      record <- reader[IO]()
+      destination <- Stream.bracket(IO { new FileOutputStream(outFile) })(destination => IO { destination.close() })
+      out <- Reader[IO]
         .read(source)
-        .through(parser.parse)
-        .filter { record =>
-          !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN")
-        }
-      // converter and aggregate data, get stream of YTs (this may throw exception to be handled by handleErrorWith)
-      dtv = dtvFromRecordUnsafe(record)
-      // write data to output file
-      out <- Stream
-        .eval(IO(writer.write(s"${dtv.day},${dtv.tempVar}\n")))
-        .handleErrorWith { ex =>
-          println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}")
-          Stream.empty[IO]
-        }
+        .through(CSVParser[IO].parse) // parser with default configuration and IO effect
+        .filter(record => !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN"))
+        .through(CSVRenderer[IO].render) // convert back to string representation
+        .through(Writer[IO].write(destination)) // write data to output file
+        .handleErrorWith(ex => errorHandler(ex, outFile))
     } yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream.eval_(IO {
@@ -99,4 +70,8 @@ class FileITS extends AnyFunSuite {
     // run
     outcome.append(checkAndClean).compile.drain.unsafeRunSync()
   }
+
+  private def errorHandler(ex: Throwable, outFile: File) = Stream.eval(
+    IO(println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}"))
+  )
 }

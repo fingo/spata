@@ -12,22 +12,22 @@ import RecordParser._
 import FieldParser._
 
 /* Carrier for record number, partial record content and information about finished parsing. */
-private[spata] case class StateRP(
+final private[spata] case class StateRP(
   recNum: Int = 1,
   buffer: VectorBuilder[String] = new VectorBuilder[String](),
   done: Boolean = false
 ) extends State {
-  def finish(): StateRP = copy(done = true)
+  def finish: StateRP = copy(done = true)
 }
 
 /* Converter from CSV fields to records. */
-private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult, RecordResult, StateRP] {
+final private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult, RecordResult, StateRP] {
 
   /* Transforms stream of fields into records by providing FS2 pipe. */
   def toRecords: Pipe[F, FieldResult, RecordResult] = parse(StateRP())
 
   @tailrec
-  final override def parseChunk(
+  override def parseChunk(
     input: List[FieldResult],
     output: Vector[RecordResult],
     state: StateRP
@@ -46,7 +46,7 @@ private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldResult,
       case (ff: FieldFailure) :: _ =>
         val fieldNum = state.buffer.result().size + 1
         val chunk = Chunk.vector(output :+ RecordFailure(ff.code, ff.counters, state.recNum, fieldNum))
-        (state.finish(), chunk)
+        (state.finish, chunk)
       case _ => (state, Chunk.vector(output))
     }
 }

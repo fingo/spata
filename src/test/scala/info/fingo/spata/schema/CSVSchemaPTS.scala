@@ -9,9 +9,9 @@ import java.time.LocalDate
 import cats.effect.IO
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.validator.RangeValidator
-import info.fingo.spata.PerformanceTH._
+import info.fingo.spata.PerformanceTH.{input, parser, MarsWeather, TestSource}
 
 /* Check performance of schema validation.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
@@ -45,8 +45,8 @@ class CSVSchemaPTS extends Bench.LocalTime {
   performance.of("schema").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
     measure.method("validate_gen") in {
       using(amounts) in { amount =>
-        reader[IO]()
-          .read(new TestSource(separator, amount))
+        Reader[IO]
+          .read(new TestSource(amount))
           .through(parser.parse)
           .through(schemaGen.validate)
           .compile
@@ -56,8 +56,8 @@ class CSVSchemaPTS extends Bench.LocalTime {
     }
     measure.method("validate_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
-        reader[IO]()
-          .read(path)
+        Reader[IO]
+          .read(input)
           .through(parser.parse)
           .through(schemaFile.validate)
           .map(_.map(_.to[MarsWeather]()))

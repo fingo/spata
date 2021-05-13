@@ -13,12 +13,12 @@ import fs2.Stream
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import org.scalameter.picklers.noPickler._
-import info.fingo.spata.PerformanceTH.{parser, path}
+import info.fingo.spata.PerformanceTH.{input, parser}
 
-/* Check performance of reader using different implementations.
+/* Check performance of Reader using different implementations.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
-object readerPTS extends Bench.LocalTime {
+object ReaderPTS extends Bench.LocalTime {
 
   implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
@@ -30,23 +30,23 @@ object readerPTS extends Bench.LocalTime {
   performance.of("reader").config(exec.maxWarmupRuns -> 3, exec.benchRuns -> 3) in {
     measure.method("read") in {
       using(methods) in { method =>
-        method(path).compile.drain.unsafeRunSync()
+        method(input).compile.drain.unsafeRunSync()
       }
     }
     measure.method("read_and_parse") in {
       using(methods) in { method =>
-        method(path).through(parser.parse).compile.drain.unsafeRunSync()
+        method(input).through(parser.parse).compile.drain.unsafeRunSync()
       }
     }
   }
 
   private lazy val methods = Gen.enumeration("method")(
-    ReadMethod("source", (path: Path) => bracket(source(path)).through(reader[IO]().by)),
-    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(reader.shifting[IO]().by)),
-    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(reader[IO]().by)),
-    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(reader.shifting[IO]().by)),
-    ReadMethod("path", (path: Path) => reader[IO]().read(path)),
-    ReadMethod("path-fs2io", (path: Path) => reader.shifting[IO]().read(path))
+    ReadMethod("source", (path: Path) => bracket(source(path)).through(Reader[IO].by)),
+    ReadMethod("source-fs2io", (path: Path) => bracket(source(path)).through(Reader.shifting[IO].by)),
+    ReadMethod("inputstream", (path: Path) => bracket(inputStream(path)).through(Reader[IO].by)),
+    ReadMethod("inputstream-fs2io", (path: Path) => bracket(inputStream(path)).through(Reader.shifting[IO].by)),
+    ReadMethod("path", (path: Path) => Reader[IO].read(path)),
+    ReadMethod("path-fs2io", (path: Path) => Reader.shifting[IO].read(path))
   )
 
   private def inputStream(path: Path) = Files.newInputStream(path, StandardOpenOption.READ)

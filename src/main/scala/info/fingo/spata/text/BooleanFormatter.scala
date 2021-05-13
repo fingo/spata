@@ -14,7 +14,7 @@ import java.util.Locale
   * @param ft the term representing `false`, case insensitive
   * @param locale the locale used to handle case conversion
   */
-class BooleanFormatter(tt: String, ft: String, locale: Locale) {
+final class BooleanFormatter(tt: String, ft: String, locale: Locale) {
   val trueTerm: String = tt.toLowerCase(locale)
   val falseTerm: String = ft.toLowerCase(locale)
 

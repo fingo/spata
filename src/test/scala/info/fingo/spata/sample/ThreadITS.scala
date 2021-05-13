@@ -12,9 +12,9 @@ import scala.concurrent.ExecutionContext
 import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVParser
+import info.fingo.spata.{CSVConfig, CSVParser}
 import info.fingo.spata.CSVParser.Callback
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 
 /* Samples which process the data asynchronously or using blocking context */
 class ThreadITS extends AnyFunSuite {
@@ -23,7 +23,6 @@ class ThreadITS extends AnyFunSuite {
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows asynchronous source processing") {
-    val parser = CSVParser[IO]()
     val sum = new LongAdder()
     val count = new LongAdder()
 
@@ -47,8 +46,8 @@ class ThreadITS extends AnyFunSuite {
         cdl.countDown()
     }
     SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
-      val data = reader.shifting[IO]().read(source)
-      parser.async.process(data)(cb).unsafeRunAsync(result)
+      val data = Reader.shifting[IO].read(source)
+      CSVParser[IO].async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)
       assert(sum.intValue() > 1000)
@@ -59,12 +58,12 @@ class ThreadITS extends AnyFunSuite {
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
-    val parser = CSVParser.config.mapHeader(mh).get[IO]() // parser with IO effect
+    val parser = CSVConfig().mapHeader(mh).parser[IO] // parser with IO effect
     val records = for {
       blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      record <- reader.shifting[IO](blocker).read(source).through(parser.parse) // get stream of CSV records
+      record <- Reader.shifting[IO](blocker).read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps

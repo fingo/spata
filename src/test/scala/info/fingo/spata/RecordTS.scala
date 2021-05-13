@@ -9,8 +9,9 @@ import java.text.{DecimalFormat, DecimalFormatSymbols, NumberFormat}
 import java.time.LocalDate
 import java.time.format.{DateTimeFormatter, FormatStyle}
 import java.util.Locale
+import info.fingo.spata.Record.ProductOps
 import info.fingo.spata.error.DataError
-import info.fingo.spata.text.StringParser
+import info.fingo.spata.text.{StringParser, StringRenderer}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -25,7 +26,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving individual values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -44,7 +45,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record allows retrieving optional values") {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       assert(record.size == 3)
       assert(record.toString == s"$name,$sDate,$sValue")
@@ -70,7 +71,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = new Header("num", "date", "value")
+        val header = Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         assert(record.get[Long]("num", numFmt).contains(num))
         assert(record.unsafe.get[Long]("num", numFmt) == num)
@@ -83,7 +84,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   test("Record parsing may return error or throw exception") {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val dtf = DateTimeFormatter.ofPattern("dd.MM.yy")
       if (testCase != "missingValue")
@@ -106,21 +107,18 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to case class") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      for {
-        header <- Header("name", "date", "value")
-        record = createRecord(name, sDate, sValue)(header)
-        md = record.to[Data]()
-      } yield {
-        assert(md.isRight)
-        assert(md.contains(Data(name, value.doubleValue, date)))
-      }
+      val header = Header("name", "date", "value")
+      val record = createRecord(name, sDate, sValue)(header)
+      val md = record.to[Data]()
+      assert(md.isRight)
+      assert(md.contains(Data(name, value.doubleValue, date)))
     }
   }
 
   test("Record may be converted to case class with optional fields") {
     case class Data(name: String, value: Option[Double], date: Option[LocalDate])
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -144,7 +142,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         sValue: String,
         valueFmt: DecimalFormat
       ) =>
-        val header = new Header("num", "date", "value")
+        val header = Header("num", "date", "value")
         val record = createRecord(sNum, sDate, sValue)(header)
         implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
         implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
@@ -157,9 +155,9 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
+    case class Data(name: String, value: Double, date: LocalDate)
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
-      case class Data(name: String, value: Double, date: LocalDate)
-      val header = new Header("name", "date", "value")
+      val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yy"))
@@ -171,7 +169,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("Record may be converted to tuples") {
     type Data = (String, LocalDate, BigDecimal)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
-      val header = new Header("_1", "_2", "_3")
+      val header = Header("_1", "_2", "_3")
       val record = createRecord(name, sDate, sValue)(header)
       val md = record.to[Data]()
       assert(md.isRight)
@@ -179,8 +177,126 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("Records may be created from sequence of string values") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val header = Header("name", "date", "value")
+      val record = Record(name, sDate, sValue)(header)
+      assert(record.header == header)
+      assert(record("name").contains(name))
+      assert(record("value").contains(sValue))
+    }
+  }
+
+  test("Header is shrunk or extended if its length does not match values length") {
+    val header = Header("name", "date", "value")
+    val name = "Funky Koval"
+    val rs = Record(name, "01.01.2001")(header)
+    assert(rs.header.size == 2)
+    assert(rs("name").contains(name))
+    val re = Record(name, "01.01.2001", "3.14", "0")(header)
+    assert(re.header.size == 4)
+    assert(re("name").contains(name))
+    assert(re("_4").contains("0"))
+  }
+
+  test("Records may be created from string key-value pairs") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record = Record.fromPairs("name" -> name, "date" -> sDate, "value" -> sValue)
+      assert(record.header.names == Header("name", "date", "value").names)
+      assert(record("name").contains(name))
+      assert(record("date").contains(sDate))
+      assert(record("value").contains(sValue))
+    }
+  }
+
+  test("Records may be created from list of values") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record = Record.fromValues(name, sDate, sValue)
+      assert(record.header.names == Header("_1", "_2", "_3").names)
+      assert(record("_1").contains(name))
+      assert(record("_2").contains(sDate))
+      assert(record("_3").contains(sValue))
+    }
+  }
+
+  test("Records may be built from typed values") {
+    forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
+      val record: Record =
+        Record.builder
+          .add("name", name)
+          .add("date", LocalDate.parse(sDate.strip()))
+          .add("value", sValue.strip().toDouble)
+      assert(record.header.names == Header("name", "date", "value").names)
+      assert(record("name").contains(name))
+      assert(record("date").contains(sDate.strip()))
+      assert(record("value").contains(sValue.strip()))
+    }
+  }
+
+  test("Records may be created from case classes") {
+    case class Data(num: Long, value: BigDecimal, date: LocalDate)
+    forAll(formatted) {
+      (
+        _: String,
+        sNum: String,
+        numFmt: NumberFormat,
+        sDate: String,
+        dateFmt: DateTimeFormatter,
+        sValue: String,
+        valueFmt: DecimalFormat
+      ) =>
+        implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
+        implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
+        implicit val dsp: StringParser[BigDecimal] =
+          (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
+        val data = Data(
+          StringParser.parse[Long](sNum).getOrElse(0L),
+          StringParser.parse[BigDecimal](sValue).getOrElse(BigDecimal(0.0)),
+          StringParser.parse[LocalDate](sDate).getOrElse(LocalDate.now())
+        )
+        implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
+        implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
+        implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
+        val record = data.toRecord
+        assert(record("num").contains(sNum.strip()))
+        assert(record("date").contains(sDate.strip()))
+        assert(record("value").contains(sValue.strip()))
+    }
+  }
+
+  test("Records may be created from tuples") {
+    type Data = (String, LocalDate, BigDecimal)
+    forAll(formatted) {
+      (
+        _: String,
+        sNum: String,
+        numFmt: NumberFormat,
+        sDate: String,
+        dateFmt: DateTimeFormatter,
+        sValue: String,
+        valueFmt: DecimalFormat
+      ) =>
+        implicit val nsp: StringParser[Long] = (str: String) => numFmt.parse(str).longValue()
+        implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
+        implicit val dsp: StringParser[BigDecimal] =
+          (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
+        val data = (
+          StringParser.parse[Long](sNum).getOrElse(0L),
+          StringParser.parse[BigDecimal](sValue).getOrElse(BigDecimal(0.0)),
+          StringParser.parse[LocalDate](sDate).getOrElse(LocalDate.now())
+        )
+        implicit val lr: StringRenderer[Long] = (l: Long) => numFmt.format(l)
+        implicit val dsr: StringRenderer[BigDecimal] = (bd: BigDecimal) => valueFmt.format(bd)
+        implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFmt.format(ld)
+        val record = data.toRecord
+        assert(record("_1").contains(sNum.strip()))
+        assert(record("_2").contains(sValue.strip()))
+        assert(record("_3").contains(sDate.strip()))
+    }
+  }
+
   private def createRecord(name: String, date: String, value: String)(header: Header): Record =
-    Record(Vector(name, date, value), 1, 1)(header).toOption.get
+    Record.create(Vector(name, date, value), 1, 1)(header).toOption.getOrElse(Record()(header))
 
   private lazy val basicCases = Table(
     ("testCase", "name", "sDate", "sValue"),
@@ -200,11 +316,11 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "sNum", "numFmt", "sDate", "dateFmt", "sValue", "valueFmt"),
     (
       "locale",
-      "-123456",
+      s"-123${nbsp}456",
       NumberFormat.getInstance(locale),
       "22.02.2020",
       DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale),
-      "9999,99",
+      s"9${nbsp}999,99",
       NumberFormat.getInstance(locale).asInstanceOf[DecimalFormat]
     ),
     (
@@ -218,8 +334,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ),
     (
       "formatLocale",
-      s"-123${nbsp}456",
-      new DecimalFormat("#,###", dfs),
+      s"(123${nbsp}456)",
+      new DecimalFormat("#,###;(#,###)", dfs),
       "22.02.20",
       DateTimeFormatter.ofPattern("dd.MM.yy", locale),
       s"9${nbsp}999,990",

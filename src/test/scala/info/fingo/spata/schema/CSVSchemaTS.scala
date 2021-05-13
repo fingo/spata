@@ -11,7 +11,7 @@ import scala.io.Source
 import cats.effect.IO
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
-import info.fingo.spata.io.reader
+import info.fingo.spata.io.Reader
 import info.fingo.spata.CSVParser
 import info.fingo.spata.schema.validator._
 import info.fingo.spata.text.StringParser
@@ -251,8 +251,7 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val content = csvContent(dataSet)
     val header = csvHeader(dataSet)
     val source = Source.fromString(s"$header\n$content")
-    val parser = CSVParser.config.get[IO]()
-    reader[IO]().read(source).through(parser.parse)
+    Reader[IO].read(source).through(CSVParser[IO].parse)
   }
 
   private def csvHeader(dataSet: String) = dataSet match {

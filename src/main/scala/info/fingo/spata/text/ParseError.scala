@@ -12,7 +12,7 @@ package info.fingo.spata.text
   * @param dataType the target data type description
   * @param cause the root exception, if available
   */
-class ParseError(val content: String, val dataType: Option[String] = None, cause: Option[Throwable] = None)
+final class ParseError(val content: String, val dataType: Option[String] = None, cause: Option[Throwable] = None)
   extends Exception(ParseError.message(content, dataType), cause.orNull)
 
 /* ParseError companion object with helper methods. */

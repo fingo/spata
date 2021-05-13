@@ -8,8 +8,8 @@ package info.fingo.spata
 import cats.effect.IO
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import info.fingo.spata.io.reader
-import info.fingo.spata.PerformanceTH._
+import info.fingo.spata.io.Reader
+import info.fingo.spata.PerformanceTH.{input, parser, testSource, MarsWeather}
 
 /* Check performance of parser.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
@@ -19,13 +19,12 @@ object CSVParserPTS extends Bench.LocalTime {
   performance.of("parser").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
     measure.method("parse_gen") in {
       using(amounts) in { amount =>
-        reader[IO]().read(new TestSource(separator, amount)).through(parser.parse).compile.drain.unsafeRunSync()
+        testSource(amount).through(parser.parse).compile.drain.unsafeRunSync()
       }
     }
     measure.method("parse_and_convert_gen") in {
       using(amounts) in { amount =>
-        reader[IO]()
-          .read(new TestSource(separator, amount))
+        testSource(amount)
           .through(parser.parse)
           .map(_.to[(Double, Double, Double, Double, Double, Double, Double, Double, Double, String)]())
           .compile
@@ -35,8 +34,8 @@ object CSVParserPTS extends Bench.LocalTime {
     }
     measure.method("parse_and_convert_file") in {
       using(Gen.unit("file")) in { _ =>
-        reader[IO]()
-          .read(path)
+        Reader[IO]
+          .read(input)
           .through(parser.parse)
           .map(_.to[MarsWeather]())
           .compile

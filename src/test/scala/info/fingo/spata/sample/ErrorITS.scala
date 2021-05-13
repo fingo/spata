@@ -6,26 +6,24 @@
 package info.fingo.spata.sample
 
 import java.io.IOException
-
 import cats.effect.IO
-import fs2.Stream
+import fs2.{Pipe, Stream}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import info.fingo.spata.io.reader
-import info.fingo.spata.CSVParser
+import info.fingo.spata.io.Reader
+import info.fingo.spata.{CSVParser, CSVRenderer, Header, Record}
 import info.fingo.spata.error.CSVException
 
 class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   case class Book(author: String, title: String, year: Int)
 
-  test("spata allows consistently handling errors") {
+  test("spata allows consistently handling parsing errors") {
     forAll(files) { (testCase: String, file: String, row: Int) =>
-      val parser = CSVParser[IO]()
       val stream = Stream
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
-        .flatMap(reader.plain[IO]().read)
-        .through(parser.parse)
+        .flatMap(Reader.plain[IO].read)
+        .through(CSVParser[IO].parse)
         .map(_.to[Book]())
         .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
       val result = stream.compile.toList.unsafeRunSync()
@@ -37,6 +35,32 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
         case _ => fail()
       }
     }
+  }
+
+  test("spata allows handling rendering errors") {
+    val source = (1 to 10).map(i => (i, s"text$i"))
+    def result(record: (Int, String) => Record)(render: Pipe[IO, Record, Char]): List[Either[Throwable, Char]] = {
+      // stream with some regular records and the last one which differs
+      val records = Stream(source: _*).covary[IO].map { case (id, text) => record(id, text) } ++
+        Stream(Record.fromPairs("id" -> "0")) // add invalid record, with fewer fields
+      // error handler
+      val eh = (ex: Throwable) => Stream.eval(IO(Left(ex)))
+      //  render and execute
+      records.through(render).map(Right.apply).handleErrorWith(eh).compile.toList.unsafeRunSync()
+    }
+    // explicit header
+    val header = Header("id", "text")
+    val es = result { (i, t) =>
+      Record(i.toString, t)(header)
+    }(CSVRenderer[IO].render(header))
+    assert(es.init.forall(_.isRight))
+    assert(es.last.isLeft)
+    // implicit header
+    val is = result { (i, t) =>
+      Record.builder.add("id", i).add("text", t)
+    }(CSVRenderer[IO].render)
+    assert(is.init.forall(_.isRight))
+    assert(is.head.isRight)
   }
 
   private lazy val files = Table(

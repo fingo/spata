@@ -14,7 +14,7 @@ import info.fingo.spata.util.Logger
 /* Intermediate entity used to converter raw records into key-values indexed by header.
  * It converts additionally CSV parsing failures into stream error by raising StructureException.
  */
-private[spata] class Content[F[_]: Sync: Logger] private (
+final private[spata] class Content[F[_]: Sync: Logger] private (
   data: Stream[F, RecordResult],
   header: Header,
   hasHeaderRecord: Boolean = true
@@ -24,15 +24,14 @@ private[spata] class Content[F[_]: Sync: Logger] private (
 
   private def wrapRecord(rr: RecordResult): Either[StructureException, Record] = rr match {
     case RawRecord(fields, location, recordNum) =>
-      Record(fields, location.line, recordNum - dataOffset)(header)
+      Record.create(fields, recordNum - dataOffset, location.line)(header)
     case RecordFailure(code, location, recordNum, fieldNum) =>
       Left(
         new StructureException(
           code,
-          location.line,
-          recordNum - dataOffset,
+          Position.some(recordNum - dataOffset, location.line),
           Some(location.position),
-          header.get(fieldNum - 1)
+          header(fieldNum - 1)
         )
       )
   }
@@ -61,7 +60,7 @@ private[spata] object Content {
     data: Stream[F, RecordResult],
     headerMap: HeaderMap
   ): Either[StructureException, Content[F]] =
-    Header(headerSize, headerMap).flatMap { header =>
+    Header.create(headerSize, headerMap).flatMap { header =>
       Right(new Content(data, header, false))
     }
 
@@ -69,8 +68,8 @@ private[spata] object Content {
   private def createHeader(rr: RecordResult, headerMap: HeaderMap): Either[StructureException, Header] =
     rr match {
       case RawRecord(captions, _, _) =>
-        Header(captions, headerMap)
+        Header.create(captions, headerMap)
       case RecordFailure(code, location, _, _) =>
-        Left(new StructureException(code, location.line, 0, Some(location.position), None))
+        Left(new StructureException(code, Position.some(0, location.line), Some(location.position), None))
     }
 }

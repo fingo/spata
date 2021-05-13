@@ -8,29 +8,23 @@ package info.fingo.spata
 import java.util.NoSuchElementException
 import shapeless.{HList, LabelledGeneric}
 import info.fingo.spata.Record.ToProduct
-import info.fingo.spata.converter.RecordToHList
+import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
-import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser}
+import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
 
 /** CSV record representation.
   * A record is basically a map from string to string.
-  * Values are indexed by header row if present or by tuple-style header: `"_1"`, `"_2"` etc.
+  * Values are indexed by header provided explicitly or read from header row in source data.
+  * If no header is provided nor can be scanned from source, a tuple-style header `"_1"`, `"_2"` etc. is generated.
   *
-  * `lineNum` is the last line in source file which content is part of this record
-  * - in other words it is the number of lines consumed so far to load this record.
-  * It starts with `1`, including header line - first data record has typically line number `2`.
-  * There may be many lines per record when some fields contain line breaks.
-  * New line is interpreted independently from CSV record separator, as the standard platform `EOL` character sequence.
+  * Position information is always available for parsed data - for records created through [[CSVParser]].
+  * It is missing for records created explicitly in application code (in order to be rendered to CSV).
   *
-  * `rowNum` is record counter. It start with `1` for data, with header row having number `0`.
-  * It differs from `lineNum` for sources with header or fields containing line breaks.
-  *
-  * @param row core record data
-  * @param lineNum last line number in source file this record is built from
-  * @param rowNum row number in source file this record comes from
-  * @param header indexing header (field names)
+  * @param values core record data
+  * @param position record position in source data
+  * @param hdr indexing header (field names)
   */
-class Record private (private val row: IndexedSeq[String], val lineNum: Int, val rowNum: Int)(header: Header) {
+final class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]) {
   self =>
 
   /** Safely gets typed record value.
@@ -44,9 +38,9 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     * If parsing fails `Left[error.DataError,_]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-    * @note This function assumes "standard" string formatting, without any locale support,
-    * e.g. point as decimal separator or ISO date and time formats.
-    * Use [[get[A]:* get]] if more control over source format is required.
+    * @note When relying on default string parsers, this function assumes "standard" string formatting,
+    * without any locale support, e.g. point as decimal separator or ISO date and time formats.
+    * Use [[get[A]:* get]] or provide own parser if more control over source format is required.
     * @tparam A type to parse the field to
     * @param key the key of retrieved field
     * @return either parsed value or an error
@@ -59,7 +53,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     * {{{ val date: Decoded[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
     * (type of formatter is inferred based on target type).
     *
-    * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
+    * Parsers for basic types are available through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as implicits.
     *
     * To parse optional values provide `Option[_]` as type parameter.
@@ -85,18 +79,18 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     * // and a Record created based on it
     * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
-    * val person: Decoded[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
+    * val person: Decoded[Person] = record.to[Person]()
     * }}}
-    * Please note, that the conversion is name-based (case class field names have to match CSV header)
+    * Please note, that the conversion is name-based (case class field names have to match record (CSV) header)
     * and is case sensitive.
-    * The order of fields doesn't matter.
+    * The order of fields does not matter.
     * Case class may be narrower and effectively retrieve only a subset of record's fields.
     *
     * It is possible to use a tuple instead of case class.
     * In such case the header must match the tuple field naming convention: `_1`, `_2` etc.
     *
     * Current implementation supports only shallow conversion -
-    * each product field has to be retrieved from single CSV field through [[text.StringParser StringParser]].
+    * each product field has to be retrieved from single record field through [[text.StringParser StringParser]].
     *
     * Because conversion to product requires parsing of all fields through [[text.StringParser StringParser]],
     * there is no way to provide custom formatter, like while using [[get[A]:* get]] method.
@@ -113,10 +107,10 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * implicit val ldsp: StringParser[LocalDate] = (str: String) =>
     *     LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-    * val person: Decoded[Person] = record.to[Person]() // this line may cause IntelliJ to mistakenly show an error
+    * val person: Decoded[Person] = record.to[Person]()
     * }}}
     *
-    * @tparam P the Product type to converter this record to
+    * @tparam P the [[scala.Product]] type to converter this record to
     * @return intermediary to infer representation type and return proper type
     */
   def to[P <: Product]: ToProduct[P] = new ToProduct[P](this)
@@ -124,7 +118,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
   /** Gets field value.
     *
     * @param key the key of retrieved field
-    * @return field value in its original, string format if correct key is provided or None otherwise.
+    * @return field value in its original, string format if correct key is provided or `None` otherwise.
     */
   def apply(key: String): Option[String] =
     header(key).flatMap(apply)
@@ -132,15 +126,32 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
   /** Gets field value.
     *
     * @param idx the index of retrieved field, starting from `0`.
-    * @return field value in original, string format or None if index is out of bounds.
+    * @return field value in original, string format or `None` if index is out of bounds.
     */
-  def apply(idx: Int): Option[String] = row.unapply(idx)
+  def apply(idx: Int): Option[String] = values.unapply(idx)
 
   /** Gets number of fields in record. */
-  def size: Int = row.size
+  def size: Int = values.size
+
+  /** Indexing header - provided explicitly or generated in tuple style: `"_1"`, `"_2"` etc. */
+  lazy val header: Header = hdr.getOrElse(Header(size)) // generate header only if needed
+
+  /** Row number in source data this record comes from or `0` if this information is not available
+    * (i.e. record is not created through CSV parsing).
+    *
+    * @see [[Position]] for row number description.
+    */
+  lazy val rowNum: Int = position.map(_.row).getOrElse(0)
+
+  /** Last line number in source data this record is built from or `0` if this information is not available
+    * (i.e. record is not created through CSV parsing).
+    *
+    * @see [[Position]] for line number description.
+    */
+  lazy val lineNum: Int = position.map(_.line).getOrElse(0)
 
   /** Gets text representation of record, with fields separated by comma. */
-  override def toString: String = row.mkString(",")
+  override def toString: String = values.mkString(",")
 
   /* Retrieve field value using string parser with provided format */
   private def retrieve[A, B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
@@ -157,9 +168,9 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       case Some(str) =>
         parse(str) match {
           case Right(value) => Right(value)
-          case Left(error) => Left(new DataError(error.content, lineNum, rowNum, key, error))
+          case Left(error) => Left(new DataError(error.content, position, key, error))
         }
-      case None => Left(new HeaderError(lineNum, rowNum, key, new NoSuchElementException()))
+      case None => Left(new HeaderError(position, key))
     }
   }
 
@@ -168,7 +179,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
     *
     * @tparam A target type for parsing
     */
-  class Field[A] {
+  final class Field[A] {
 
     /** Safely parses string to desired type based on provided format.
       *
@@ -195,9 +206,9 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       * Parsing empty value to simple type will throw an exception.
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
-      * @note This function assumes "standard" string formatting, without any locale support,
-      * e.g. point as decimal separator or ISO date and time formats.
-      * Use [[get[A]:* get]] if more control over source format is required.
+      * @note When relying on default string parsers, this function assumes "standard" string formatting,
+      * without any locale support, e.g. point as decimal separator or ISO date and time formats.
+      * Use [[get[A]:* get]] or provide own parser if more control over source format is required.
       * @tparam A type to parse the field to
       * @param key the key of retrieved field
       * @return parsed value
@@ -214,7 +225,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       * (type of formatter is inferred based on target type).
       *
       * Parsers for basic types (as required by [[Field]])
-      * are provided through [[text.StringParser$ StringParser]] object.
+      * are available through [[text.StringParser$ StringParser]] object.
       * Additional ones may be provided as implicits.
       *
       * To parse optional values provide `Option[_]` as type parameter.
@@ -242,7 +253,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       * @throws IndexOutOfBoundsException when incorrect index is provided
       */
     @throws[IndexOutOfBoundsException]("when incorrect index is provided")
-    def apply(idx: Int): String = row(idx)
+    def apply(idx: Int): String = values(idx)
 
     /* Throws exception if Either is Left. */
     private def rethrow[A](result: Decoded[A]) = result match {
@@ -254,7 +265,7 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
       *
       * @tparam A target type for parsing
       */
-    class Field[A] {
+    final class Field[A] {
 
       /** Parses field to desired type based on provided format.
         *
@@ -271,17 +282,118 @@ class Record private (private val row: IndexedSeq[String], val lineNum: Int, val
   }
 }
 
-/** Record helper object. Used to create and converter records. */
+/** Record helper object. Used to create and convert records. */
 object Record {
 
-  /* Creates `Record`. See Record documentation for more information about parameters. */
-  private[spata] def apply(row: IndexedSeq[String], lineNum: Int, rowNum: Int)(
+  /* Creates `Record`. See Record class for more information about parameters.
+   * This method is used by CSVParser to validate header and content conformance of parsed records.
+   */
+  private[spata] def create(values: IndexedSeq[String], rowNum: Int, lineNum: Int)(
     header: Header
   ): Either[StructureException, Record] =
-    if (row.size == header.size)
-      Right(new Record(row, lineNum, rowNum)(header))
+    if (values.size == header.size)
+      Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
     else
-      Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, lineNum, rowNum))
+      Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
+
+  /** Creates record.
+    *
+    * The size of header has to match the number of values.
+    * In the rare case when it does not, the header is shrunk or extended accordingly.
+    * While extending, the new values are added in tuple-style, with values matching their position
+    * (e.g. extending `Header("X","Y","Z")` by 1 yields `Header("X","Y","Z","_4")`)
+    *
+    * @param values the values forming the record
+    * @param header record header - keys for values (field names)
+    * @return new record
+    */
+  def apply(values: String*)(header: Header): Record = {
+    val HS = header.size
+    val hdr = values.size match {
+      case HS => header
+      case vs if vs < HS => header.shrink(vs)
+      case vs => header.extend(vs)
+    }
+    new Record(values.toIndexedSeq, Position.none)(Some(hdr))
+  }
+
+  /** Creates record from list of values.
+    * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
+    * Header creation is postponed - records created in this way may be effectively headerless,
+    * if values are accessed by index only.
+    *
+    * @param values list of values forming record
+    * @return new record
+    */
+  def fromValues(values: String*): Record = new Record(values.toIndexedSeq, Position.none)(None)
+
+  /** Creates record from key-value pairs.
+    * Keys are extracted as header.
+    *
+    * This method does not enforce unique keys (as it is not enforced by header constructor).
+    * Providing duplicates does not cause any erroneous conditions while accessing record data,
+    * however the values associated with second and next duplicated keys will be accessible only by index.
+    *
+    * @param keysValues list of keys (names) and values forming record
+    * @return new record
+    */
+  def fromPairs(keysValues: (String, String)*): Record = {
+    val (k, v) = keysValues.unzip
+    new Record(v.toIndexedSeq, Position.none)(Some(Header(k: _*)))
+  }
+
+  /** Creates a record from [[scala.Product]], e.g. case class.
+    *
+    * This renders to product (class) values to string representation. In contrast to simple `toString` operation,
+    * this process allows more control over output format,
+    * e.g. taking into account locale or render simple value from [[scala.Option]].
+    *
+    * {{{
+    * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
+    * val person: Person = Person("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
+    * val record: Record = Record.from(person)
+    * }}}
+    *
+    * Please note, that the conversion is name-based (case class field names are used to form record header)
+    * and is case sensitive.
+    *
+    * It is possible to use a tuple instead of case class.
+    * In such case the header will be created from tuple field naming convention: `_1`, `_2` etc.
+    *
+    * Current implementation supports only shallow conversion -
+    * each product field has to be rendered to single record field through [[text.StringRenderer StringRenderer]].
+    *
+    * Because conversion from product requires rendering of all fields through [[text.StringRenderer StringRenderer]],
+    * there is no way to provide custom formatter.
+    * If other then the default formatting has to be used, a custom implicit `stringRenderer` has to be provided:
+    * {{{
+    * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
+    * val person: Person = Person("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
+    * implicit val ldsr: StringRenderer[LocalDate] = (date: LocalDate) =>
+    *   DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
+    * val record: Record = Record.from(person)
+    * }}}
+    *
+    * @param product the product to convert (render) to record
+    * @param gen the generic for specified source type and [[shapeless.HList]] representation
+    * @param rHL intermediary converter from [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s to record
+    * @tparam P the [[scala.Product]] type to create new record from
+    * @tparam R [[shapeless.HList]] representation type
+    * @return new record
+    */
+  def from[P <: Product, R <: HList](
+    product: P
+  )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
+
+  /** Creates new record builder. */
+  def builder: Builder = new Builder(List[(String, String)]())
+
+  /** Implicitly converts record builder to record.
+    *
+    * @param rb the record builder to be converted
+    * @return new Record with values from provided builder
+    */
+  implicit def buildRecord(rb: Builder): Record = rb.get
 
   /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
     *
@@ -292,16 +404,64 @@ object Record {
     * @param record the record to convert
     * @tparam P the target type for conversion
     */
-  class ToProduct[P <: Product](record: Record) {
+  final class ToProduct[P <: Product](record: Record) {
 
     /** Converts record to [[scala.Product]], e.g. case class.
       *
       * @param gen the generic for specified target type and [[shapeless.HList]] representation
-      * @param rToHL intermediary converter from record to [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s
+      * @param rHL intermediary converter from record to [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s
       * @tparam R [[shapeless.HList]] representation type
       * @return either converted product or an error
       */
-    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rToHL: RecordToHList[R]): Decoded[P] =
-      rToHL(record).map(gen.from)
+    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordToHList[R]): Decoded[P] =
+      rHL(record).map(gen.from)
+  }
+
+  /** Extension of [[scala.Product]] to provide convenient conversion to records.
+    *
+    * @param product product to extend
+    * @tparam P concrete type of product
+    */
+  implicit final class ProductOps[P <: Product](product: P) {
+
+    /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
+      *
+      * @see [[Record.from]] for more information.
+      * @param gen the generic for specified source type and [[shapeless.HList]] representation
+      * @param rHL intermediary converter from [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s to record
+      * @tparam R [[shapeless.HList]] representation type
+      * @return new record
+      */
+    def toRecord[R <: HList](implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
+      Record.from(product)
+  }
+
+  /** Helper to incrementally build records from typed values.
+    *
+    * @param buf buffer used to incrementally build record's content.
+    */
+  final class Builder private[spata] (buf: List[(String, String)]) {
+
+    /** Enhance builder with a new value.
+      *
+      * @param key the key (field name) of added value
+      * @param value the added value
+      * @param renderer the renderer to convert the value to string
+      * @tparam A value type
+      * @return builder augmented with the new value
+      */
+    def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): Builder =
+      new Builder((key, renderer(value)) :: buf)
+
+    /** Gets final record from this builder.
+      *
+      * @return new record with values from this builder.
+      */
+    def get: Record = Record.fromPairs(buf.reverse: _*)
+
+    /* Gets final record from this builder with reversed order of the fields,
+     * which really means preserving the order, because values ate prepended.
+     */
+    private[spata] def reversed: Record = Record.fromPairs(buf: _*)
   }
 }

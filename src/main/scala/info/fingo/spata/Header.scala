@@ -5,44 +5,77 @@
  */
 package info.fingo.spata
 
+import info.fingo.spata.Header.generate
 import info.fingo.spata.error.{ParsingErrorCode, StructureException}
 
-/* CSV header with names of each field */
-private[spata] class Header private (names: IndexedSeq[String]) {
+/** CSV header with names of each field.
+  *
+  * Header created through parsing process ensured to have no duplicate names.
+  * This guarantee is not held for user-created headers.
+  * Providing duplicates does not cause any erroneous conditions while accessing record data,
+  * however the values associated with duplicates will be not accessible by header name.
+  *
+  * @param names the sequence of names
+  */
+final class Header private (val names: IndexedSeq[String]) {
 
-  def this(names: String*) = this(names.toIndexedSeq)
+  /** Size of header. */
+  val size: Int = names.size
 
   private val index = names.zipWithIndex.toMap
 
-  val size: Int = names.size
+  private[spata] def apply(name: String): Option[Int] = index.get(name)
 
-  def apply(name: String): Option[Int] = index.get(name)
+  /** Safely get header element (single name).
+    *
+    * @param idx index of retrieved name, starting from `0`
+    * @return a string representing single header element (field name) or `None` if index is out of bounds.
+    */
+  def apply(idx: Int): Option[String] = names.unapply(idx)
 
-  def get(idx: Int): Option[String] = names.unapply(idx)
-
+  /** String representation of header */
   override def toString: String = names.mkString("Header(", ", ", ")")
+
+  /* Shrink this header to requested length. */
+  private[spata] def shrink(to: Int) = new Header(names.take(to))
+
+  /* Extend this header to requested length. */
+  private[spata] def extend(to: Int) = new Header(names ++ generate(to, size))
 }
 
-/* Header companion */
-private[spata] object Header {
+/** Header companion */
+object Header {
 
-  /* Create regular header from provided values */
-  def apply(names: String*): Either[StructureException, Header] = checkDuplicates(names.toIndexedSeq)
+  /** Creates regular header from provided values.
+    *
+    * This method does to enforce header to have unique elements.
+    *
+    * @param names the sequence of names forming this header
+    * @return new header
+    */
+  def apply(names: String*): Header = new Header(names.toIndexedSeq)
 
-  /* Create regular header and reset / remap it */
-  def apply(names: IndexedSeq[String], headerMap: HeaderMap): Either[StructureException, Header] = {
+  /** Creates tuple-style header (`_1`, `_2`, `_3` etc.) of requested size.
+    *
+    * @param size the size of this header
+    * @return new header
+    */
+  def apply(size: Int): Header = new Header(generate(size))
+
+  /* Creates regular header and reset / remap it. Ensures that there are no duplicates in header. */
+  private[spata] def create(names: IndexedSeq[String], headerMap: HeaderMap): Either[StructureException, Header] = {
     val remapped = headerMap.remap(names)
     checkDuplicates(remapped)
   }
 
-  /* Create tuple-style header: _1, _2, _3 etc. (if not reset/remapped). */
-  def apply(size: Int, headerMap: HeaderMap): Either[StructureException, Header] = {
+  /* Creates tuple-style header: _1, _2, _3 etc. (if not reset/remapped). Ensures that there are no duplicates. */
+  private[spata] def create(size: Int, headerMap: HeaderMap): Either[StructureException, Header] = {
     val remapped = headerMap.remap(generate(size))
     checkDuplicates(remapped)
   }
 
   /* Generate tuple-style sequence: _1, _2, _3 etc. */
-  private def generate(size: Int) = (0 until size).map(i => s"_${i + 1}")
+  private def generate(size: Int, start: Int = 0) = (start until size).map(i => s"_${i + 1}")
 
   /* Gets duplicates from a collection (single occurrences of them), preserving their sequence */
   private def duplicates[A](seq: Seq[A]): Seq[A] = {
@@ -60,7 +93,7 @@ private[spata] object Header {
     if (doubles.isEmpty)
       Right(new Header(header))
     else
-      Left(new StructureException(ParsingErrorCode.DuplicatedHeader, 1, 0, None, doubles.headOption))
+      Left(new StructureException(ParsingErrorCode.DuplicatedHeader, Position.some(0, 1), None, doubles.headOption))
   }
 }
 
@@ -94,7 +127,7 @@ private[spata] object NoHeaderMap extends HeaderMap {
 }
 
 /* String to string implementation of HeaderMap. */
-private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
+final private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
   def remap(header: IndexedSeq[String]): IndexedSeq[String] = {
     val mapName = (name: String) => if (f.isDefinedAt(name)) f(name) else name
     header.map(mapName)
@@ -102,7 +135,7 @@ private[spata] class NameHeaderMap(f: S2S) extends HeaderMap {
 }
 
 /* Int to string implementation of HeaderMap. */
-private[spata] class IndexHeaderMap(f: I2S) extends HeaderMap {
+final private[spata] class IndexHeaderMap(f: I2S) extends HeaderMap {
   def remap(header: IndexedSeq[String]): IndexedSeq[String] = {
     val mapName = (name: String, index: Int) => if (f.isDefinedAt(index)) f(index) else name
     header.zipWithIndex.map { case (name, index) => mapName(name, index) }

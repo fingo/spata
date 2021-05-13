@@ -62,7 +62,7 @@ To check binary compatibility with a previous stable version, please run `sbt mi
 API documentation is built with `sbt doc`.
 
 Full project verification before a pull request should be done with:
-```
+```shell
 sbt -mem 2048 clean check doc test mimaReportBinaryIssues perf:test
 ```
 

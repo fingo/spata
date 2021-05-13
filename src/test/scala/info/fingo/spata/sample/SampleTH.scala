@@ -6,7 +6,6 @@
 package info.fingo.spata.sample
 
 import java.io.{Closeable, File, FileNotFoundException}
-
 import scala.io.Source
 
 /* Helper class for samples with shared functions */

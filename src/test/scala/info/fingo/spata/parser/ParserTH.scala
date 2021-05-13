@@ -7,8 +7,9 @@ package info.fingo.spata.parser
 
 import CharParser.{CharFailure, CharState}
 import CharParser.CharPosition._
-import info.fingo.spata.error.ParsingErrorCode._
 import FieldParser.{FieldFailure, RawField}
+import RecordParser.{RawRecord, RecordFailure}
+import info.fingo.spata.error.ParsingErrorCode._
 
 object Config {
   val sep = ','
@@ -56,7 +57,6 @@ object FieldFailures {
 }
 
 object RecordResults {
-  import RecordParser._
   def rr(fields: String*)(pos: Int, ln: Int = 1, rnum: Int = 1): RawRecord =
     RawRecord(Vector(fields: _*), Location(pos, ln), rnum)
   def rfl(code: ErrorCode, pos: Int, ln: Int = 1, rnum: Int = 1, fnum: Int = 1): RecordFailure =

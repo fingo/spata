@@ -56,6 +56,12 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("StringParser should correctly parse numbers") {
+    forAll(decimals) { (tc: String, str: String, number: Option[Number], fmt: Option[DecimalFormat]) =>
+      assertParsing(str, number, fmt, tc)
+    }
+  }
+
   test("StringParser should correctly parse local dates") {
     forAll(dates) { (tc: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
       assertParsing(str, date, fmt, tc)
@@ -80,23 +86,6 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
-    implicit p: FormattedStringParser[A, B]
-  ) = {
-    val pro: ParseResult[Option[A]] = fmt match {
-      case Some(f) => parse[Option[A]](str, f)
-      case _ => parse[Option[A]](str)
-    }
-    assert(pro.contains(expected))
-    val pr: ParseResult[A] = fmt match {
-      case Some(f) => parse[A](str, f)
-      case _ => parse[A](str)
-    }
-    if (tc != empty)
-      assert(pr.toOption == expected)
-    assert(pr.toOption == expected)
-  }
-
   test("String parser should return error on incorrect input") {
     assert(parse[Int]("wrong").isLeft)
     assert(parse[Int]("12345678901234567890").left.exists(_.dataType.contains("number")))
@@ -115,6 +104,26 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(eBool.left.exists(e => e.dataType.contains("boolean") && e.content == "yes"))
     val eInt = parse[Int]("1234567890" * 10)
     assert(eInt.left.exists(_.getMessage.endsWith(s"${ParseError.infoCutSuffix}] to requested number")))
+    implicit val csp: StringParser[Char] =
+      (s: String) => if (s.length == 1) s(0) else throw new RuntimeException("not char")
+    assert(parse[Char]("xx").left.exists(e => e.content.contains("xx") && e.dataType.isEmpty))
+  }
+
+  private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
+    implicit p: FormattedStringParser[A, B]
+  ) = {
+    val pro: ParseResult[Option[A]] = fmt match {
+      case Some(f) => parse[Option[A]](str, f)
+      case _ => parse[Option[A]](str)
+    }
+    assert(pro.contains(expected))
+    val pr: ParseResult[A] = fmt match {
+      case Some(f) => parse[A](str, f)
+      case _ => parse[A](str)
+    }
+    if (tc != empty)
+      assert(pr.toOption == expected)
+    assert(pr.toOption == expected)
   }
 
   private lazy val strings = Table(

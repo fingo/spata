@@ -4,8 +4,8 @@ lazy val basicSettings = Seq(
   organizationHomepage := Some(url("http://fingo.info")),
   startYear := Some(2020),
   name := "spata",
-  description := "Functional, stream based Scala parser for CSV",
-  scalaVersion := "2.13.4"
+  description := "Functional, stream based CSV processor for Scala",
+  scalaVersion := "2.13.5"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -25,12 +25,12 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.3.1",
-      "co.fs2" %% "fs2-core" % "2.5.0",
-      "co.fs2" %% "fs2-io" % "2.5.0",
-      "com.chuusai" %% "shapeless" % "2.3.3",
+      "org.typelevel" %% "cats-effect" % "2.5.0",
+      "co.fs2" %% "fs2-core" % "2.5.5",
+      "co.fs2" %% "fs2-io" % "2.5.5",
+      "com.chuusai" %% "shapeless" % "2.3.6",
       "org.slf4j" % "slf4j-api" % "1.7.30",
-      "org.scalatest" %% "scalatest" % "3.2.3" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.7" % Test,
       "com.storm-enroute" %% "scalameter" % "0.20" % Test,
       "org.slf4j" % "slf4j-simple" % "1.7.30" % Test
     ),
@@ -45,7 +45,8 @@ lazy val root = (project in file("."))
     scalacOptions ++= scalacSettings,
     Test / compile / scalacOptions -= "-Wunused:locals", // false positives for implicits and Scalatest Table
     Compile / console / scalacOptions --= Seq("-Wunused:imports", "-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set.empty,
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "2.0.0"),
+    semanticdbEnabled := false,
     autoAPIMappings := true
   )
 

@@ -27,7 +27,7 @@ object ReaderPTS extends Bench.LocalTime {
     override def toString: String = info
   }
 
-  performance.of("reader").config(exec.maxWarmupRuns -> 3, exec.benchRuns -> 3) in {
+  performance.of("reader").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
     measure.method("read") in {
       using(methods) in { method =>
         method(input).compile.drain.unsafeRunSync()

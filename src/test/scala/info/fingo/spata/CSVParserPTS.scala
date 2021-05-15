@@ -16,7 +16,7 @@ import info.fingo.spata.PerformanceTH.{input, parser, testSource, MarsWeather}
  */
 object CSVParserPTS extends Bench.LocalTime {
 
-  performance.of("parser").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
+  performance.of("parser").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("parse_gen") in {
       using(amounts) in { amount =>
         testSource(amount).through(parser.parse).compile.drain.unsafeRunSync()

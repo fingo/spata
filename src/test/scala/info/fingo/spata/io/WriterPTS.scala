@@ -9,10 +9,10 @@ import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.concurrent.ExecutionContext
 import cats.effect.{ContextShift, IO}
 import fs2.Stream
-import info.fingo.spata.PerformanceTH.{output, renderer, testRecords, testSource}
 import org.scalameter.Key.exec
 import org.scalameter.picklers.noPickler._
 import org.scalameter.{Bench, Gen}
+import info.fingo.spata.PerformanceTH.{output, renderer, testRecords, testSource}
 
 /* Check performance of Reader using different implementations. */
 object WriterPTS extends Bench.LocalTime {
@@ -25,7 +25,7 @@ object WriterPTS extends Bench.LocalTime {
     override def toString: String = info
   }
 
-  performance.of("writer").config(exec.maxWarmupRuns -> 3, exec.benchRuns -> 3) in {
+  performance.of("writer").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
     measure.method("write") in {
       using(methods) in { method =>
         method(output, testSource(amount)).compile.drain.unsafeRunSync()

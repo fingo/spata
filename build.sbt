@@ -31,7 +31,7 @@ lazy val root = (project in file("."))
       "com.chuusai" %% "shapeless" % "2.3.6",
       "org.slf4j" % "slf4j-api" % "1.7.30",
       "org.scalatest" %% "scalatest" % "3.2.7" % Test,
-      "com.storm-enroute" %% "scalameter" % "0.20" % Test,
+      "com.storm-enroute" %% "scalameter" % "0.21" % Test,
       "org.slf4j" % "slf4j-simple" % "1.7.30" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),

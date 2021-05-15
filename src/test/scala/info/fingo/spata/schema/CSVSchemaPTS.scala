@@ -42,7 +42,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
     .add[Double]("wind_speed")
     .add[String]("atmo_opacity")
 
-  performance.of("schema").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
+  performance.of("schema").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("validate_gen") in {
       using(amounts) in { amount =>
         Reader[IO]

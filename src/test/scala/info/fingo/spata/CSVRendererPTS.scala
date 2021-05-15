@@ -5,15 +5,15 @@
  */
 package info.fingo.spata
 
-import info.fingo.spata.PerformanceTH.{mwHeader, renderer, testMarsWeather, testRecords}
-import info.fingo.spata.Record.ProductOps
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
+import info.fingo.spata.Record.ProductOps
+import info.fingo.spata.PerformanceTH.{mwHeader, renderer, testMarsWeather, testRecords}
 
 /* Check performance of parser. */
 class CSVRendererPTS extends Bench.LocalTime {
 
-  performance.of("renderer").config(exec.maxWarmupRuns -> 1, exec.benchRuns -> 3) in {
+  performance.of("renderer").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("render_gen") in {
       using(amounts) in { amount =>
         testRecords(amount).through(renderer.render).compile.drain.unsafeRunSync()

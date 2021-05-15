@@ -24,7 +24,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private val num = -123456L
   private val nbsp = '\u00A0'
 
-  test("Record allows retrieving individual values") {
+  test("record allows retrieving individual values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
@@ -43,7 +43,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record allows retrieving optional values") {
+  test("record allows retrieving optional values") {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
@@ -60,7 +60,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record allows retrieving formatted values") {
+  test("record allows retrieving formatted values") {
     forAll(formatted) {
       (
         _: String,
@@ -82,7 +82,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record parsing may return error or throw exception") {
+  test("record parsing may return error or throw exception") {
     forAll(incorrect) { (testCase: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
@@ -104,7 +104,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record may be converted to case class") {
+  test("record may be converted to case class") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
@@ -115,7 +115,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record may be converted to case class with optional fields") {
+  test("record may be converted to case class with optional fields") {
     case class Data(name: String, value: Option[Double], date: Option[LocalDate])
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
@@ -130,7 +130,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record may be converted to case class with custom formatting") {
+  test("record may be converted to case class with custom formatting") {
     case class Data(num: Long, value: BigDecimal, date: LocalDate)
     forAll(formatted) {
       (
@@ -154,7 +154,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Converting record to case class yields Left[ContentError, _] on incorrect input") {
+  test("converting record to case class yields Left[ContentError, _] on incorrect input") {
     case class Data(name: String, value: Double, date: LocalDate)
     forAll(incorrect) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
@@ -166,7 +166,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Record may be converted to tuples") {
+  test("record may be converted to tuples") {
     type Data = (String, LocalDate, BigDecimal)
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("_1", "_2", "_3")
@@ -177,7 +177,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from sequence of string values") {
+  test("records may be created from sequence of string values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = Record(name, sDate, sValue)(header)
@@ -187,7 +187,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Header is shrunk or extended if its length does not match values length") {
+  test("header is shrunk or extended if its length does not match values length") {
     val header = Header("name", "date", "value")
     val name = "Funky Koval"
     val rs = Record(name, "01.01.2001")(header)
@@ -199,7 +199,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(re("_4").contains("0"))
   }
 
-  test("Records may be created from string key-value pairs") {
+  test("records may be created from string key-value pairs") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record = Record.fromPairs("name" -> name, "date" -> sDate, "value" -> sValue)
       assert(record.header.names == Header("name", "date", "value").names)
@@ -209,7 +209,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from list of values") {
+  test("records may be created from list of values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record = Record.fromValues(name, sDate, sValue)
       assert(record.header.names == Header("_1", "_2", "_3").names)
@@ -219,7 +219,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be built from typed values") {
+  test("records may be built from typed values") {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val record: Record =
         Record.builder
@@ -233,7 +233,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from case classes") {
+  test("records may be created from case classes") {
     case class Data(num: Long, value: BigDecimal, date: LocalDate)
     forAll(formatted) {
       (
@@ -264,7 +264,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
-  test("Records may be created from tuples") {
+  test("records may be created from tuples") {
     type Data = (String, LocalDate, BigDecimal)
     forAll(formatted) {
       (
@@ -292,6 +292,61 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         assert(record("_1").contains(sNum.strip()))
         assert(record("_2").contains(sValue.strip()))
         assert(record("_3").contains(sDate.strip()))
+    }
+  }
+
+  test("records may be updated by name or index") {
+    val valBefore = "999.99"
+    val valAfter = "111.11"
+    val record: Record = Record.builder
+      .add("name", "Moomin")
+      .add("date", LocalDate.now().toString)
+      .add("value", valBefore)
+    assert(record("value").contains(valBefore))
+    val updatedByKey = record.updated("value", valAfter)
+    assert(updatedByKey("value").contains(valAfter))
+    assert(updatedByKey("name") == record("name"))
+    assert(updatedByKey("date") == record("date"))
+    val updatedByIdx = record.updated(2, valAfter)
+    assert(updatedByIdx("value").contains(valAfter))
+    assert(updatedByIdx("name") == record("name"))
+    assert(updatedByIdx("date") == record("date"))
+  }
+
+  test("records may be updated with function") {
+    val fun: String => String = s => s * 3
+    val valBefore = "9"
+    val valAfter = fun(valBefore)
+    val record: Record = Record.builder
+      .add("name", "Moomin")
+      .add("date", LocalDate.now().toString)
+      .add("value", valBefore)
+    assert(record("value").contains(valBefore))
+    val updatedByKey = record.updated("value", fun)
+    assert(updatedByKey("value").contains(valAfter))
+    assert(updatedByKey("name") == record("name"))
+    assert(updatedByKey("date") == record("date"))
+    val updatedByIdx = record.updated(2, fun)
+    assert(updatedByIdx("value").contains(valAfter))
+    assert(updatedByIdx("name") == record("name"))
+    assert(updatedByIdx("date") == record("date"))
+  }
+
+  test("records may be modified using typed function") {
+    val fun: Double => Double = x => 9 * x
+    val valBefore = 111.11
+    val valAfter = fun(valBefore)
+    val record: Record = Record.builder
+      .add("name", "Moomin")
+      .add("date", LocalDate.now().toString)
+      .add("value", StringRenderer.render(valBefore))
+    assert(record.get[Double]("value").contains(valBefore))
+    val altered = record.alter("value", fun)
+    assert(altered.isRight)
+    altered.map { ar =>
+      assert(ar.get[Double]("value").contains(valAfter))
+      assert(ar("name") == record("name"))
+      assert(ar("date") == record("date"))
     }
   }
 

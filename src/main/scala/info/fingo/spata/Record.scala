@@ -133,6 +133,77 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Gets number of fields in record. */
   def size: Int = values.size
 
+  /** Creates new record with value at given key updated with provided one.
+    * Original record is returned if the key does not match any header value.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param key the key (name) of field to be updated
+    * @param value the new value
+    * @return a new record with updated value
+    */
+  def updated(key: String, value: String): Record = updated(key, _ => value)
+
+  /** Creates new record with value at given key updated by provided function.
+    * The function receives existing value as an argument.
+    * Original record is returned if the key does not match any header value.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param key the key (name) of field to be updated
+    * @param f the function to be applied to existing value
+    * @return a new record with updated value
+    */
+  def updated(key: String, f: String => String): Record = {
+    val idx = header(key)
+    idx.map(updated(_, f)).getOrElse(this)
+  }
+
+  /** Creates new record with value at given index updated with provided one.
+    * Original record is returned if the index is out of bounds.
+    *
+    * @param idx the index of field to be updated
+    * @param value the new value
+    * @return a new record with updated value
+    */
+  def updated(idx: Int, value: String): Record = updated(idx, _ => value)
+
+  /** Creates new record with value at given index updated by provided function.
+    * The function receives existing value as an argument.
+    * Original record is returned if the key does not match any header value.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param idx the index of field to be updated
+    * @param f the function to be applied to existing value
+    * @return a new record with updated value
+    */
+  def updated(idx: Int, f: String => String): Record =
+    this(idx).map { v =>
+      val nvs = values.updated(idx, f(v))
+      hdr match { // do not access and create header if not necessary
+        case Some(h) => Record(nvs: _*)(h)
+        case None => Record.fromValues(nvs: _*)
+      }
+    }.getOrElse(this)
+
+  /** Creates new record with value at given key updated by provided function.
+    * The function receives existing, typed value as an argument.
+    *
+    * This method may fail if incorrect key is provided or existing value cannot be parsed to requested type.
+    *
+    * @param key the key (name) of field to be updated
+    * @param f the function to be applied to existing value
+    * @tparam A type of existing value
+    * @tparam B type of new value
+    * @return a new record with updated value or an error
+    */
+  def alter[A: StringParser, B: StringRenderer](key: String, f: A => B): Either[ContentError, Record] =
+    get[A](key).map { v =>
+      val nv = StringRenderer.render[B](f(v))
+      updated(key, nv)
+    }
+
   /** Indexing header - provided explicitly or generated in tuple style: `"_1"`, `"_2"` etc. */
   lazy val header: Header = hdr.getOrElse(Header(size)) // generate header only if needed
 
@@ -207,8 +278,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
       * @note When relying on default string parsers, this function assumes "standard" string formatting,
-      * without any locale support, e.g. point as decimal separator or ISO date and time formats.
-      * Use [[get[A]:* get]] or provide own parser if more control over source format is required.
+      *       without any locale support, e.g. point as decimal separator or ISO date and time formats.
+      *       Use [[get[A]:* get]] or provide own parser if more control over source format is required.
       * @tparam A type to parse the field to
       * @param key the key of retrieved field
       * @return parsed value

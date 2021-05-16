@@ -350,6 +350,23 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("records may be modified by adding or removing values through builder") {
+    val name = "Moomin"
+    val id = 1
+    val valBefore = 111.11
+    val valAfter = 999.99
+    val record: Record = Record.builder
+      .add("name", name)
+      .add("date", LocalDate.now().toString)
+      .add("value", StringRenderer.render(valBefore))
+    assert(record.get[Double]("value").contains(valBefore))
+    assert(record.get[Int]("id").isLeft)
+    val altered = record.build.remove("date").add("value", valAfter).add("id", id).get
+    assert(altered.get[String]("name").contains(name))
+    assert(altered.get[Int]("id").contains(id))
+    assert(altered.get[LocalDate]("date").isLeft)
+  }
+
   private def createRecord(name: String, date: String, value: String)(header: Header): Record =
     Record.create(Vector(name, date, value), 1, 1)(header).toOption.getOrElse(Record()(header))
 

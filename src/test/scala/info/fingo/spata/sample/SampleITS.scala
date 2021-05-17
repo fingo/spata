@@ -35,7 +35,7 @@ class SampleITS extends AnyFunSuite {
         .read(Paths.get(fahrenheitCSV.toUri))
         .through(config.parser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
-        .map(_.alter("temp", fahrenheitToCelsius))
+        .map(_.altered("temp", fahrenheitToCelsius))
         .rethrow
         .through(config.renderer[IO].render)
         .through(Writer.shifting[IO](blocker).write(Paths.get(celsiusCSV.toUri)))
@@ -57,7 +57,7 @@ class SampleITS extends AnyFunSuite {
       |2020-01-05,124
       |2020-01-05,125""".stripMargin
 
-  private val celsiusData =
+  private lazy val celsiusData =
     """date,temp
       |2020-01-05,50.55555555555556
       |2020-01-05,51.055555555555564

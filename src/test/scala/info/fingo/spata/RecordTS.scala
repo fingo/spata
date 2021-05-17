@@ -311,6 +311,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(updatedByIdx("value").contains(valAfter))
     assert(updatedByIdx("name") == record("name"))
     assert(updatedByIdx("date") == record("date"))
+    val unchanged = record.updated("incorrect", "something")
+    assert(record == unchanged)
   }
 
   test("records may be updated with function") {
@@ -322,14 +324,21 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add("date", LocalDate.now().toString)
       .add("value", valBefore)
     assert(record("value").contains(valBefore))
-    val updatedByKey = record.updated("value", fun)
+    val updatedByKey = record.updatedWith("value", fun)
     assert(updatedByKey("value").contains(valAfter))
     assert(updatedByKey("name") == record("name"))
     assert(updatedByKey("date") == record("date"))
-    val updatedByIdx = record.updated(2, fun)
+    val updatedByIdx = record.updatedWith(2, fun)
     assert(updatedByIdx("value").contains(valAfter))
     assert(updatedByIdx("name") == record("name"))
     assert(updatedByIdx("date") == record("date"))
+  }
+
+  test("records may be updated without accessing header") {
+    val record = Record.fromValues("1", "John Doe", "2001-01-01")
+    val updated = record.updated(1, "Jane Doe")
+    assert(record(1).contains("John Doe"))
+    assert(updated(1).contains("Jane Doe"))
   }
 
   test("records may be modified using typed function") {
@@ -341,7 +350,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add("date", LocalDate.now().toString)
       .add("value", StringRenderer.render(valBefore))
     assert(record.get[Double]("value").contains(valBefore))
-    val altered = record.alter("value", fun)
+    val altered = record.altered("value", fun)
     assert(altered.isRight)
     altered.map { ar =>
       assert(ar.get[Double]("value").contains(valAfter))
@@ -361,7 +370,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add("value", StringRenderer.render(valBefore))
     assert(record.get[Double]("value").contains(valBefore))
     assert(record.get[Int]("id").isLeft)
-    val altered = record.build.remove("date").add("value", valAfter).add("id", id).get
+    val altered = record.patch.remove("date").add("value", valAfter).add("id", id).get
     assert(altered.get[String]("name").contains(name))
     assert(altered.get[Int]("id").contains(id))
     assert(altered.get[LocalDate]("date").isLeft)

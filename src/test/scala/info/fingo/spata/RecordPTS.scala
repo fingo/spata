@@ -18,6 +18,7 @@ object RecordPTS extends Bench.LocalTime {
 
   val amount = 25_000
   val recordSize = 10
+  val wideRecordSize = 256
   val sampleSize = 1000
   private val locale = new Locale("pl", "PL")
 
@@ -42,6 +43,10 @@ object RecordPTS extends Bench.LocalTime {
   private val classes =
     values.map(v => Sample(v(1), v.head.toInt, date, decimal, 3.14, "another text", true, 0, 99999L, 2.72))
   private val records = classes.map(c => Record.from(c))
+
+  private val wideHeader = makeHeader(wideRecordSize)
+  private val wideValues = (1 to sampleSize).map(s => makeValues(s, wideRecordSize))
+  private val wideRecords = wideValues.map(vs => Record(vs: _*)(wideHeader))
 
   performance.of("record").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("create") in {
@@ -74,6 +79,29 @@ object RecordPTS extends Bench.LocalTime {
         case "extend_header" =>
           val partialHeader = makeHeader(recordSize / 2)
           (1 to amount).map(i => Record(values(i % sampleSize): _*)(partialHeader)).foreach(effect)
+        case "build_wide" =>
+          (1 to amount)
+            .map(i =>
+              (0 to wideRecordSize)
+                .foldLeft(Record.builder) {
+                  case (builder, index) =>
+                    val hdr = s"header-key-$index"
+                    index % 10 match {
+                      case 0 => builder.add(hdr, values(i % sampleSize)(1))
+                      case 1 => builder.add(hdr, values(i % sampleSize).head.toInt)
+                      case 2 => builder.add(hdr, date)
+                      case 3 => builder.add(hdr, decimal)
+                      case 4 => builder.add(hdr, 3.14)
+                      case 5 => builder.add(hdr, "another text")
+                      case 6 => builder.add(hdr, true)
+                      case 7 => builder.add(hdr, 0)
+                      case 8 => builder.add(hdr, 99999L)
+                      case 9 => builder.add(hdr, 2.72)
+                    }
+                }
+                .get
+            )
+            .foreach(effect)
       }
     }
     measure.method("update") in {
@@ -95,6 +123,18 @@ object RecordPTS extends Bench.LocalTime {
           (1 to amount)
             .map(i => records(i % sampleSize).patch.add("text3", "new value").remove("dbl2").get)
             .foreach(effect)
+        case "altered_wide" =>
+          def fun: Int => Int = x => 2 * x
+          val key = s"header-key-${wideRecordSize / 2 + 1}"
+          (1 to amount).map(i => wideRecords(i % sampleSize).altered(key, fun)).foreach {
+            case Right(r) => effect(r)
+            case Left(_) => throw new RuntimeException("Exception in altered")
+          }
+        case "patch_wide" =>
+          val key = s"header-key-${wideRecordSize / 2}"
+          (1 to amount)
+            .map(i => wideRecords(i % sampleSize).patch.add("header-key-new", "new value").remove(key).get)
+            .foreach(effect)
       }
     }
     measure.method("get") in {
@@ -110,6 +150,9 @@ object RecordPTS extends Bench.LocalTime {
           (1 to amount).map(i => records(i % sampleSize).get[Long]("long", format)).foreach(identity)
         case "to_class" =>
           (1 to amount).map(i => records(i % sampleSize).to[Sample]()).foreach(identity)
+        case "typed_wide" =>
+          val key = s"header-key-${wideRecordSize / 2 + 1}"
+          (1 to amount).map(i => wideRecords(i % sampleSize).get[Int](key)).foreach(identity)
       }
     }
   }
@@ -126,20 +169,24 @@ object RecordPTS extends Bench.LocalTime {
     "from_pairs",
     "build",
     "from_class",
-    "extend_header"
+    "extend_header",
+    "build_wide"
   )
   private lazy val updateModes = Gen.enumeration("update_mode")(
     "by_key",
     "by_index",
     "function",
     "altered",
-    "patch"
+    "patch",
+    "altered_wide",
+    "patch_wide"
   )
   private lazy val getModes = Gen.enumeration("get_mode")(
     "by_index",
     "by_key",
     "typed",
     "formatted",
-    "to_class"
+    "to_class",
+    "typed_wide"
   )
 }

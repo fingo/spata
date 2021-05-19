@@ -11,7 +11,6 @@ import info.fingo.spata.Record.ToProduct
 import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
 import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
-import scala.collection.immutable.VectorMap
 
 /** CSV record representation.
   * A record is basically a map from string to string.
@@ -210,7 +209,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     *
     * @return record builder
     */
-  def patch: Record.Builder = new Record.Builder(VectorMap.empty[String, String] ++ header.names.zip(values))
+  def patch: Record.Builder = new Record.Builder(header.names.zip(values).toList)
 
   /** Indexing header - provided explicitly or generated in tuple style: `"_1"`, `"_2"` etc. */
   lazy val header: Header = hdr.getOrElse(Header(size)) // generate header only if needed
@@ -465,7 +464,7 @@ object Record {
   )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
 
   /** Creates new record builder. */
-  def builder: Builder = new Builder(VectorMap.empty[String, String])
+  def builder: Builder = new Builder(List.empty[(String, String)])
 
   /** Implicitly converts record builder to record.
     *
@@ -516,17 +515,20 @@ object Record {
   }
 
   /** Helper to incrementally build records from typed values.
+    * Supports also values removal.
     *
     * @param buf buffer used to incrementally build record's content.
+    * @param removed keys of fields to be removed from record
     */
-  final class Builder private[spata] (buf: VectorMap[String, String]) {
+  final class Builder private (buf: List[(String, String)], removed: Set[String]) {
 
-    /* Auxiliary constructor, for binary compatibility */
-    private[spata] def this(buf: List[(String, String)]) = this(VectorMap.empty[String, String] ++ buf)
+    /* Auxiliary constructor, to simplify builder creation */
+    private[Record] def this(buf: List[(String, String)]) = this(buf, Set.empty[String])
 
-    /** Enhance builder with a new value.
+    /** Enhances builder with a new value.
       *
-      * If the key already exists, the value is replaced with the new one.
+      * Adding value with already existing key results in header duplication.
+      * Although this is correctly handled, duplicated header causes some value inaccessible by their name.
       *
       * @param key the key (field name) of added value
       * @param value the added value
@@ -535,26 +537,34 @@ object Record {
       * @return builder augmented with the new value
       */
     def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): Builder =
-      new Builder(buf + (key -> renderer(value)))
+      new Builder((key, renderer(value)) :: buf, removed)
 
-    /** Reduce builder removing given value from it.
+    /** Reduces builder removing given value from it.
       *
       * If the key is not found, the method does nothing.
+      * If there are multiple fields with the same name (header key), all instances are removed.
       *
       * @param key the key (field name) of removed value
       * @return builder stripped of selected value
       */
-    def remove(key: String): Builder = new Builder(buf - key)
+    def remove(key: String): Builder = new Builder(buf, removed + key)
 
     /** Gets final record from this builder.
       *
       * @return new record with values from this builder.
       */
-    def get: Record = Record.fromPairs(buf.toSeq: _*)
+    def get: Record = {
+      val result =
+        if (removed.isEmpty)
+          buf
+        else
+          buf.filterNot { case (k, _) => removed.contains(k) }
+      Record.fromPairs(result.reverse: _*)
+    }
 
     /* Gets final record from this builder with reversed order of the fields,
      * which really means preserving the order, because values ate prepended.
      */
-    private[spata] def reversed: Record = Record.fromPairs(buf.toSeq.reverse: _*)
+    private[spata] def reversed: Record = Record.fromPairs(buf: _*)
   }
 }

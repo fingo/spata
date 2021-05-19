@@ -374,6 +374,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(altered.get[String]("name").contains(name))
     assert(altered.get[Int]("id").contains(id))
     assert(altered.get[LocalDate]("date").isLeft)
+    assert(record.get[Double]("value").contains(valBefore)) // due to duplicated header
+    assert(altered.size == record.size + 1) // due to duplicated header
   }
 
   private def createRecord(name: String, date: String, value: String)(header: Header): Record =

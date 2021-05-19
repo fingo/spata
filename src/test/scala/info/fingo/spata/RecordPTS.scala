@@ -18,7 +18,7 @@ object RecordPTS extends Bench.LocalTime {
 
   val amount = 25_000
   val recordSize = 10
-  val wideRecordSize = 256
+  val wideRecordSize = 100
   val sampleSize = 1000
   private val locale = new Locale("pl", "PL")
 

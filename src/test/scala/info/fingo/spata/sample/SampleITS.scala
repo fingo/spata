@@ -6,13 +6,12 @@
 package info.fingo.spata.sample
 
 import java.nio.file.{Files, Paths}
-
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
 import cats.effect.{Blocker, ContextShift, IO}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.CSVConfig
+import info.fingo.spata.{CSVParser, CSVRenderer}
 import info.fingo.spata.io.{Reader, Writer}
 
 // Sample from readme (fahrenheit to celsius conversion), in form of test
@@ -27,17 +26,16 @@ class SampleITS extends AnyFunSuite {
 
     val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
       implicit val codec: Codec = Codec.UTF8
-      val config: CSVConfig = CSVConfig()
       def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
       Reader
         .shifting[IO](blocker)
         .read(Paths.get(fahrenheitCSV.toUri))
-        .through(config.parser[IO].parse)
+        .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
         .map(_.altered("temp", fahrenheitToCelsius))
         .rethrow
-        .through(config.renderer[IO].render)
+        .through(CSVRenderer[IO].render)
         .through(Writer.shifting[IO](blocker).write(Paths.get(celsiusCSV.toUri)))
     }
 

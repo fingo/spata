@@ -316,22 +316,21 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("records may be updated with function") {
-    val fun: String => String = s => s * 3
-    val valBefore = "9"
-    val valAfter = fun(valBefore)
+    val nameBefore = "Moomin"
+    val nameAfter = "Moomin".toUpperCase
     val record: Record = Record.builder
-      .add("name", "Moomin")
+      .add("name", nameBefore)
       .add("date", LocalDate.now().toString)
-      .add("value", valBefore)
-    assert(record("value").contains(valBefore))
-    val updatedByKey = record.updatedWith("value", fun)
-    assert(updatedByKey("value").contains(valAfter))
-    assert(updatedByKey("name") == record("name"))
+      .add("value", "999")
+    assert(record("name").contains(nameBefore))
+    val updatedByKey = record.updatedWith("name", s => s.toUpperCase)
+    assert(updatedByKey("name").contains(nameAfter))
     assert(updatedByKey("date") == record("date"))
-    val updatedByIdx = record.updatedWith(2, fun)
-    assert(updatedByIdx("value").contains(valAfter))
-    assert(updatedByIdx("name") == record("name"))
+    assert(updatedByKey("value") == record("value"))
+    val updatedByIdx = record.updatedWith(0, s => s.toUpperCase)
+    assert(updatedByIdx("name").contains(nameAfter))
     assert(updatedByIdx("date") == record("date"))
+    assert(updatedByIdx("value") == record("value"))
   }
 
   test("records may be updated without accessing header") {
@@ -345,9 +344,10 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val fun: Double => Double = x => 9 * x
     val valBefore = 111.11
     val valAfter = fun(valBefore)
+    val now = LocalDate.now
     val record: Record = Record.builder
       .add("name", "Moomin")
-      .add("date", LocalDate.now().toString)
+      .add("date", now.toString)
       .add("value", StringRenderer.render(valBefore))
     assert(record.get[Double]("value").contains(valBefore))
     val altered = record.altered("value", fun)
@@ -356,6 +356,16 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(ar.get[Double]("value").contains(valAfter))
       assert(ar("name") == record("name"))
       assert(ar("date") == record("date"))
+    }
+    val doubleAltered = for {
+      r1 <- record.altered("value", fun)
+      r2 <- r1.altered("date", (dt: LocalDate) => dt.minusDays(1))
+    } yield r2
+    assert(doubleAltered.isRight)
+    doubleAltered.map { ar =>
+      assert(ar.get[Double]("value").contains(valAfter))
+      assert(ar.get[LocalDate]("date").forall(_.isBefore(now)))
+      assert(ar("name") == record("name"))
     }
   }
 

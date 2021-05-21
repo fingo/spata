@@ -585,12 +585,15 @@ The record provides a method to modify typed values too:
 val record: Record = ???
 val altered: Either[ContentError, Record] = record.altered("int value")((i: Int) => i % 2 == 0)
 ```
-or even
+or in extended form:
 ```scala
+val dateFormat = DateTimeFormatter.ofPattern("dd.MM.yy")
+implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str, dateFormat)
+implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFormat.format(ld)
 val record: Record = ???
 val altered: Either[ContentError, Record] = for {
   r1 <- record.altered("field 1")((d: Double) => d.abs)
-  r2 <- r1.altered("field 2")((ld: LocalDate) => ld.getYear())
+  r2 <- r1.altered("field 2")((ld: LocalDate) => ld.plusDays(1))
 } yield r2
 ```
 Please note, however, that this method may produce an error

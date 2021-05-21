@@ -134,7 +134,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   def size: Int = values.size
 
   /** Creates new record with value at given key updated with provided one.
-    * Original record is returned if the key does not match any header value.
+    * Original record is returned if the key does not match any header key.
     *
     * The new record shares the header with the old one.
     *
@@ -146,9 +146,14 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
   /** Creates new record with value at given key updated by provided function.
     * The function receives existing value as an argument.
-    * Original record is returned if the key does not match any header value.
+    * Original record is returned if the key does not match any header key.
     *
     * The new record shares the header with the old one.
+    *
+    * @example
+    * {{{
+    * val updated = record.updatedWith("name")(s => s.toLowerCase)
+    * }}}
     *
     * @param key the key (name) of field to be updated
     * @param f the function to be applied to existing value
@@ -162,6 +167,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Creates new record with value at given index updated with provided one.
     * Original record is returned if the index is out of bounds.
     *
+    * The new record shares the header with the old one.
+    *
     * @param idx the index of field to be updated
     * @param value the new value
     * @return a new record with updated value
@@ -170,7 +177,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
   /** Creates new record with value at given index updated by provided function.
     * The function receives existing value as an argument.
-    * Original record is returned if the key does not match any header value.
+    * Original record is returned if the index is out of bounds.
     *
     * The new record shares the header with the old one.
     *
@@ -192,6 +199,13 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     *
     * This method may fail if incorrect key is provided or existing value cannot be parsed to requested type.
     *
+    * The new record shares the header with the old one.
+    *
+    * @example
+    * {{{
+    * val kmToMile = record.altered[Double,Double]("distance")(km => 0.621371 * km)
+    * }}}
+    *
     * @param key the key (name) of field to be updated
     * @param f the function to be applied to existing value
     * @tparam A type of existing value
@@ -207,6 +221,14 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Creates a builder, initialized with content of this record.
     * A builder may be used to enhance or reduce record.
     *
+    * Please note, that this method creates new header for each patched record.
+    *
+    * @example
+    * {{{
+    * val imperial = record.patch.remove("m").add("foot", foot).add("yard", yard).get
+    * }}}
+    *
+    * @see [[Record.Builder]]
     * @return record builder
     */
   def patch: Record.Builder = new Record.Builder(header.names.zip(values).toList)
@@ -397,7 +419,7 @@ object Record {
 
   /** Creates record from list of values.
     * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
-    * Header creation is postponed - records created in this way may be effectively headerless,
+    * Header creation is lazy - records created in this way may be effectively headerless,
     * if values are accessed by index only.
     *
     * @param values list of values forming record
@@ -543,6 +565,12 @@ object Record {
       *
       * If the key is not found, the method does nothing.
       * If there are multiple fields with the same name (header key), all instances are removed.
+      *
+      * Actual values removal is done while constructing the final record.
+      * As a result, even if the call to `remove` precedes the call to `add`, the added field will be removed:
+      * {{{
+      * val record = Record.builder.remove("field").add("field", 100) // gets empty record
+      * }}}
       *
       * @param key the key (field name) of removed value
       * @return builder stripped of selected value

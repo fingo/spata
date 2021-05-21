@@ -323,11 +323,11 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add("date", LocalDate.now().toString)
       .add("value", "999")
     assert(record("name").contains(nameBefore))
-    val updatedByKey = record.updatedWith("name", s => s.toUpperCase)
+    val updatedByKey = record.updatedWith("name")(s => s.toUpperCase)
     assert(updatedByKey("name").contains(nameAfter))
     assert(updatedByKey("date") == record("date"))
     assert(updatedByKey("value") == record("value"))
-    val updatedByIdx = record.updatedWith(0, s => s.toUpperCase)
+    val updatedByIdx = record.updatedWith(0)(s => s.toUpperCase)
     assert(updatedByIdx("name").contains(nameAfter))
     assert(updatedByIdx("date") == record("date"))
     assert(updatedByIdx("value") == record("value"))
@@ -350,7 +350,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add("date", now.toString)
       .add("value", StringRenderer.render(valBefore))
     assert(record.get[Double]("value").contains(valBefore))
-    val altered = record.altered("value", fun)
+    val altered = record.altered("value")(fun)
     assert(altered.isRight)
     altered.map { ar =>
       assert(ar.get[Double]("value").contains(valAfter))
@@ -358,8 +358,8 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(ar("date") == record("date"))
     }
     val doubleAltered = for {
-      r1 <- record.altered("value", fun)
-      r2 <- r1.altered("date", (dt: LocalDate) => dt.minusDays(1))
+      r1 <- record.altered("value")(fun)
+      r2 <- r1.altered("date")((dt: LocalDate) => dt.minusDays(1))
     } yield r2
     assert(doubleAltered.isRight)
     doubleAltered.map { ar =>

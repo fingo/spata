@@ -83,7 +83,7 @@ object Converter extends IOApp {
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
-      .map(_.altered("temp", fahrenheitToCelsius))
+      .map(_.altered("temp")(fahrenheitToCelsius))
       .rethrow
       .through(CSVRenderer[IO].render)
       .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
@@ -577,20 +577,20 @@ val modified: Record = record.updated(0, "new value").updated("key", "another va
 It is also possible to access existing value while updating record:
 ```scala
 val record: Record = ???
-val modified: Record = record.updatedWith(0, v => v.toUpperCase).updatedWith("key", v => v.toUpperCase)
+val modified: Record = record.updatedWith(0)(v => v.toUpperCase).updatedWith("key")(v => v.toUpperCase)
 ```
 
 The record provides a method to modify typed values too:
 ```scala
 val record: Record = ???
-val altered: Either[ContentError, Record] = record.altered("int value", (i: Int) => i % 2 == 0)
+val altered: Either[ContentError, Record] = record.altered("int value")((i: Int) => i % 2 == 0)
 ```
 or even
 ```scala
 val record: Record = ???
 val altered: Either[ContentError, Record] = for {
-  r1 <- record.altered("field 1", (d: Double) => d.abs)
-  r2 <- r1.altered("field 2", (ld: LocalDate) => ld.getYear())
+  r1 <- record.altered("field 1")((d: Double) => d.abs)
+  r2 <- r1.altered("field 2")((ld: LocalDate) => ld.getYear())
 } yield r2
 ```
 Please note, however, that this method may produce an error

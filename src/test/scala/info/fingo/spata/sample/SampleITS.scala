@@ -33,7 +33,7 @@ class SampleITS extends AnyFunSuite {
         .read(Paths.get(fahrenheitCSV.toUri))
         .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
-        .map(_.altered("temp", fahrenheitToCelsius))
+        .map(_.altered("temp")(fahrenheitToCelsius))
         .rethrow
         .through(CSVRenderer[IO].render)
         .through(Writer.shifting[IO](blocker).write(Paths.get(celsiusCSV.toUri)))

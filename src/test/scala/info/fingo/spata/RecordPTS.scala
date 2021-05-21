@@ -112,10 +112,10 @@ object RecordPTS extends Bench.LocalTime {
           (1 to amount).map(i => records(i % sampleSize).updated(6, "new value")).foreach(effect)
         case "function" =>
           def fun: String => String = identity
-          (1 to amount).map(i => records(i % sampleSize).updatedWith("text2", fun)).foreach(effect)
+          (1 to amount).map(i => records(i % sampleSize).updatedWith("text2")(fun)).foreach(effect)
         case "altered" =>
           def fun: Int => Int = x => 2 * x
-          (1 to amount).map(i => records(i % sampleSize).altered("int1", fun)).foreach {
+          (1 to amount).map(i => records(i % sampleSize).altered("int1")(fun)).foreach {
             case Right(r) => effect(r)
             case Left(_) => throw new RuntimeException("Exception in altered")
           }
@@ -126,7 +126,7 @@ object RecordPTS extends Bench.LocalTime {
         case "altered_wide" =>
           def fun: Int => Int = x => 2 * x
           val key = s"header-key-${wideRecordSize / 2 + 1}"
-          (1 to amount).map(i => wideRecords(i % sampleSize).altered(key, fun)).foreach {
+          (1 to amount).map(i => wideRecords(i % sampleSize).altered(key)(fun)).foreach {
             case Right(r) => effect(r)
             case Left(_) => throw new RuntimeException("Exception in altered")
           }

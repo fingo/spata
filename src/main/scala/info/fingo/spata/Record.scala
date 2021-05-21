@@ -142,7 +142,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @param value the new value
     * @return a new record with updated value
     */
-  def updated(key: String, value: String): Record = updatedWith(key, _ => value)
+  def updated(key: String, value: String): Record = updatedWith(key)(_ => value)
 
   /** Creates new record with value at given key updated by provided function.
     * The function receives existing value as an argument.
@@ -154,9 +154,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @param f the function to be applied to existing value
     * @return a new record with updated value
     */
-  def updatedWith(key: String, f: String => String): Record = {
+  def updatedWith(key: String)(f: String => String): Record = {
     val idx = header(key)
-    idx.map(updatedWith(_, f)).getOrElse(this)
+    idx.map(updatedWith(_)(f)).getOrElse(this)
   }
 
   /** Creates new record with value at given index updated with provided one.
@@ -166,7 +166,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @param value the new value
     * @return a new record with updated value
     */
-  def updated(idx: Int, value: String): Record = updatedWith(idx, _ => value)
+  def updated(idx: Int, value: String): Record = updatedWith(idx)(_ => value)
 
   /** Creates new record with value at given index updated by provided function.
     * The function receives existing value as an argument.
@@ -178,7 +178,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @param f the function to be applied to existing value
     * @return a new record with updated value
     */
-  def updatedWith(idx: Int, f: String => String): Record =
+  def updatedWith(idx: Int)(f: String => String): Record =
     this(idx).map { v =>
       val nvs = values.updated(idx, f(v))
       hdr match { // do not access and create header if not necessary
@@ -198,7 +198,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @tparam B type of new value
     * @return a new record with updated value or an error
     */
-  def altered[A: StringParser, B: StringRenderer](key: String, f: A => B): Either[ContentError, Record] =
+  def altered[A: StringParser, B: StringRenderer](key: String)(f: A => B): Either[ContentError, Record] =
     get[A](key).map { v =>
       val nv = StringRenderer.render[B](f(v))
       updated(key, nv)

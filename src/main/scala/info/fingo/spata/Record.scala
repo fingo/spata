@@ -133,6 +133,106 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Gets number of fields in record. */
   def size: Int = values.size
 
+  /** Creates new record with value at given key updated with provided one.
+    * Original record is returned if the key does not match any header key.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param key the key (name) of field to be updated
+    * @param value the new value
+    * @return a new record with updated value
+    */
+  def updated(key: String, value: String): Record = updatedWith(key)(_ => value)
+
+  /** Creates new record with value at given key updated by provided function.
+    * The function receives existing value as an argument.
+    * Original record is returned if the key does not match any header key.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @example
+    * {{{
+    * val updated = record.updatedWith("name")(s => s.toLowerCase)
+    * }}}
+    *
+    * @param key the key (name) of field to be updated
+    * @param f the function to be applied to existing value
+    * @return a new record with updated value
+    */
+  def updatedWith(key: String)(f: String => String): Record = {
+    val idx = header(key)
+    idx.map(updatedWith(_)(f)).getOrElse(this)
+  }
+
+  /** Creates new record with value at given index updated with provided one.
+    * Original record is returned if the index is out of bounds.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param idx the index of field to be updated
+    * @param value the new value
+    * @return a new record with updated value
+    */
+  def updated(idx: Int, value: String): Record = updatedWith(idx)(_ => value)
+
+  /** Creates new record with value at given index updated by provided function.
+    * The function receives existing value as an argument.
+    * Original record is returned if the index is out of bounds.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @param idx the index of field to be updated
+    * @param f the function to be applied to existing value
+    * @return a new record with updated value
+    */
+  def updatedWith(idx: Int)(f: String => String): Record =
+    this(idx).map { v =>
+      val nvs = values.updated(idx, f(v))
+      hdr match { // do not access and create header if not necessary
+        case Some(h) => Record(nvs: _*)(h)
+        case None => Record.fromValues(nvs: _*)
+      }
+    }.getOrElse(this)
+
+  /** Creates new record with value at given key updated by provided function.
+    * The function receives existing, typed value as an argument.
+    *
+    * This method may fail if incorrect key is provided or existing value cannot be parsed to requested type.
+    *
+    * The new record shares the header with the old one.
+    *
+    * @example
+    * {{{
+    * val kmToMile = record.altered[Double,Double]("distance")(km => 0.621371 * km)
+    * }}}
+    *
+    * @param key the key (name) of field to be updated
+    * @param f the function to be applied to existing value
+    * @tparam A type of existing value
+    * @tparam B type of new value
+    * @return a new record with updated value or an error
+    */
+  def altered[A: StringParser, B: StringRenderer](key: String)(f: A => B): Either[ContentError, Record] =
+    get[A](key).map { v =>
+      val nv = StringRenderer.render[B](f(v))
+      updated(key, nv)
+    }
+
+  /** Creates a builder, initialized with content of this record.
+    * A builder may be used to enhance or reduce record.
+    *
+    * Please note, that this method creates new header for each patched record.
+    *
+    * @example
+    * {{{
+    * val imperial = record.patch.remove("m").add("foot", foot).add("yard", yard).get
+    * }}}
+    *
+    * @see [[Record.Builder]]
+    * @return record builder
+    */
+  def patch: Record.Builder = new Record.Builder(header.names.zip(values).toList)
+
   /** Indexing header - provided explicitly or generated in tuple style: `"_1"`, `"_2"` etc. */
   lazy val header: Header = hdr.getOrElse(Header(size)) // generate header only if needed
 
@@ -207,8 +307,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
       * @note When relying on default string parsers, this function assumes "standard" string formatting,
-      * without any locale support, e.g. point as decimal separator or ISO date and time formats.
-      * Use [[get[A]:* get]] or provide own parser if more control over source format is required.
+      *       without any locale support, e.g. point as decimal separator or ISO date and time formats.
+      *       Use [[get[A]:* get]] or provide own parser if more control over source format is required.
       * @tparam A type to parse the field to
       * @param key the key of retrieved field
       * @return parsed value
@@ -319,7 +419,7 @@ object Record {
 
   /** Creates record from list of values.
     * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
-    * Header creation is postponed - records created in this way may be effectively headerless,
+    * Header creation is lazy - records created in this way may be effectively headerless,
     * if values are accessed by index only.
     *
     * @param values list of values forming record
@@ -386,7 +486,7 @@ object Record {
   )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
 
   /** Creates new record builder. */
-  def builder: Builder = new Builder(List[(String, String)]())
+  def builder: Builder = new Builder(List.empty[(String, String)])
 
   /** Implicitly converts record builder to record.
     *
@@ -437,12 +537,20 @@ object Record {
   }
 
   /** Helper to incrementally build records from typed values.
+    * Supports also values removal.
     *
     * @param buf buffer used to incrementally build record's content.
+    * @param removed keys of fields to be removed from record
     */
-  final class Builder private[spata] (buf: List[(String, String)]) {
+  final class Builder private (buf: List[(String, String)], removed: Set[String]) {
 
-    /** Enhance builder with a new value.
+    /* Auxiliary constructor, to simplify builder creation */
+    private[Record] def this(buf: List[(String, String)]) = this(buf, Set.empty[String])
+
+    /** Enhances builder with a new value.
+      *
+      * Adding value with already existing key results in header duplication.
+      * Although this is correctly handled, duplicated header causes some value inaccessible by their name.
       *
       * @param key the key (field name) of added value
       * @param value the added value
@@ -451,13 +559,36 @@ object Record {
       * @return builder augmented with the new value
       */
     def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): Builder =
-      new Builder((key, renderer(value)) :: buf)
+      new Builder((key, renderer(value)) :: buf, removed)
+
+    /** Reduces builder removing given value from it.
+      *
+      * If the key is not found, the method does nothing.
+      * If there are multiple fields with the same name (header key), all instances are removed.
+      *
+      * Actual values removal is done while constructing the final record.
+      * As a result, even if the call to `remove` precedes the call to `add`, the added field will be removed:
+      * {{{
+      * val record = Record.builder.remove("field").add("field", 100) // gets empty record
+      * }}}
+      *
+      * @param key the key (field name) of removed value
+      * @return builder stripped of selected value
+      */
+    def remove(key: String): Builder = new Builder(buf, removed + key)
 
     /** Gets final record from this builder.
       *
       * @return new record with values from this builder.
       */
-    def get: Record = Record.fromPairs(buf.reverse: _*)
+    def get: Record = {
+      val result =
+        if (removed.isEmpty)
+          buf
+        else
+          buf.filterNot { case (k, _) => removed.contains(k) }
+      Record.fromPairs(result.reverse: _*)
+    }
 
     /* Gets final record from this builder with reversed order of the fields,
      * which really means preserving the order, because values ate prepended.

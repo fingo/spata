@@ -65,40 +65,35 @@ val result = records.compile.toList.unsafeRunSync() // run everything while conv
 Another example may be taken from [FS2 readme](https://fs2.io/),
 assuming that the data is stored and written back in `CSV` format with two fields, `date` and `temp`:
 ```scala
-import scala.io.Codec
 import java.nio.file.Paths
+import scala.io.Codec
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import fs2.Stream
-import info.fingo.spata.{CSVConfig, Record}
+import info.fingo.spata.{CSVParser, CSVRenderer}
 import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
   val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
     implicit val codec: Codec = Codec.UTF8
-    val config: CSVConfig = CSVConfig()
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
       .shifting[IO](blocker)
       .read(Paths.get("testdata/fahrenheit.txt"))
-      .through(config.parser[IO].parse)
+      .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
-      .map { r =>
-        val date = r.unsafe("date")
-        val temp = fahrenheitToCelsius(r.unsafe.get[Double]("temp"))
-        Record.builder.add("date", date).add("temp", temp).get
-      }
-      .through(config.renderer[IO].render)
+      .map(_.altered("temp")(fahrenheitToCelsius))
+      .rethrow
+      .through(CSVRenderer[IO].render)
       .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
 }
 ```
-(This example uses exception throwing methods for brevity and to keep it closer to the original snippet.
-Modified versions with safe access to record data may be found in [error handling](#error-handling) 
-and [schema validation](#schema-validation) parts of the tutorial.)
+Modified versions of this sample may be found in [error handling](#error-handling) 
+and [schema validation](#schema-validation) parts of the tutorial.
 
 More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
 
@@ -110,7 +105,7 @@ Tutorial
 *   [Configuration](#configuration)
 *   [Reading and writing data](#reading-and-writing-data)
 *   [Getting actual data](#getting-actual-data)
-*   [Creating records](#creating-records)
+*   [Creating and modifying records](#creating-and-modifying-records)
 *   [Text parsing and rendering](#text-parsing-and-rendering)
 *   [Schema validation](#schema-validation)
 *   [Error handling](#error-handling)
@@ -487,14 +482,16 @@ implicit val nsp: StringParser[Double] = (str: String) => nf.parse(str).doubleVa
 val element: Decoded[Element] = record.to[Element]()
 ```
 
-### Creating records
+### Creating and modifying records
 
 A `Record` is not only the result of parsing, it is also the source for `CSV` rendering.
 To let the renderer do its work, we need to convert the data to records first.
 As mentioned above, a `Record` is essentially a map from `String` (key) to `String` (value).
 The keys form a header, which is, when only possible, shared among records.
-This sharing is always effective for records parsed by spata but requires some attention
+This sharing is always in effect for records parsed by spata but requires some attention
 when records are created by application code, especially when performance and memory usage matter.
+
+#### Creating records
 
 The basic way to create a record is to pass values as variable arguments:
 ```scala
@@ -562,6 +559,56 @@ val value = record("melting")  // returns Some("13,99")
 
 A disadvantage of both above methods operating on typed values is header creation for each record.
 They may be not the optimal choice for large data sets when performance matters.
+
+#### Modifying records
+
+Sometimes only a few fields of the original record have to be modified and the rest remains intact.
+In such situations, it may be much more convenient to modify a record instead of creating a new one from scratch,
+especially for large records.
+Because spata supports functional code,
+modifying means the creation of a copy of the record with selected fields set to new values.
+
+The simplest way is to provide a new string value for a record field, referenced by key or index:
+```scala
+val record: Record = ???
+val modified: Record = record.updated(0, "new value").updated("key", "another value")
+```
+
+It is also possible to access existing value while updating record:
+```scala
+val record: Record = ???
+val modified: Record = record.updatedWith(0)(v => v.toUpperCase).updatedWith("key")(v => v.toUpperCase)
+```
+
+The record provides a method to modify typed values too:
+```scala
+val record: Record = ???
+val altered: Either[ContentError, Record] = record.altered("int value")((i: Int) => i % 2 == 0)
+```
+or in extended form:
+```scala
+val dateFormat = DateTimeFormatter.ofPattern("dd.MM.yy")
+implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str, dateFormat)
+implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFormat.format(ld)
+val record: Record = ???
+val altered: Either[ContentError, Record] = for {
+  r1 <- record.altered("field 1")((d: Double) => d.abs)
+  r2 <- r1.altered("field 2")((ld: LocalDate) => ld.plusDays(1))
+} yield r2
+```
+Please note, however, that this method may produce an error
+because the source values have to be parsed before being passed to the updating function.
+To support value parsing and rendering,
+an implicit `StringParser[A]` and `StringRenderer[B]` have to be provided for specific data formats.
+
+All the above methods preserve record structure and keep existing record header.
+It is also possible to modify the structure, if necessary:
+```scala
+val record: Record = ???
+val modified: Record = record.patch.remove("field 1").add("field 10", 3.14).get
+```
+`Record.patch` employs `RecordBuilder` to enhance or reduce record.
+See [Creating records](#creating-records) above for more information.
 
 ### Text parsing and rendering
 
@@ -823,7 +870,7 @@ import java.time.LocalDate
 import scala.io.Codec
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import fs2.Stream
-import info.fingo.spata.{CSVConfig, Record}
+import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 import info.fingo.spata.schema.CSVSchema
 
@@ -831,14 +878,13 @@ object Converter extends IOApp {
 
   val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
     implicit val codec: Codec = Codec.UTF8
-    val config: CSVConfig = CSVConfig()
     val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
       .shifting[IO](blocker)
       .read(Paths.get("testdata/fahrenheit.txt"))
-      .through(config.parser[IO].parse)
+      .through(CSVParser[IO].parse)
       .through(schema.validate)
       .map {
         _.leftMap(println).map { tr =>
@@ -848,7 +894,7 @@ object Converter extends IOApp {
         }.toOption
       }
       .unNone
-      .through(config.renderer[IO].render)
+      .through(CSVRenderer[IO].render)
       .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
   }
 

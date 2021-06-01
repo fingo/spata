@@ -1023,6 +1023,7 @@ For those who need a different characteristic of a `CSV` library, there are a fe
 *   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including `CSV`.
 *   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented `CSV` parser/serializer with support for different parsing engines.
 *   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use `CSV` reader/writer.
+*   [cormorant](https://github.com/davenverse/cormorant) - functional `CSV` processor with support for FS2, http4s and case class conversion. 
 
 Credits
 -------

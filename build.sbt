@@ -25,14 +25,14 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.5.1",
-      "co.fs2" %% "fs2-core" % "2.5.6",
-      "co.fs2" %% "fs2-io" % "2.5.6",
+      "org.typelevel" %% "cats-effect" % "2.5.4",
+      "co.fs2" %% "fs2-core" % "2.5.10",
+      "co.fs2" %% "fs2-io" % "2.5.10",
       "com.chuusai" %% "shapeless" % "2.3.7",
-      "org.slf4j" % "slf4j-api" % "1.7.30",
-      "org.scalatest" %% "scalatest" % "3.2.9" % Test,
+      "org.slf4j" % "slf4j-api" % "1.7.32",
+      "org.scalatest" %% "scalatest" % "3.2.10" % Test,
       "com.storm-enroute" %% "scalameter" % "0.21" % Test,
-      "org.slf4j" % "slf4j-simple" % "1.7.30" % Test
+      "org.slf4j" % "slf4j-simple" % "1.7.32" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

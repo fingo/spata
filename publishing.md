@@ -31,7 +31,7 @@ Preparations
 
 *   Check keys: `gpg --list-keys`.
 
-*   Publish the key: `gpg --keyserver hkp://ipv4.pool.sks-keyservers.net --send-keys <key-id>`
+*   Publish the key: `gpg --keyserver hkps://keys.openpgp.org --send-keys <key-id>`
     (it may take a while until the keys are publicly available).
 
 ### Configure [Travis CI](https://travis-ci.com/github/fingo/spata)

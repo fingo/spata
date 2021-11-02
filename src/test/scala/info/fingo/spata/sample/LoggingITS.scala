@@ -8,6 +8,7 @@ package info.fingo.spata.sample
 import java.nio.file.{Files, Paths}
 import java.time.LocalDate
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.slf4j.LoggerFactory
 import org.scalatest.funsuite.AnyFunSuite

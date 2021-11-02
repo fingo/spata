@@ -7,6 +7,7 @@ package info.fingo.spata.sample
 
 import java.time.LocalDate
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVConfig

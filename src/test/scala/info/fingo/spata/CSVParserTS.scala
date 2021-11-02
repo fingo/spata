@@ -10,10 +10,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
-import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import scala.collection.mutable
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -30,8 +30,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private val maxFieldSize = 100
   // use smaller chunk size in tests than the default one to avoid having all data in single chunk
   private val chunkSize = 16
-
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   // wrap required test parameters into class to easier pass it around
   private class BasicTestInfo(testData: (String, String, String, String, String), val separator: Char) {

@@ -22,7 +22,7 @@ final private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimite
   private def toCharResults(state: CharState): Pipe[F, Char, CharResult] = {
 
     def loop(chars: Stream[F, Char], state: CharState): Pull[F, CharResult, Unit] =
-      chars.pull.unconsNonEmpty.flatMap {
+      chars.pull.uncons.flatMap {
         case Some((h, t)) =>
           val (nextState, resultChunk) = parseChunk(h, state)
           nextState match {

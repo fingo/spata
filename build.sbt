@@ -25,9 +25,9 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "2.5.4",
-      "co.fs2" %% "fs2-core" % "2.5.10",
-      "co.fs2" %% "fs2-io" % "2.5.10",
+      "org.typelevel" %% "cats-effect" % "3.2.9",
+      "co.fs2" %% "fs2-core" % "3.2.2",
+      "co.fs2" %% "fs2-io" % "3.2.2",
       "com.chuusai" %% "shapeless" % "2.3.7",
       "org.slf4j" % "slf4j-api" % "1.7.32",
       "org.scalatest" %% "scalatest" % "3.2.10" % Test,
@@ -45,7 +45,7 @@ lazy val root = (project in file("."))
     scalacOptions ++= scalacSettings,
     Test / compile / scalacOptions -= "-Wunused:locals", // false positives for implicits and Scalatest Table
     Compile / console / scalacOptions --= Seq("-Wunused:imports", "-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "2.1.0"),
+    mimaPreviousArtifacts := Set.empty,
     semanticdbEnabled := false,
     autoAPIMappings := true
   )

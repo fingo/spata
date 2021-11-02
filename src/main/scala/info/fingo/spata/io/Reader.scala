@@ -14,8 +14,9 @@ import java.nio.charset.CharacterCodingException
 import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
+import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
 import fs2.{io, Chunk, Pipe, Pull, Stream}
 import info.fingo.spata.util.Logger
 
@@ -197,17 +198,6 @@ object Reader {
   def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F](defaultChunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
-    *
-    * @param blocker an execution context to be used for blocking I/O operations
-    * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Reader` with support for context shifting
-    */
-  def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker, chunkSize: Int = defaultChunkSize): Shifting[F] =
-    new Shifting[F](Some(blocker), chunkSize)
-
-  /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool.
     *
     * @param chunkSize size of data chunk
@@ -215,7 +205,7 @@ object Reader {
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Reader` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger](chunkSize: Int): Shifting[F] = new Shifting[F](None, chunkSize)
+  def shifting[F[_]: Async: Logger](chunkSize: Int): Shifting[F] = new Shifting[F](chunkSize)
 
   /** Provides reader with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
@@ -224,7 +214,7 @@ object Reader {
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Reader` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None, defaultChunkSize)
+  def shifting[F[_]: Async: Logger]: Shifting[F] = new Shifting[F](defaultChunkSize)
 
   /* Skip BOM from UTF encoded streams */
   private def skipBom[F[_]: Logger](implicit codec: Codec): Pipe[F, Char, Char] =
@@ -269,10 +259,7 @@ object Reader {
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     */
-  final class Shifting[F[_]: Sync: ContextShift: Logger] private[spata] (
-    blocker: Option[Blocker],
-    override val chunkSize: Int
-  ) extends Reader[F] {
+  final class Shifting[F[_]: Async: Logger] private[spata] (override val chunkSize: Int) extends Reader[F] {
 
     /** @inheritdoc
       *
@@ -290,17 +277,15 @@ object Reader {
       */
     def read(source: Source): Stream[F, Char] =
       for {
-        b <- Stream.resource(br)
         _ <- Logger[F].debugS("Reading data from Source with context shift")
-        char <- Stream.fromBlockingIterator[F](b, source, chunkSize).through(skipBom)
+        char <- Stream.fromBlockingIterator[F](source, chunkSize).through(skipBom)
       } yield char
 
     /** @inheritdoc */
     def read(fis: F[InputStream])(implicit codec: Codec): Stream[F, Char] =
       for {
-        blocker <- Stream.resource(br)
         _ <- Logger[F].debugS("Reading data from InputStream with context shift")
-        char <- io.readInputStream(fis, chunkSize, blocker, autoClose).through(byte2char)
+        char <- io.readInputStream(fis, chunkSize, autoClose).through(byte2char)
       } yield char
 
     /** @inheritdoc */
@@ -317,16 +302,11 @@ object Reader {
       */
     def read(path: Path)(implicit codec: Codec): Stream[F, Char] =
       for {
-        blocker <- Stream.resource(br)
         _ <- Logger[F].debugS(s"Reading data from path $path with context shift")
-        char <- io.file
-          .readAll[F](path, blocker, chunkSize)
+        char <- FFiles[F]
+          .readAll(FPath.fromNioPath(path), chunkSize, Flags.Read)
           .through(byte2char)
       } yield char
-
-    /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
-    private def br =
-      blocker.map(b => Resource(Sync[F].delay((b, Sync[F].unit)))).getOrElse(Blocker[F])
 
     private def byte2char(implicit codec: Codec): Pipe[F, Byte, Char] =
       _.through(decode(codec)).through(skipBom)
@@ -339,7 +319,7 @@ object Reader {
       val avgBytesPerChar = (1.0 / decoder.averageCharsPerByte()).ceil.toInt
       val charBufferSize = 128
 
-      def cb2cc(cb: CharBuffer): Chunk[Char] = Chunk.chars(cb.flip.toString.toCharArray)
+      def cb2cc(cb: CharBuffer): Chunk[Char] = Chunk.array[Char](cb.flip.toString.toCharArray)
 
       _.repeatPull[Char] {
         _.unconsN(charBufferSize * avgBytesPerChar, allowFewer = true).flatMap {

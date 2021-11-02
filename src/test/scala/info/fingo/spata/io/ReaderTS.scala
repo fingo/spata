@@ -8,16 +8,15 @@ package info.fingo.spata.io
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Paths, StandardOpenOption}
-import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Codec, Source}
-import cats.effect.{Blocker, ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   // use smaller chunk size than the default one is some tests to avoid having all data in single chunk
   private val chunkSize = 16
 
@@ -114,9 +113,7 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("plain", Reader[IO]),
     ("plain custom", Reader[IO](chunkSize)),
     ("shifting", Reader.shifting[IO]),
-    ("shifting custom", Reader.shifting[IO](chunkSize)),
-    ("blocker", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global))),
-    ("blocker custom", Reader.shifting[IO](Blocker.liftExecutionContext(ExecutionContext.global), chunkSize))
+    ("shifting custom", Reader.shifting[IO](chunkSize))
   )
 
   private lazy val testCases = Table(

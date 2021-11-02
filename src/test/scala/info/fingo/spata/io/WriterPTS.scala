@@ -6,8 +6,8 @@
 package info.fingo.spata.io
 
 import java.nio.file.{Files, Path, StandardOpenOption}
-import scala.concurrent.ExecutionContext
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalameter.Key.exec
 import org.scalameter.picklers.noPickler._
@@ -17,7 +17,6 @@ import info.fingo.spata.PerformanceTH.{output, renderer, testRecords, testSource
 /* Check performance of Reader using different implementations. */
 object WriterPTS extends Bench.LocalTime {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   val amount = 1_000
 
   case class WriteMethod(info: String, method: (Path, Stream[IO, Char]) => Stream[IO, Unit]) {

@@ -8,8 +8,8 @@ package info.fingo.spata.sample
 import java.time.{LocalDate, Month}
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
-import scala.concurrent.ExecutionContext
-import cats.effect.{Blocker, ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.{CSVConfig, CSVParser}
@@ -19,7 +19,6 @@ import info.fingo.spata.io.Reader
 /* Samples which process the data asynchronously or using blocking context */
 class ThreadITS extends AnyFunSuite {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows asynchronous source processing") {
@@ -60,10 +59,9 @@ class ThreadITS extends AnyFunSuite {
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
     val parser = CSVConfig().mapHeader(mh).parser[IO] // parser with IO effect
     val records = for {
-      blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      record <- Reader.shifting[IO](blocker).read(source).through(parser.parse) // get stream of CSV records
+      record <- Reader.shifting[IO].read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
       .map(_.to[DayTemp]()) // converter records to DayTemps

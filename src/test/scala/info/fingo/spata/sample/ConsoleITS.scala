@@ -8,6 +8,7 @@ package info.fingo.spata.sample
 import java.time.LocalDate
 import scala.util.{Failure, Success, Try}
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite

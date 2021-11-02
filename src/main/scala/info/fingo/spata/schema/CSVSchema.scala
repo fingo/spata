@@ -136,7 +136,7 @@ final class CSVSchema[L <: HList] private (columns: L) {
   private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] = in => {
     if (Logger[F].isDebug)
       // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
-      in.interleaveAll(Stream.eval_(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
+      in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
   }
 }

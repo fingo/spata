@@ -6,9 +6,9 @@
 package info.fingo.spata.sample
 
 import java.nio.file.{Files, Paths}
-import scala.concurrent.ExecutionContext
 import scala.io.Codec
-import cats.effect.{Blocker, ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.{CSVParser, CSVRenderer}
@@ -17,26 +17,24 @@ import info.fingo.spata.io.{Reader, Writer}
 // Sample from readme (fahrenheit to celsius conversion), in form of test
 class SampleITS extends AnyFunSuite {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-
   test("spata allows data conversion") {
 
     val fahrenheitCSV = SampleTH.getTempFile.toPath
     val celsiusCSV = SampleTH.getTempFile.toPath
 
-    val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+    val converter: Stream[IO, Unit] = {
       implicit val codec: Codec = Codec.UTF8
       def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
       Reader
-        .shifting[IO](blocker)
+        .shifting[IO]
         .read(Paths.get(fahrenheitCSV.toUri))
         .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
         .map(_.altered("temp")(fahrenheitToCelsius))
         .rethrow
         .through(CSVRenderer[IO].render)
-        .through(Writer.shifting[IO](blocker).write(Paths.get(celsiusCSV.toUri)))
+        .through(Writer.shifting[IO].write(Paths.get(celsiusCSV.toUri)))
     }
 
     Files.writeString(fahrenheitCSV, fahrenheitData)

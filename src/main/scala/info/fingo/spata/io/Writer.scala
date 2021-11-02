@@ -8,9 +8,10 @@ package info.fingo.spata.io
 import java.io.OutputStream
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.Codec
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import fs2.{io, text, Chunk, Pipe, Stream}
+import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
 import info.fingo.spata.util.Logger
 
 /** Writer interface with writing operations to various destinations.
@@ -120,23 +121,13 @@ object Writer {
   def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F]()
 
   /** Provides writer with support of context shifting for I/O operations.
-    *
-    * @param blocker an execution context to be used for blocking I/O operations
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Writer` with support for context shifting
-    */
-  def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker): Shifting[F] =
-    new Shifting[F](Some(blocker))
-
-  /** Provides writer with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Writer` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None)
+  def shifting[F[_]: Async: Logger]: Shifting[F] = new Shifting[F]()
 
   /** Writer which executes I/O operations on current thread, without context (thread) shifting.
     *
@@ -174,17 +165,14 @@ object Writer {
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     */
-  final class Shifting[F[_]: Sync: ContextShift: Logger] private[spata] (
-    blocker: Option[Blocker]
-  ) extends Writer[F] {
+  final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F] {
 
     /** @inheritdoc */
     def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for {
-          blocker <- Stream.resource(br)
           _ <- Logger[F].debugS("Writing data to OutputStream with context shift")
-          _ <- in.through(char2byte).through(io.writeOutputStream(fos, blocker, autoClose))
+          _ <- in.through(char2byte).through(io.writeOutputStream(fos, autoClose)).unitary
         } yield ()
 
     /** @inheritdoc */
@@ -203,14 +191,12 @@ object Writer {
     def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for {
-          blocker <- Stream.resource(br)
           _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
-          _ <- in.through(char2byte).through(io.file.writeAll[F](path, blocker, openOptions))
+          _ <- in
+            .through(char2byte)
+            .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
+            .unitary
         } yield ()
-
-    /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
-    private def br =
-      blocker.map(b => Resource(Sync[F].delay((b, Sync[F].unit)))).getOrElse(Blocker[F])
 
     protected def char2byte(implicit codec: Codec): Pipe[F, Char, Byte] =
       (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(fs2.text.encode(codec.charSet))

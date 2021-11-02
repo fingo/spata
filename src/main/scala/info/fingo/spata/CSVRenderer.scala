@@ -123,7 +123,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     (in: Stream[F, Either[HeaderError, String]]) =>
       in.rethrow
         .intersperse(srd)
-        .map(s => Chunk.chars(s.toCharArray))
+        .map(s => Chunk.array[Char](s.toCharArray))
         .flatMap(Stream.chunk)
 
   /* Renders single record into CSV string. */

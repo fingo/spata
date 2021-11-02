@@ -11,6 +11,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import scala.io.Codec
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.{Pipe, Stream}
 import info.fingo.spata.CSVConfig.{EscapeAll, EscapeMode, EscapeRequired, EscapeSpaces}
 import info.fingo.spata.io.Writer

@@ -7,6 +7,7 @@ package info.fingo.spata.sample
 
 import java.io.IOException
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.{Pipe, Stream}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks

@@ -9,6 +9,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import scala.io.Source
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
 import info.fingo.spata.io.Reader

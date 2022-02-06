@@ -109,7 +109,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
-      val md = record.to[Data]()
+      val md = record.to[Data]
       assert(md.isRight)
       assert(md.contains(Data(name, value.doubleValue, date)))
     }
@@ -120,7 +120,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(optionals) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("name", "date", "value")
       val record = createRecord(name, sDate, sValue)(header)
-      val md = record.to[Data]()
+      val md = record.to[Data]
       assert(md.isRight)
       assert(md.forall(_.name == name))
       if (sValue.trim.isEmpty)
@@ -148,7 +148,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
         implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str.strip, dateFmt)
         implicit val dsp: StringParser[BigDecimal] =
           (str: String) => valueFmt.parse(str).asInstanceOf[java.math.BigDecimal]
-        val md = record.to[Data]()
+        val md = record.to[Data]
         assert(md.isRight)
         assert(md.contains(Data(num, value, date)))
     }
@@ -161,7 +161,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val record = createRecord(name, sDate, sValue)(header)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yy"))
-      val md = record.to[Data]()
+      val md = record.to[Data]
       assert(md.isLeft)
     }
   }
@@ -171,7 +171,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(basicCases) { (_: String, name: String, sDate: String, sValue: String) =>
       val header = Header("_1", "_2", "_3")
       val record = createRecord(name, sDate, sValue)(header)
-      val md = record.to[Data]()
+      val md = record.to[Data]
       assert(md.isRight)
       assert(md.contains((name, date, value)))
     }

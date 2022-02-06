@@ -25,7 +25,7 @@ class ConvertITS extends AnyFunSuite {
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
       .through(Reader[IO].by)
       .through(parser.parse) // get stream of CSV records
-      .map(_.to[DayTemp]()) // converter records to DayTemps
+      .map(_.to[DayTemp]) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
       .filter(_.date.getYear == 2016) // filter data for specific year
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error

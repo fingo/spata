@@ -72,10 +72,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       case class Data(NAME: String, DATE: LocalDate)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-      val hmd = head.to[Data]()
+      val hmd = head.to[Data]
       assert(hmd.isRight)
       assert(hmd.forall(_.NAME == testInfo.firstName))
-      val lmd = last.to[Data]()
+      val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall(_.NAME == testInfo.lastName))
     }
@@ -100,10 +100,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(last.rowNum == list.size)
 
       type Data = (Int, String)
-      val hmd = head.to[Data]()
+      val hmd = head.to[Data]
       assert(hmd.isRight)
       assert(hmd.forall { case (_, name) => name == testInfo.firstName })
-      val lmd = last.to[Data]()
+      val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall { case (_, name) => name == testInfo.lastName })
     }
@@ -179,7 +179,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assertListLast(list, testInfo.lastName, testInfo.lastValue)
 
       case class Data(ID: Int, NAME: String)
-      val data = list.map(_.to[Data]()).collect { case Right(v) => v }
+      val data = list.map(_.to[Data]).collect { case Right(v) => v }
       assert(data.length == 3)
       assert(data.head.NAME == testInfo.firstName)
     }

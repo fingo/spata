@@ -64,7 +64,7 @@ class ThreadITS extends AnyFunSuite {
       record <- Reader.shifting[IO].read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
-      .map(_.to[DayTemp]()) // converter records to DayTemps
+      .map(_.to[DayTemp]) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
       .filter(dt => dt.date.getYear == 2018 && dt.date.getMonth == Month.JANUARY) // filter data for specific month
       .take(30)

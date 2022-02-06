@@ -153,7 +153,8 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
   private def doubleQuotes(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2) else s
 
   @inline private def hasDelimiters(s: String): Boolean =
-    s.contains(config.fieldDelimiter) || s.contains(config.recordDelimiter)
+    // TODO: eliminate toChar (it has been put because of compiler returning error for it)
+    s.contains(config.fieldDelimiter.toChar) || s.contains(config.recordDelimiter.toChar)
 }
 
 /** [[CSVRenderer]] companion object with convenience methods to create renderers. */

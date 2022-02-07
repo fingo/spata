@@ -119,8 +119,8 @@ object StringRenderer {
     * @tparam B type of formatter
     * @return renderer which support formatted input and ccepts optional values
     */
-  implicit def optionRendererFmt[A, B](
-    implicit renderer: FormattedStringRenderer[A, B]
+  implicit def optionRendererFmt[A, B](implicit
+    renderer: FormattedStringRenderer[A, B]
   ): FormattedStringRenderer[Option[A], B] =
     new FormattedStringRenderer[Option[A], B] {
       override def apply(value: Option[A]): String = value.map(renderer(_)).getOrElse("")

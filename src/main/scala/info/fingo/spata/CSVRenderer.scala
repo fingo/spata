@@ -86,11 +86,10 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
         case None => Pull.done
       }
     val pull = in.pull.uncons1.flatMap {
-      case Some((r, t)) => {
+      case Some((r, t)) =>
         val headerRow = if (config.hasHeader) Pull.output1(renderHeader(r.header)) else Pull.pure(())
         val firstRow = Pull.output1(renderRow(r, r.header))
         headerRow >> firstRow >> loop(t, r.header)
-      }
       case None => Pull.done
     }
     pull.stream.through(toChars)

@@ -17,7 +17,7 @@ trait ToProduct[P <: Product]:
 trait ToTuple[+T <: Tuple]:
   def decode(r: Record): Decoded[T]
 
-object  ToTuple:
+object ToTuple:
   given toEmpty: ToTuple[EmptyTuple] with
     def decode(r: Record): Decoded[EmptyTuple] = Right(EmptyTuple)
   given toCons[H: StringParser, T <: Tuple: ToTuple]: ToTuple[H *: T] with
@@ -34,17 +34,20 @@ object ToProduct:
     val labels = getLabels[m.MirroredElemLabels]
     decodeProduct(m, labels.zip(types))
 
-  inline private def getTypes[T <: Tuple]: List[StringParser[_]] = inline erasedValue[T] match
+  private inline def getTypes[T <: Tuple]: List[StringParser[_]] = inline erasedValue[T] match
     case _: EmptyTuple => Nil
     case _: (t *: ts) => summonInline[StringParser[t]] :: getTypes[ts]
 
-  inline private def getLabels[T <: Tuple]: List[String] = inline erasedValue[T] match
+  private inline def getLabels[T <: Tuple]: List[String] = inline erasedValue[T] match
     case _: EmptyTuple => Nil
     case _: (t *: ts) => constValue[t].toString :: getLabels[ts]
 
-  private def decodeProduct[T <: Product](p: Mirror.ProductOf[T], elements: List[(String,StringParser[_])]): ToProduct[T] =
+  private def decodeProduct[T <: Product](
+    p: Mirror.ProductOf[T],
+    elements: List[(String, StringParser[_])]
+  ): ToProduct[T] =
     (r: Record) =>
       // TODO: check if this could be simplified
-      val instance = for (label,parser) <- elements yield r.get(label)(parser)
-      val (left,right) = instance.partitionMap(identity)
+      val instance = for (label, parser) <- elements yield r.get(label)(parser)
+      val (left, right) = instance.partitionMap(identity)
       left.headOption.toLeft(p.fromProduct(Tuple.fromArray(right.toArray)))

@@ -247,7 +247,7 @@ object Reader {
       Stream
         .bracket(Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay {
           Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
-        })(source => Sync[F].delay { source.close() })
+        })(source => Sync[F].delay(source.close()))
         .flatMap(read)
   }
 

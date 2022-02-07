@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import scala.util.Try
-import cats.effect.{Sync, Async => CEAsync}
+import cats.effect.{Async => CEAsync, Sync}
 import fs2.{Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
 import info.fingo.spata.parser.RecordParser.RecordResult
@@ -97,7 +97,7 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
   /* Provided info about number of parsed records. This introduces additional overhead and is done in debug mode only.
    * Please note, that this information will be not available if stream processing ends prematurely -
    * in case of an error, as result of take(n) etc. */
-  private def debugCount: Pipe[F, Record, Record] = in => {
+  private def debugCount: Pipe[F, Record, Record] = in =>
     if (Logger[F].isDebug)
       in.noneTerminate
         .mapAccumulate(0) { (s, o) =>
@@ -106,15 +106,13 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
             case None => (s, None)
           }
         }
-        .flatMap {
-          case (s, o) =>
-            o match {
-              case Some(r) => Stream.emit(r)
-              case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
-            }
+        .flatMap { case (s, o) =>
+          o match {
+            case Some(r) => Stream.emit(r)
+            case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
+          }
         }
     else in
-  }
 
   /** Fetches whole source content into list of records.
     *

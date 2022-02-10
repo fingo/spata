@@ -23,8 +23,8 @@ class PackageTS extends AnyFunSuite {
     assert(classLabel(outer.Inner) == "inner")
 
     object Outer { class OInner; object OInner }
-    assert(classLabel(new Outer.OInner()) == "oinner")
-    assert(classLabel(Outer.OInner) == "oinner")
+    assert(classLabel(new Outer.OInner()) == "oInner")
+    assert(classLabel(Outer.OInner) == "oInner")
 
     object Context {
       trait Anonymous

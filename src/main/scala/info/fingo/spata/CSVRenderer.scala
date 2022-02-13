@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import fs2.{Chunk, Pipe, Pull, RaiseThrowable, Stream}
-import info.fingo.spata.error.HeaderError
+import info.fingo.spata.error.{FieldInfo, HeaderError}
 
 /** A utility for rendering data to CSV representation.
   *
@@ -128,7 +128,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
   /* Renders single record into CSV string. */
   private def renderRow(record: Record, header: Header): Either[HeaderError, String] =
     header.names.map { name =>
-      record(name).map(escape).toRight(new HeaderError(Position.none, name))
+      record(name).map(escape).toRight(new HeaderError(Position.none, FieldInfo(name)))
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 

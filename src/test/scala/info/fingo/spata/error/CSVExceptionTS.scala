@@ -6,7 +6,6 @@
 package info.fingo.spata.error
 
 import java.time.format.DateTimeParseException
-
 import info.fingo.spata.Position
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -22,9 +21,9 @@ class CSVExceptionTS extends AnyFunSuite {
   test("CSV data exception provides useful error message") {
     val text = "this is some text which is obviously not a date"
     val cause = new DateTimeParseException("Cannot parse date", text, 0)
-    val ex = new DataError(text, Position.some(9, 10), "date", cause)
+    val ex = new DataError(text, Position.some(9, 10), FieldInfo("date"), cause)
     val expected =
-      s"Error occurred at row 9 (line 10) while parsing CSV field 'date' with value [this is some text...] to date/time."
+      s"Error occurred at row 9 (line 10) while parsing CSV field (name 'date', index ???) having value [this is some text...] to date/time."
     assert(ex.getMessage == expected)
   }
 }

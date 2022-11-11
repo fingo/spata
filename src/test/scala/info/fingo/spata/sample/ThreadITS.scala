@@ -27,6 +27,7 @@ class ThreadITS extends AnyFunSuite {
 
     val cb: Callback = row => {
       count.increment()
+      Thread.sleep(100) // prevent calculation to be to quick
       val diff = for {
         max <- row.get[Long]("max_temp")
         min <- row.get[Long]("min_temp")

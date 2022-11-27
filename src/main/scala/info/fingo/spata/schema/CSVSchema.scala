@@ -11,8 +11,6 @@ import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.Sync
 import fs2.{Pipe, Stream}
-import shapeless.{::, =:!=, DepFn2, HList, HNil}
-import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
 import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
@@ -49,7 +47,7 @@ import info.fingo.spata.util.Logger
   * @param columns the list of typed columns with optional validators
   * @tparam L heterogeneous list encoding the schema
   */
-final class CSVSchema[L <: HList] private (columns: L) {
+final class CSVSchema[L <: Tuple] private (columns: L) {
 
   /** Gets string representation of schema.
     *

@@ -27,8 +27,9 @@ lazy val root = (project in file("."))
     headerEmptyLine := false,
     // Temporarily exclude schema validation and performance tests from build - they use libraries unsupported by Scala 3
     unmanagedSources / excludeFilter := HiddenFileFilter ||
-      new SimpleFileFilter(_.getCanonicalPath.contains("HList")) ||
-      new SimpleFileFilter(_.getCanonicalPath.contains("schema")) ||
+//      new SimpleFileFilter(_.getCanonicalPath.contains("HList")) ||
+//      new SimpleFileFilter(_.getCanonicalPath.contains("schema")) ||
+      new SimpleFileFilter(_.getCanonicalPath.contains("CSVSchema")) ||
       new SimpleFileFilter(_.getCanonicalPath.contains("ValidateITS")) ||
       new SimpleFileFilter(_.getCanonicalPath.contains("LoggingITS")) ||
       new SimpleFileFilter(_.getCanonicalPath.contains("PTS")),

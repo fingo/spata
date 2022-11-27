@@ -5,7 +5,7 @@
  */
 package info.fingo.spata.schema.error
 
-import info.fingo.spata.error.{ContentError, DataError, HeaderError}
+import info.fingo.spata.error.{ContentError, DataError, HeaderError, IndexError}
 
 /** Error for schema validation. */
 sealed trait SchemaError {
@@ -30,6 +30,7 @@ final class TypeError private (ce: ContentError) extends SchemaError {
   def message: String = ce match {
     case _: DataError => ce.getCause.getMessage
     case _: HeaderError => "Key not found"
+    case _: IndexError => "Incorrect index"
   }
 }
 

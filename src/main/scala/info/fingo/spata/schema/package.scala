@@ -6,7 +6,6 @@
 package info.fingo.spata
 
 import cats.data.Validated
-import shapeless.HList
 
 /** Schema validation package. */
 package object schema {
@@ -15,5 +14,5 @@ package object schema {
   type Key = String with Singleton
 
   /** Type alias for validation result. */
-  type ValidatedRecord[L <: HList] = Validated[InvalidRecord, TypedRecord[L]]
+  type ValidatedRecord[KS <: Tuple, VS <: Tuple] = Validated[InvalidRecord, TypedRecord[KS, VS]]
 }

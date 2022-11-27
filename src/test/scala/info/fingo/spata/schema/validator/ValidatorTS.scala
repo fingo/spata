@@ -8,6 +8,7 @@ package info.fingo.spata.schema.validator
 import java.time.LocalDate
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import info.fingo.spata.schema.validator.Validator.optional // TODO: don't require such import
 
 class ValidatorTS extends AnyFunSuite {
 

@@ -34,12 +34,12 @@ lazy val root = (project in file("."))
       new SimpleFileFilter(_.getCanonicalPath.contains("LoggingITS")) ||
       new SimpleFileFilter(_.getCanonicalPath.contains("PTS")),
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.4.0-RC2",
-      "co.fs2" %% "fs2-core" % "3.3.0",
-      "co.fs2" %% "fs2-io" % "3.3.0",
-      "org.slf4j" % "slf4j-api" % "2.0.3",
-      "org.scalatest" %% "scalatest" % "3.2.14" % Test,
-      "org.slf4j" % "slf4j-simple" % "2.0.3" % Test
+      "org.typelevel" %% "cats-effect" % "3.4.5",
+      "co.fs2" %% "fs2-core" % "3.5.0",
+      "co.fs2" %% "fs2-io" % "3.5.0",
+      "org.slf4j" % "slf4j-api" % "2.0.6",
+      "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+      "org.slf4j" % "slf4j-simple" % "2.0.6" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

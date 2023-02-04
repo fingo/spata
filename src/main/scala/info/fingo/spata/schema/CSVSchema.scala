@@ -53,7 +53,7 @@ final class CSVSchema[L <: Tuple] private (columns: L) {
     *
     * @return short schema description
     */
-  override def toString: String = "CSVSchema" + columns.mkString("(", ", ", ")")
+  override def toString: String = "CSVSchema" + columns.toString()
 
   /** Adds field definition to schema.
     *
@@ -87,10 +87,10 @@ final class CSVSchema[L <: Tuple] private (columns: L) {
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser: ClassTag](key: Key, validators: Validator[V]*)(
-    implicit @unused ev: NotPresent[key.type, L]
-  ): CSVSchema[Column[key.type, V] :: L] =
-    new CSVSchema[Column[key.type, V] :: L](Column(key, validators) :: columns)
+  def add[V: StringParser: ClassTag](key: Key, validators: Validator[V]*)(implicit
+    @unused ev: NotPresent[key.type, L]
+  ): CSVSchema[Column[key.type, V] *: L] =
+    new CSVSchema[Column[key.type, V] *: L](Column(key, validators) *: columns)
 
   /** Adds field definition to schema. Does not support attaching additional validators.
     *
@@ -100,10 +100,10 @@ final class CSVSchema[L <: Tuple] private (columns: L) {
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser: ClassTag](key: Key)(
-    implicit @unused ev: NotPresent[key.type, L]
-  ): CSVSchema[Column[key.type, V] :: L] =
-    new CSVSchema[Column[key.type, V] :: L](Column(key) :: columns)
+  def add[V: StringParser: ClassTag](key: Key)(implicit
+    @unused ev: NotPresent[key.type, L]
+  ): CSVSchema[Column[key.type, V] *: L] =
+    new CSVSchema[Column[key.type, V] *: L](Column(key) *: columns)
 
   /** Validates CSV stream against schema.
     *
@@ -131,12 +131,11 @@ final class CSVSchema[L <: Tuple] private (columns: L) {
   private def validateRecord(r: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out = enforcer(columns, r)
 
   /* Add logging information to validation pipe. */
-  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] = in => {
+  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] = in =>
     if (Logger[F].isDebug)
       // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
       in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
-  }
 }
 
 /** [[CSVSchema]] companion with convenience method to create empty schema. */
@@ -148,7 +147,7 @@ object CSVSchema {
     *
     * @return schema with no field definition
     */
-  def apply(): CSVSchema[HNil] = new CSVSchema[HNil](HNil)
+  def apply(): CSVSchema[EmptyTuple] = new CSVSchema[EmptyTuple](Tuple())
 }
 
 /** CSV column representing schema field definition.
@@ -174,7 +173,7 @@ final class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, va
 
   /* Validates field. Positively validated values are returned as FieldType to encode both, key and value types
    * and to be easily accommodated as shapeless records. */
-  private[schema] def validate(record: Record): Validated[FieldFlaw, FieldType[K, V]] = {
+  private[schema] def validate(record: Record): Validated[FieldFlaw, Tuple2[K, V]] = {
     // get parsed value from CSV record and convert parsing error to FieldFlaw
     val typeValidated =
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, TypeError(e)))
@@ -184,8 +183,8 @@ final class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, va
         .map(validator => validator(v).leftMap(FieldFlaw(name, _)))
         .foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
     }
-    // convert value to FieldType
-    fullyValidated.map(field[K](_))
+    // convert value to tuple
+    fullyValidated.map((name, _))
   }
 }
 
@@ -203,10 +202,12 @@ private[schema] object Column {
   *
   * @tparam L the heterogeneous list (of columns) representing schema
   */
-sealed trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
+sealed trait SchemaEnforcer[L <: Tuple] {
 
   /** Output type of apply method - schema validation core result type. */
-  type Out <: ValidatedRecord[HList]
+  type Out // <: ValidatedRecord[Tuple, Tuple]
+
+  def apply(l: L, r: Record): Out
 }
 
 /** Implicits for [[SchemaEnforcer]]. */
@@ -217,17 +218,20 @@ object SchemaEnforcer {
     * @tparam I input type
     * @tparam O output type
     */
-  type Aux[I <: HList, O <: ValidatedRecord[HList]] = SchemaEnforcer[I] { type Out = O }
+  type Aux[I <: Tuple, O /*<: ValidatedRecord[Tuple, Tuple]*/ ] = SchemaEnforcer[I] { type Out = O }
 
   /* Initial validation result for empty column list - empty typed record. */
   private def empty(record: Record) =
-    Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
+    Validated.valid[InvalidRecord, TypedRecord[EmptyTuple, EmptyTuple]](
+      TypedRecord(Tuple(), Tuple(), record.lineNum, record.rowNum)
+    )
 
   /** Schema enforcer for empty column list */
-  implicit val enforceHNil: Aux[HNil, ValidatedRecord[HNil]] = new SchemaEnforcer[HNil] {
-    override type Out = ValidatedRecord[HNil]
-    override def apply(columns: HNil, record: Record): Out = empty(record)
-  }
+  implicit val emptyEnforcer: Aux[EmptyTuple, ValidatedRecord[EmptyTuple, EmptyTuple]] =
+    new SchemaEnforcer[EmptyTuple] {
+      override type Out = ValidatedRecord[EmptyTuple, EmptyTuple]
+      override def apply(columns: EmptyTuple, record: Record): Out = empty(record)
+    }
 
   /** Recursive schema enforcer for [[shapeless.::]].
     *
@@ -238,24 +242,29 @@ object SchemaEnforcer {
     * @tparam TR type of typed record data tail
     * @return schema enforcer for `HCons`
     */
-  implicit def enforceHCons[K <: Key, V, TC <: HList, TR <: HList](
-    implicit tailEnforcer: Aux[TC, ValidatedRecord[TR]]
-  ): Aux[Column[K, V] :: TC, ValidatedRecord[FieldType[K, V] :: TR]] =
-    new SchemaEnforcer[Column[K, V] :: TC] {
-      override type Out = ValidatedRecord[FieldType[K, V] :: TR]
-      override def apply(columns: Column[K, V] :: TC, record: Record): Out = {
-        val validated = columns.head.validate(record)
+  implicit def enforceHCons[K <: Key, V, TK <: Tuple, TC <: Tuple, TR <: Tuple](implicit
+    tailEnforcer: Aux[TC, ValidatedRecord[TK, TR]],
+    ev1: Tuple.Size[K *: TK] =:= Tuple.Size[V *: TR],
+    ev2: Tuple.Union[K *: TK] <:< Key
+  ): Aux[Column[K, V] *: TC, ValidatedRecord[K *: TK, V *: TR]] =
+    new SchemaEnforcer[Column[K, V] *: TC] {
+      override type Out = ValidatedRecord[K *: TK, V *: TR]
+      override def apply(columns: Column[K, V] *: TC, record: Record): Out = {
+        val head: Column[K, V] = columns.head
+        val validated = head.validate(record)
+        // val validated = columns.head.validate(record)
         val tailValidated = tailEnforcer(columns.tail, record)
         validated match {
           // if current value is valid, add it to typed record from tail validation (or do nothing, if tail is invalid)
-          case Valid(vv) => tailValidated.map(tv => TypedRecord(vv :: tv.data, record.lineNum, record.rowNum))
+          case Valid(vv) =>
+            tailValidated.map(tv => TypedRecord(vv(0) *: tv.keys, vv(1) *: tv.values, record.lineNum, record.rowNum))
           // if current value is invalid, add it to list of flaws from tail validation
           case Invalid(iv) =>
             val flaws = tailValidated match {
               case Valid(_) => NonEmptyList.one(iv)
               case Invalid(ivt) => iv :: ivt.flaws
             }
-            Validated.invalid[InvalidRecord, TypedRecord[FieldType[K, V] :: TR]](InvalidRecord(record, flaws))
+            Validated.invalid[InvalidRecord, TypedRecord[K *: TK, V *: TR]](InvalidRecord(record, flaws))
         }
       }
     }
@@ -268,17 +277,23 @@ object SchemaEnforcer {
   * @tparam K type of column name
   * @tparam L type of column list
   */
-sealed trait NotPresent[K <: Key, L <: HList]
+sealed trait NotPresent[K <: Key, L <: Tuple]
 
 /** Implicits for [[NotPresent]]. */
 object NotPresent {
+
+  // Type inequalities - based on shapeless
+  trait =:!=[A, B] extends Serializable
+  implicit def neq[A, B]: A =:!= B = new =:!=[A, B] {}
+  implicit def neqContradiction1[A]: A =:!= A = sys.error("Unexpected invocation"): Nothing
+  implicit def neqContradiction2[A]: A =:!= A = sys.error("Unexpected invocation"): Nothing
 
   /** [[NotPresent]] witness for empty column list.
     *
     * @tparam K type of candidate column name
     * @return `NotPresent` implicit for empty schema
     */
-  implicit def notPresentHNil[K <: Key]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
+  implicit def notPresentHNil[K <: Key]: NotPresent[K, EmptyTuple] = new NotPresent[K, EmptyTuple] {}
 
   /** Recursive [[NotPresent]] witness for [[shapeless.::]].
     *
@@ -290,9 +305,9 @@ object NotPresent {
     * @tparam T tail of column list
     * @return `NotPresent` for HCons
     */
-  implicit def notPresentHCons[K <: Key, HK <: Key, HV, T <: HList](
-    implicit @unused neq: K =:!= HK,
+  implicit def notPresentHCons[K <: Key, HK <: Key, HV, T <: Tuple](implicit
+    @unused neq: K =:!= HK,
     @unused tailNP: NotPresent[K, T]
-  ): NotPresent[K, Column[HK, HV] :: T] =
-    new NotPresent[K, Column[HK, HV] :: T] {}
+  ): NotPresent[K, Column[HK, HV] *: T] =
+    new NotPresent[K, Column[HK, HV] *: T] {}
 }

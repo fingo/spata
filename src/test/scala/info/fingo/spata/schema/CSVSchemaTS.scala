@@ -12,6 +12,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor7}
+import info.fingo.spata.Record
 import info.fingo.spata.io.Reader
 import info.fingo.spata.CSVParser
 import info.fingo.spata.schema.validator._
@@ -70,10 +71,10 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       val result = validate(testData)
       result.foreach { validated =>
         validated.map { typedRecord =>
-          val fd = typedRecord.to[FullData]()
+          val fd = typedRecord.to[FullData]
           assert(fd.id == typedRecord(id))
           assert(fd.score >= 0)
-          val person = typedRecord.to[Person]()
+          val person = typedRecord.to[Person]
           assert(person.id == typedRecord(id))
           assert(person.name == typedRecord("name"))
         }
@@ -213,8 +214,8 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val validCases: TestCaseTable = Table(
     ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
-    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, Nil, List(RangeValidator(0, 1000))),
-    ("multiple", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0), MaxValidator(1000))),
+    ("basic", "basic", Nil, List(RegexValidator("""\w*\s\wo.*""")), Nil, Nil, List(RangeValidator(0.0, 1000.0))),
+    ("multiple", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0.0), MaxValidator(1000.0))),
     ("no validators", "basic", Nil, Nil, Nil, Nil, Nil)
   )
 
@@ -227,10 +228,10 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       List(RegexValidator("Fun.*")),
       Nil,
       Nil,
-      List(RangeValidator(100, 200))
+      List(RangeValidator(100.0, 200.0))
     ),
-    ("multiple first", "basic", Nil, Nil, Nil, Nil, List(MinValidator(1000), MaxValidator(1000))),
-    ("multiple last", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0), MaxValidator(-1))),
+    ("multiple first", "basic", Nil, Nil, Nil, Nil, List(MinValidator(1000.0), MaxValidator(1000.0))),
+    ("multiple last", "basic", Nil, Nil, Nil, Nil, List(MinValidator(0.0), MaxValidator(-1.0))),
     ("wrong types", "wrong types", Nil, Nil, Nil, Nil, Nil),
     ("no validators", "missing values", Nil, Nil, Nil, Nil, Nil),
     (
@@ -265,20 +266,19 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     dataSet match {
       case "basic" =>
         s"""1${s}Funky Koval${s}detective${s}01.03.1987${s}100.00
-           |2${s}Eva Solo${s}lady${s}31.12.2012${s}0
-           |3${s}Han Solo${s}hero${s}09.09.1999${s}999.99""".stripMargin
+          |2${s}Eva Solo${s}lady${s}31.12.2012${s}0
+          |3${s}Han Solo${s}hero${s}09.09.1999${s}999.99""".stripMargin
       case "wrong types" =>
         s"""1${s}Funky Koval${s}detective${s}01031987${s}100.00
-           |two${s}Eva Solo${s}lady${s}31.12.2012${s}0
-           |3${s}Han Solo${s}hero${s}09.09.1999${s}999-99""".stripMargin
+          |two${s}Eva Solo${s}lady${s}31.12.2012${s}0
+          |3${s}Han Solo${s}hero${s}09.09.1999${s}999-99""".stripMargin
       case "missing values" =>
         s""""1"${s}Funky Koval$s${s}01.01.2001$s
-           |""${s}Eva Solo$s""${s}31.12.2012${s}123.45
-           |"3"${s}Han Solo${s}hero${s}09.09.1999$s""""".stripMargin
-      case "large" => {
+          |""${s}Eva Solo$s""${s}31.12.2012${s}123.45
+          |"3"${s}Han Solo${s}hero${s}09.09.1999$s""""".stripMargin
+      case "large" =>
         val row = largeRange.mkString(s.toString)
         (1 to 3).map(_ => row).mkString("\n")
-      }
     }
   }
 }

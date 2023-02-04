@@ -25,9 +25,8 @@ lazy val root = (project in file("."))
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
-    // Temporarily exclude schema validation and performance tests from build - they use libraries unsupported by Scala 3
+    // Temporarily exclude performance tests from build - they use library unsupported by Scala 3
     unmanagedSources / excludeFilter := HiddenFileFilter ||
-      new SimpleFileFilter(_.getCanonicalPath.contains("LoggingITS")) ||
       new SimpleFileFilter(_.getCanonicalPath.contains("PTS")),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.4.5",

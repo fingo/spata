@@ -25,15 +25,14 @@ lazy val root = (project in file("."))
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
-    // Temporarily exclude performance tests from build - they use library unsupported by Scala 3
-    unmanagedSources / excludeFilter := HiddenFileFilter ||
-      new SimpleFileFilter(_.getCanonicalPath.contains("PTS")),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.4.5",
       "co.fs2" %% "fs2-core" % "3.5.0",
       "co.fs2" %% "fs2-io" % "3.5.0",
       "org.slf4j" % "slf4j-api" % "2.0.6",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+      ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
+        exclude("org.scala-lang.modules", "scala-xml_2.13"),
       "org.slf4j" % "slf4j-simple" % "2.0.6" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),

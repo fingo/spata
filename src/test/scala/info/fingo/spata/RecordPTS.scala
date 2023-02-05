@@ -149,7 +149,7 @@ object RecordPTS extends Bench.LocalTime {
           val format = NumberFormat.getInstance(locale)
           (1 to amount).map(i => records(i % sampleSize).get[Long]("long", format)).foreach(identity)
         case "to_class" =>
-          (1 to amount).map(i => records(i % sampleSize).to[Sample]()).foreach(identity)
+          (1 to amount).map(i => records(i % sampleSize).to[Sample]).foreach(identity)
         case "typed_wide" =>
           val key = s"header-key-${wideRecordSize / 2 + 1}"
           (1 to amount).map(i => wideRecords(i % sampleSize).get[Int](key)).foreach(identity)

@@ -61,7 +61,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
           .read(input)
           .through(parser.parse)
           .through(schemaFile.validate)
-          .map(_.map(_.to[MarsWeather]()))
+          .map(_.map(_.to[MarsWeather]))
           .compile
           .drain
           .unsafeRunSync()

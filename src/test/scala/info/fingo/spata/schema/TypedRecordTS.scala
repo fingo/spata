@@ -40,6 +40,16 @@ class TypedRecordTS extends AnyFunSuite {
     assert(pd.name == r("name"))
   }
 
+  test("Typed record prevents convertion to incompatible case classes") {
+    case class Correct(id: Int, code: String, name: String)
+    case class WrongType(id: Int, code: Int, name: String)
+    case class WrongKey(id: Int, cod: String, name: String)
+    val r = TypedRecord(("id", "code", "name"): ("id", "code", "name"), (1, "MX1", "Mask X1"), 1, 1)
+    assertCompiles("r.to[Correct]")
+    assertDoesNotCompile("r.to[WrongType]")
+    assertDoesNotCompile("r.to[WrongKey]")
+  }
+
   test("Typed record allows conversion to tuples") {
     type Data = (Int, Int, String)
     val r = TypedRecord(("_1", "_2", "_3"): ("_1", "_2", "_3"), (1, 100, "MX1"), 1, 1)

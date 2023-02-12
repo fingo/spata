@@ -11,7 +11,6 @@ class TypedRecordTS extends AnyFunSuite {
 
   test("Typed record allows type-safe access to its values") {
     val name = "Mumintrollet"
-    // FIXME: don't require explicit type for keys
     val r1 = TypedRecord(("id", "name"): ("id", "name"), (1, name), 1, 1)
     assert(r1("id") == 1)
     assert(r1("name") == name)
@@ -21,6 +20,13 @@ class TypedRecordTS extends AnyFunSuite {
     val r3 = TypedRecord(("zero", "id", "answer", "name"): ("zero", "id", "answer", "name"), (0, 1, 42, name), 1, 1)
     assert(r3("id") == 1)
     assert(r3("name") == name)
+  }
+
+  test("Typed record prevent wrongly-typed access to its values") {
+    val r = TypedRecord(("title", "year"): ("title", "year"), ("Dark Side of the Moon", 1973), 1, 1)
+    assertCompiles("""val year: Int = r("year")""")
+    assertDoesNotCompile("""val year: String = r("year")""")
+    assertDoesNotCompile("""val year: Int = r("day")""")
   }
 
   test("Typed record allows conversion to case classes") {

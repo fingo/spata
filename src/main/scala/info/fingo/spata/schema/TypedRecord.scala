@@ -15,7 +15,9 @@ import info.fingo.spata.schema.TypedRecord._
   * Typed records values are accessed similarly to regular records, as values referenced by string keys.
   * In contract to regular record, however, the keys are verified at compile time. See [[apply]] method for more.
   * The returned value has already required type, as declared by schema definition:
-  * ``` val id: Int = record("id") ```
+  * ```
+  * val id: Int = record("id")
+  * ```
   *
   * Thanks to this, in contrast to a regular [[Record]], field access operation through [[apply]]
   * and conversion to case class through [[to]] return required type directly, without wrapping it in `Either`.

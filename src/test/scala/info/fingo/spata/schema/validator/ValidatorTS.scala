@@ -8,7 +8,6 @@ package info.fingo.spata.schema.validator
 import java.time.LocalDate
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.schema.validator.Validator.optional // TODO: don't require such import
 
 class ValidatorTS extends AnyFunSuite {
 
@@ -178,13 +177,13 @@ class ValidatorTS extends AnyFunSuite {
     assert(validated.fold(_.code, _ => "") == validator.name)
   }
 
-  private def assertOptOK[A](validator: Validator[A], value: Option[A]): Assertion = {
+  private def assertOptOK[A](validator: Validator[Option[A]], value: Option[A]): Assertion = {
     val validated = validator(value)
     assert(validated.isValid)
     assert(validated.exists(_ == value))
   }
 
-  private def assertOptBad[A](validator: Validator[A], value: Option[A]): Assertion = {
+  private def assertOptBad[A](validator: Validator[Option[A]], value: Option[A]): Assertion = {
     val validated = validator(value)
     assert(validated.isInvalid)
     assert(validated.fold(_.code, _ => "") == validator.name)

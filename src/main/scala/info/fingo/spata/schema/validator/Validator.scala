@@ -22,7 +22,7 @@ import info.fingo.spata.util.classLabel
   * @see [[CSVSchema]]
   * @tparam A value type
   */
-trait Validator[A] {
+trait Validator[A]:
 
   /** Check if provided value does comply with this validator.
     *
@@ -53,36 +53,35 @@ trait Validator[A] {
   final private[schema] def apply(value: A): Validated[ValidationError, A] =
     if (isValid(value)) Valid(value)
     else Invalid(ValidationError(name, errorMessage(value)))
-}
 
 /** [[Validator]] companion with implicit converter for optional values. */
-object Validator {
+object Validator:
 
   /** Implicit converter of regular validator into validator for optional value.
     *
     * Thanks to this conversion a validator for `Option[A]` is available for every `A`,
     * for which a regular validator is available:
-    * {{{
+    * ```
     * val value = 100
     * val validator = MinValidator(0)
     * val validPlain = validator.isValid(value)
     * val validSome = validator.isValid(Some(value))
     * val validNone = validator.isValid(None)
-    * }}}
+    * ```
     * As you may see from above example, optional validator treats `None` as valid value.
     *
     * @param validator the regular validator
     * @tparam A value type
     * @return validator for `Option[A]`
     */
-  implicit def optional[A](validator: Validator[A]): Validator[Option[A]] = new Validator[Option[A]] {
-    def isValid(value: Option[A]): Boolean = value.forall(validator.isValid)
-    override val name: String = validator.name
-  }
-}
+  given optional[A]: Conversion[Validator[A], Validator[Option[A]]] = validator =>
+    new Validator[Option[A]] {
+      def isValid(value: Option[A]): Boolean = value.forall(validator.isValid)
+      override val name: String = validator.name
+    }
 
 /** Validator verifying if value is equal to expected one. */
-object ExactValidator {
+object ExactValidator:
 
   /** Creates validator to check equality.
     *
@@ -93,10 +92,9 @@ object ExactValidator {
     override def isValid(value: A): Boolean = value == required
     override def errorMessage(value: A): String = s"Value [$value] does not match required one"
   }
-}
 
 /** Validator verifying if value is equal to one of expected. */
-object OneOfValidator {
+object OneOfValidator:
 
   /** Creates validator to check if value matches enumeration.
     *
@@ -107,13 +105,12 @@ object OneOfValidator {
     override def isValid(value: A): Boolean = allowed.contains(value)
     override def errorMessage(value: A): String = s"Value [$value] does not match any of allowed"
   }
-}
 
 /** Validator verifying if string matches one of expected. The comparison is case insensitive.
   * This validator does not take locale into account and uses `String.equalsIgnoreCase`.
   * The source string is trimmed off white spaces before comparison.
   */
-object StringsValidator {
+object StringsValidator:
 
   /** Creates validator to check if string matches enumeration.
     *
@@ -124,12 +121,11 @@ object StringsValidator {
     override def isValid(value: String): Boolean = allowed.exists(_.equalsIgnoreCase(value.strip))
     override def errorMessage(value: String): String = s"String [$value] does not match any of allowed"
   }
-}
 
 /** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
   */
-object MinLenValidator {
+object MinLenValidator:
 
   /** Creates string minimum length validator.
     *
@@ -140,12 +136,11 @@ object MinLenValidator {
     override def isValid(value: String): Boolean = value.strip.length >= min
     override def errorMessage(value: String): String = s"String [$value] is too short"
   }
-}
 
 /** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
   */
-object MaxLenValidator {
+object MaxLenValidator:
 
   /** Creates string maximum length validator.
     *
@@ -156,12 +151,11 @@ object MaxLenValidator {
     override def isValid(value: String): Boolean = value.strip.length <= max
     override def errorMessage(value: String): String = s"String [$value] is too long"
   }
-}
 
 /** Validator verifying string length. Takes the length of string after trimming it off white characters.
   * Treats strings with length at boundary as valid.
   */
-object LengthValidator {
+object LengthValidator:
 
   /** Creates string length validator.
     *
@@ -186,10 +180,9 @@ object LengthValidator {
     override def isValid(value: String): Boolean = value.strip.length == length
     override def errorMessage(value: String): String = s"String [$value] length is incorrect"
   }
-}
 
 /** Regular expression validator for strings. */
-object RegexValidator {
+object RegexValidator:
 
   /** Creates regex validator.
     *
@@ -204,12 +197,11 @@ object RegexValidator {
     * @return validator
     */
   def apply(regex: String): Validator[String] = apply(new Regex(regex))
-}
 
 /** Minimum value validator for any types with [[scala.Ordering]].
   * Treats values equal to minimum as valid.
   */
-object MinValidator {
+object MinValidator:
 
   /** Creates minimum value validator.
     *
@@ -221,12 +213,11 @@ object MinValidator {
     def isValid(value: A): Boolean = implicitly[Ordering[A]].lteq(min, value)
     override def errorMessage(value: A): String = s"Value [$value] is too small"
   }
-}
 
 /** Maximum value validator for any types with [[scala.Ordering]].
   * Treats values equal to maximum as valid.
   */
-object MaxValidator {
+object MaxValidator:
 
   /** Creates maximum value validator.
     *
@@ -238,12 +229,11 @@ object MaxValidator {
     def isValid(value: A): Boolean = implicitly[Ordering[A]].gteq(max, value)
     override def errorMessage(value: A): String = "Value [$v] is too large"
   }
-}
 
 /** Range validator for any types with [[scala.Ordering]].
   * Treats values equal to minimum or maximum as valid.
   */
-object RangeValidator {
+object RangeValidator:
 
   /** Creates range value validator.
     *
@@ -257,10 +247,9 @@ object RangeValidator {
     val maxV = MaxValidator[A](max)
     minV.isValid(value) && maxV.isValid(value)
   }
-}
 
 /** Validator verifying if double value is finite. */
-object FiniteValidator {
+object FiniteValidator:
 
   /** Creates finite value validator.
     *
@@ -270,4 +259,3 @@ object FiniteValidator {
     def isValid(value: Double): Boolean = value.isFinite
     override def errorMessage(value: Double) = s"Number [$value] is not finite"
   }
-}

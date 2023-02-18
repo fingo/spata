@@ -7,6 +7,7 @@ package info.fingo.spata.schema
 
 import scala.deriving.Mirror
 import scala.compiletime.{constValue, erasedValue}
+import info.fingo.spata.converter.ToProduct
 import info.fingo.spata.schema.TypedRecord._
 
 /** CSV record representation with type-safe access to its values.
@@ -86,7 +87,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
     m: Mirror.ProductOf[P],
     ev: Tuple.Union[Tuple.Zip[m.MirroredElemLabels, m.MirroredElemTypes]] <:< Tuple.Union[Tuple.Zip[KS, VS]]
   ): P =
-    val labels = getLabels[m.MirroredElemLabels]
+    val labels = ToProduct.getLabels[m.MirroredElemLabels]
     val vals = labels.map(l => get(l, keys, values))
     m.fromProduct(Tuple.fromArray(vals.toArray))
 
@@ -115,12 +116,6 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
   private def getH[VS <: Tuple](values: VS): SelectH[VS] =
     (values: @unchecked) match
       case h *: _: *:[_, _] => h
-
-  /* Get tuple values as list of string - used to get names of fields of case class (provided by `Mirror`). */
-  private inline def getLabels[T <: Tuple]: List[String] =
-    inline erasedValue[T] match
-      case _: EmptyTuple => Nil
-      case _: (t *: ts) => constValue[t].toString :: getLabels[ts]
 
 /** Typed record helper object. */
 object TypedRecord:

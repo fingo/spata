@@ -3,15 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.time.LocalDate
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVConfig
 import info.fingo.spata.io.Reader
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.LocalDate
 
 /* Sample which converts CSV records to case classes. */
 class ConvertITS extends AnyFunSuite {

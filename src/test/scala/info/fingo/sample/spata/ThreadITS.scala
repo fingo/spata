@@ -3,18 +3,19 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.time.{LocalDate, Month}
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVConfig, CSVParser}
 import info.fingo.spata.CSVParser.Callback
 import info.fingo.spata.io.Reader
+import info.fingo.spata.{CSVConfig, CSVParser}
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.{LocalDate, Month}
+import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 /* Samples which process the data asynchronously or using blocking context */
 class ThreadITS extends AnyFunSuite {

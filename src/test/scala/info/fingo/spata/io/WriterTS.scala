@@ -5,14 +5,13 @@
  */
 package info.fingo.spata.io
 
-import java.io.{ByteArrayOutputStream, IOException, OutputStream}
+import java.io.{ByteArrayOutputStream, File, IOException, OutputStream}
 import java.nio.charset.{Charset, StandardCharsets}
-import java.nio.file.Files
+import java.nio.file.{Files, Path}
 import scala.io.Codec
 import fs2.{Chunk, Stream}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import info.fingo.spata.sample.SampleTH
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
@@ -48,7 +47,7 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
   test("writer should properly write to path") {
     forAll(testCases) { (_: String, data: String) =>
       forAll(writers) { (_: String, writer: Writer[IO]) =>
-        val path = SampleTH.getTempFile.toPath
+        val path = getTempPath
         val input = source(data)
         val output = input.through(writer(path))
         output.compile.drain.unsafeRunSync()
@@ -81,7 +80,7 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
     forAll(testCases) { (testCase: String, data: String) =>
       if (testCase != "extended chars") { // not supported by encoding
         forAll(writers) { (_: String, writer: Writer[IO]) =>
-          val path = SampleTH.getTempFile.toPath
+          val path = getTempPath
           val input = source(data)
           val output = input.through(writer(path))
           output.compile.drain.unsafeRunSync()
@@ -107,6 +106,13 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private def source(data: String): Stream[IO, Char] =
     Stream(data).map(s => Chunk.array[Char](s.toCharArray)).flatMap(Stream.chunk).covary[IO]
+
+  /* Create temporary file with random name, removes it after closing. */
+  def getTempPath: Path = {
+    val temp = File.createTempFile("spata_", ".csv")
+    temp.deleteOnExit()
+    temp.toPath
+  }
 
   private lazy val writers = Table(
     ("name", "writer"),

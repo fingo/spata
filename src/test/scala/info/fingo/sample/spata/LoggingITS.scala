@@ -3,21 +3,22 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.nio.file.{Files, Paths}
-import java.time.LocalDate
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.slf4j.LoggerFactory
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.BeforeAndAfter
-import info.fingo.spata.{CSVConfig, CSVParser}
 import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.CSVSchema
 import info.fingo.spata.schema.validator.FiniteValidator
 import info.fingo.spata.util.Logger
+import info.fingo.spata.{CSVConfig, CSVParser}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.funsuite.AnyFunSuite
+import org.slf4j.LoggerFactory
+
+import java.nio.file.{Files, Paths}
+import java.time.LocalDate
 
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite with BeforeAndAfter {

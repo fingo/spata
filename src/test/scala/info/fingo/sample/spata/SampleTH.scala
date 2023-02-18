@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
 import java.io.{Closeable, File, FileNotFoundException}
 import scala.io.Source

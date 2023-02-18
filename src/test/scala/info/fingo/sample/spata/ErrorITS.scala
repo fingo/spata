@@ -3,17 +3,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.io.IOException
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.{Pipe, Stream}
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.TableDrivenPropertyChecks
+import info.fingo.spata.error.CSVException
 import info.fingo.spata.io.Reader
 import info.fingo.spata.{CSVParser, CSVRenderer, Header, Record}
-import info.fingo.spata.error.CSVException
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.prop.TableDrivenPropertyChecks
+
+import java.io.IOException
 
 class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 

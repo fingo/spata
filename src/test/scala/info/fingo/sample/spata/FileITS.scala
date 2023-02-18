@@ -3,15 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.io.{File, FileOutputStream}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
+import info.fingo.spata.{CSVParser, CSVRenderer, Record}
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.io.{File, FileOutputStream}
 
 /* Samples which write processing results to another CSV file */
 class FileITS extends AnyFunSuite {

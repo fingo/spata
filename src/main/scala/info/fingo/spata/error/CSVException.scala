@@ -43,10 +43,10 @@ sealed abstract class CSVException private[spata] (
   cause: Option[Throwable]
 ) extends Exception(message, cause.orNull)
 
-private[spata] object CSVException {
+private[spata] object CSVException:
+
   def positionInfo(position: Option[Position]): String =
     position.map(p => s" at row ${p.row} (line ${p.line})").getOrElse("")
-}
 
 /** Exception reported for CSV format errors.
   *
@@ -80,14 +80,13 @@ final class StructureException private[spata] (
     None
   )
 
-private object StructureException {
-  def message(errorCode: ErrorCode, position: Option[Position], col: Option[Int], field: FieldInfo): String = {
+private object StructureException:
+
+  def message(errorCode: ErrorCode, position: Option[Position], col: Option[Int], field: FieldInfo): String =
     val colInfo = col.map(c => s" and column $c").getOrElse("")
-    val fieldInfo = if (field.isDefined) s" (field $field)" else ""
+    val fieldInfo = if field.isDefined then s" (field $field)" else ""
     val positionInfo = CSVException.positionInfo(position)
     s"Error occurred$positionInfo$colInfo$fieldInfo while parsing CSV source. ${errorCode.message}"
-  }
-}
 
 /** Error for content-related issues, typically reported on record level.
   *
@@ -135,14 +134,13 @@ final class HeaderError private[spata] (
     new NoSuchElementException()
   )
 
-private object HeaderError {
+private object HeaderError:
+
   val messageCode = "wrongKey"
 
-  def message(position: Option[Position], field: FieldInfo): String = {
+  def message(position: Option[Position], field: FieldInfo): String =
     val positionInfo = CSVException.positionInfo(position)
     s"Error occurred$positionInfo while trying to access CSV field by key '${field.nameInfo}'."
-  }
-}
 
 /** Error reported while accessing field with incorrect index.
   *
@@ -165,14 +163,13 @@ final class IndexError private[spata] (
     new NoSuchElementException()
   )
 
-private object IndexError {
+private object IndexError:
+
   val messageCode = "wrongIndex"
 
-  def message(position: Option[Position], field: FieldInfo): String = {
+  def message(position: Option[Position], field: FieldInfo): String =
     val positionInfo = CSVException.positionInfo(position)
     s"Error occurred$positionInfo while trying to access CSV field by index ${field.indexInfo}."
-  }
-}
 
 /** Error reported for CSV data problems, caused by string parsing.
   *
@@ -198,18 +195,16 @@ final class DataError private[spata] (
     cause
   )
 
-private object DataError {
+private object DataError:
+
   val messageCode = "wrongType"
   val maxValueLength = 20
   val valueCutSuffix = "..."
 
-  def message(value: String, position: Option[Position], field: FieldInfo, cause: Throwable): String = {
+  def message(value: String, position: Option[Position], field: FieldInfo, cause: Throwable): String =
     val v =
-      if (value.length > maxValueLength)
-        value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
+      if value.length > maxValueLength then value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
       else value
     val typeInfo = StringParser.parseErrorTypeInfo(cause).getOrElse("requested type")
     val positionInfo = CSVException.positionInfo(position)
     s"Error occurred$positionInfo while parsing CSV field ($field) having value [$v] to $typeInfo."
-  }
-}

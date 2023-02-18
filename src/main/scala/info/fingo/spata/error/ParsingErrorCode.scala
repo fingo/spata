@@ -8,12 +8,11 @@ package info.fingo.spata.error
 import info.fingo.spata.util.classLabel
 
 /* Error codes provided by parsing functions. */
-private[spata] object ParsingErrorCode {
+private[spata] object ParsingErrorCode:
 
-  sealed abstract class ErrorCode(val message: String) {
+  sealed abstract class ErrorCode(val message: String):
 
     def code: String = classLabel(this)
-  }
 
   case object UnclosedQuotation extends ErrorCode("Bad format: not enclosed quotation")
   case object UnescapedQuotation extends ErrorCode("Bad format: not escaped quotation")
@@ -22,4 +21,3 @@ private[spata] object ParsingErrorCode {
   case object MissingHeader extends ErrorCode("Header not found (empty content?)")
   case object DuplicatedHeader extends ErrorCode("Header name is duplicated")
   case object WrongNumberOfFields extends ErrorCode("Number of values doesn't match header size or previous records")
-}

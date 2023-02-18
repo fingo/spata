@@ -24,12 +24,8 @@ trait FromTuple[-T <: Tuple]:
     */
   def encode(t: T): Record = Record.fromValues(encodeRaw(t)*)
 
-  /** Converts tuple to list of strings.
-    *
-    * @param t the source tuple to be converted.
-    * @return the list of strings containing values of provided tuple.
-    */
-  def encodeRaw(t: T): List[String]
+  /* Converts tuple to list of strings. */
+  private[converter] def encodeRaw(t: T): List[String]
 
 /** Converter from a product (case class) to a record.
   *
@@ -51,11 +47,12 @@ object FromTuple:
 
   /** Given instance for converter from empty tuple. */
   given fromEmpty: FromTuple[EmptyTuple] with
-    def encodeRaw(et: EmptyTuple): List[String] = Nil
+    private[converter] def encodeRaw(et: EmptyTuple): List[String] = Nil
 
   /** Given instance for recursive converter from tuple cons. */
   given fromCons[H: StringRenderer, T <: Tuple: FromTuple]: FromTuple[H *: T] with
-    def encodeRaw(t: H *: T): List[String] = summon[StringRenderer[H]](t.head) :: summon[FromTuple[T]].encodeRaw(t.tail)
+    private[converter] def encodeRaw(t: H *: T): List[String] =
+      summon[StringRenderer[H]](t.head) :: summon[FromTuple[T]].encodeRaw(t.tail)
 
 /** `FromProduct` companion object with given instance of product to record converter. */
 object FromProduct:

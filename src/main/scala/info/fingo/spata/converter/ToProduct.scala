@@ -26,13 +26,8 @@ trait ToTuple[+T <: Tuple]:
     */
   def decode(r: Record): Decoded[T] = decodeAt(r, 0)
 
-  /** Converts record to tuple starting at given index.
-    *
-    * @param r record to be converted.
-    * @param pos the position at which the conversion starts - fields with lower indexes are omitted from conversion.
-    * @return either converted tuple or an exception.
-    */
-  def decodeAt(r: Record, pos: Int): Decoded[T]
+  /* Converts record to tuple starting at given index. */
+  private[converter] def decodeAt(r: Record, pos: Int): Decoded[T]
 
 /** Converter from a record to a product (case class).
   *
@@ -54,12 +49,12 @@ object ToTuple:
 
   /** Given instance for converter to empty tuple. */
   given toEmpty: ToTuple[EmptyTuple] with
-    def decodeAt(r: Record, pos: Int): Decoded[EmptyTuple] = Right(EmptyTuple)
+    private[converter] def decodeAt(r: Record, pos: Int): Decoded[EmptyTuple] = Right(EmptyTuple)
 
   /** Given instance for recursive converter to tuple cons. */
   given toCons[H: StringParser, T <: Tuple: ToTuple]: ToTuple[H *: T] with
-    def decodeAt(r: Record, pos: Int): Decoded[H *: T] =
-      for
+    private[converter] def decodeAt(r: Record, pos: Int): Decoded[H *: T] =
+      for // loop ends with reduced tuple, so no guard for growing position is required (wrong index returns error)
         h <- r.get(pos)
         t <- summon[ToTuple[T]].decodeAt(r, pos + 1)
       yield h *: t

@@ -159,6 +159,9 @@ final case class CSVConfig private[spata] (
 /** CSVConfig companion object with escape mode definitions. */
 object CSVConfig {
 
+  /** Creates default CSV configuration. */
+  def apply(): CSVConfig = new CSVConfig()
+
   /** Method of escaping fields while rendering CSV. */
   sealed trait EscapeMode
 

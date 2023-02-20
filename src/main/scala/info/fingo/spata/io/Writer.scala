@@ -22,7 +22,7 @@ import info.fingo.spata.util.Logger
   *
   * @tparam F the effect type
   */
-sealed trait Writer[F[_]] {
+sealed trait Writer[F[_]]:
 
   /** Writes CSV to destination `OutputStream`.
     *
@@ -47,12 +47,12 @@ sealed trait Writer[F[_]] {
   /** Writes CSV to target path.
     *
     * @example
-    * {{{
+    * ```
     * implicit val codec = new Codec(Charset.forName("UTF-8"))
     * val path = Path.of("data.csv")
     * val stream: Stream[IO, Char] = ???
     * val handler: Stream[IO, Unit] = stream.through(Writer[IO]().write(path))
-    * }}}
+    * ```
     *
     * @param path the path to target file
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
@@ -60,26 +60,24 @@ sealed trait Writer[F[_]] {
     */
   def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit]
 
-  /** Alias for various `write` methods.
+  /** Alias for various [[write]] methods.
     *
     * @param csv the CSV data destination
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @tparam A type of target
     * @return pipe converting stream of characters to empty one
     */
-  def apply[A: Writer.CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match {
+  def apply[A: Writer.CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match
     case os: OutputStream => write(os)
     case p: Path => write(p)
-  }
 
-  /** Alias for `write` method.
+  /** Alias for [[write]] method.
     *
     * @param csv the CSV data destination
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
   def apply(csv: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] = write(csv)
-}
 
 /** Utility to write external data from a stream of characters.
   * It is used through one of its inner classes:
@@ -99,7 +97,7 @@ sealed trait Writer[F[_]] {
   *
   * All of above applies not only to `write` functions but also to `apply`, which internally make use of `write`.
   */
-object Writer {
+object Writer:
 
   private val autoClose = false
   private val openOptions = Seq(StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE)
@@ -134,7 +132,7 @@ object Writer {
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     */
-  final class Plain[F[_]: Sync: Logger] private[spata] () extends Writer[F] {
+  final class Plain[F[_]: Sync: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
     def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
@@ -156,7 +154,6 @@ object Writer {
 
     protected def char2byte(implicit codec: Codec): Pipe[F, Char, Chunk[Byte]] =
       (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(text.encodeC(codec.charSet))
-  }
 
   /** Writer which shifts I/O operations to a execution context provided for blocking operations.
     * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
@@ -165,15 +162,15 @@ object Writer {
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     */
-  final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F] {
+  final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
     def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
-        for {
+        for
           _ <- Logger[F].debugS("Writing data to OutputStream with context shift")
           _ <- in.through(char2byte).through(io.writeOutputStream(fos, autoClose)).unitary
-        } yield ()
+        yield ()
 
     /** @inheritdoc */
     def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit] = write(Sync[F].delay(os))
@@ -181,26 +178,25 @@ object Writer {
     /** @inheritdoc
       *
       * @example
-      * {{{
+      * ```
       * implicit val codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
       * val stream: Stream[IO, Char] = ???
       * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO]().write(path))
-      * }}}
+      * ```
       */
     def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
-        for {
+        for
           _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
           _ <- in
             .through(char2byte)
             .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
             .unitary
-        } yield ()
+        yield ()
 
     protected def char2byte(implicit codec: Codec): Pipe[F, Char, Byte] =
-      (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(fs2.text.encode(codec.charSet))
-  }
+      _.chunks.map(_.mkString_("")).through(fs2.text.encode(codec.charSet))
 
   /** Representation of CSV data destination, used to witness that certain sources may be used by write operations.
     * @see [[CSV$ CSV]] object.
@@ -208,12 +204,10 @@ object Writer {
   sealed trait CSV[-A]
 
   /** Implicits to witness that given type is supported by `Writer` as CSV destination. */
-  object CSV {
+  object CSV:
 
     /** Witness that [[java.io.OutputStream]] may be used with `Writer` methods. */
     implicit object outputStreamWitness extends CSV[OutputStream]
 
     /** Witness that [[java.nio.file.Path]] may be used with `Writer` methods. */
     implicit object pathWitness extends CSV[Path]
-  }
-}

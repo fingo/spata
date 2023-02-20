@@ -32,7 +32,7 @@ sealed trait Writer[F[_]]:
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit]
 
   /** Writes CSV to destination `OutputStream`.
     *
@@ -42,13 +42,13 @@ sealed trait Writer[F[_]]:
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit]
 
   /** Writes CSV to target path.
     *
     * @example
     * ```
-    * implicit val codec = new Codec(Charset.forName("UTF-8"))
+    * given codec = new Codec(Charset.forName("UTF-8"))
     * val path = Path.of("data.csv")
     * val stream: Stream[IO, Char] = ???
     * val handler: Stream[IO, Unit] = stream.through(Writer[IO]().write(path))
@@ -58,7 +58,7 @@ sealed trait Writer[F[_]]:
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit]
 
   /** Alias for various [[write]] methods.
     *
@@ -67,7 +67,7 @@ sealed trait Writer[F[_]]:
     * @tparam A type of target
     * @return pipe converting stream of characters to empty one
     */
-  def apply[A: Writer.CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match
+  def apply[A: Writer.CSV](csv: A)(using codec: Codec): Pipe[F, Char, Unit] = csv match
     case os: OutputStream => write(os)
     case p: Path => write(p)
 
@@ -77,7 +77,7 @@ sealed trait Writer[F[_]]:
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def apply(csv: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] = write(csv)
+  def apply(csv: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] = write(csv)
 
 /** Utility to write external data from a stream of characters.
   * It is used through one of its inner classes:
@@ -91,7 +91,7 @@ sealed trait Writer[F[_]]:
   * is responsible for its cleanup.
   *
   * Functions writing binary data (to `java.io.InputStream` or taking `java.nio.file.Path`)
-  * use implicit [[scala.io.Codec]] to encode data. If not provided, the default JVM charset is used.
+  * use given [[scala.io.Codec]] to encode data. If not provided, the default JVM charset is used.
   *
   * For data encoded to `UTF`, the byte order mark (`BOM`) is not added to the output.
   *
@@ -135,16 +135,16 @@ object Writer:
   final class Plain[F[_]: Sync: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
-    def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) => Stream.eval(fos).flatMap(os => in.through(write(os)))
 
     /** @inheritdoc */
-    def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         in.through(char2byte).evalMap(c => Sync[F].delay(os.write(c.toArray))) ++ Stream.eval(Sync[F].delay(os.flush()))
 
     /** @inheritdoc */
-    def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         Stream
           .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay {
@@ -152,7 +152,7 @@ object Writer:
           })(os => Sync[F].delay(os.close()))
           .flatMap(os => in.through(write(os)))
 
-    protected def char2byte(implicit codec: Codec): Pipe[F, Char, Chunk[Byte]] =
+    protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =
       (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(text.encodeC(codec.charSet))
 
   /** Writer which shifts I/O operations to a execution context provided for blocking operations.
@@ -165,7 +165,7 @@ object Writer:
   final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
-    def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for
           _ <- Logger[F].debugS("Writing data to OutputStream with context shift")
@@ -173,19 +173,19 @@ object Writer:
         yield ()
 
     /** @inheritdoc */
-    def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit] = write(Sync[F].delay(os))
+    def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit] = write(Sync[F].delay(os))
 
     /** @inheritdoc
       *
       * @example
       * ```
-      * implicit val codec = new Codec(Charset.forName("UTF-8"))
+      * given codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
       * val stream: Stream[IO, Char] = ???
       * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO]().write(path))
       * ```
       */
-    def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for
           _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
@@ -195,19 +195,19 @@ object Writer:
             .unitary
         yield ()
 
-    protected def char2byte(implicit codec: Codec): Pipe[F, Char, Byte] =
-      _.chunks.map(_.mkString_("")).through(fs2.text.encode(codec.charSet))
+    protected def char2byte(using codec: Codec): Pipe[F, Char, Byte] =
+      _.chunks.map(_.mkString_("")).through(text.encode(codec.charSet))
 
   /** Representation of CSV data destination, used to witness that certain sources may be used by write operations.
     * @see [[CSV$ CSV]] object.
     */
   sealed trait CSV[-A]
 
-  /** Implicits to witness that given type is supported by `Writer` as CSV destination. */
+  /** Given instances to witness that given type is supported by `Writer` as CSV destination. */
   object CSV:
 
     /** Witness that [[java.io.OutputStream]] may be used with `Writer` methods. */
-    implicit object outputStreamWitness extends CSV[OutputStream]
+    given outputStreamWitness: CSV[OutputStream] with {}
 
     /** Witness that [[java.nio.file.Path]] may be used with `Writer` methods. */
-    implicit object pathWitness extends CSV[Path]
+    given pathWitness: CSV[Path] with {}

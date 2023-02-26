@@ -12,10 +12,8 @@ spata
 > 
 > **spata** is being ported to Scala 3.
 > Due to its past dependency on shapeless 2 and thus Scala 2 macros,
-> this version has to abandon some features and introduce significant API changes.
-> **spata 3** is planned to support Scala 3 only. Scala 2 support will be still available in **spata 2**. 
-> 
-> Many things are currently broken and the documentation below does not hold.
+> this version has to introduce significant API changes.
+> **spata 3** supports Scala 3 only. Scala 2 support is still available in **spata 2**.
 
 **spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
@@ -25,7 +23,7 @@ with easy conversion between records and case classes, completed with precise in
 and their location in source data for parsing while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse a well-formatted `CSV` file,
-but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.   
+but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file. 
 
 The source (while parsing) and destination (while rendering) data format is assumed to conform basically to
 [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt), but allows some variations - see `CSVConfig` for details.
@@ -39,7 +37,7 @@ The source (while parsing) and destination (while rendering) data format is assu
 Getting started
 ---------------
 
-spata is available for Scala 2.13 and requires at least Java 11.
+spata 3 is available for Scala 3.x and requires at least Java 11.
 
 To use spata you have to add this single dependency to your `build.sbt`:
 ```sbt
@@ -54,7 +52,9 @@ Basic usage
 The whole parsing process in a simple case may look like this:
 ```scala
 import scala.io.Source
+import cats.syntax.traverse.given // to get list.sequence
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global  // default IORuntime
 import fs2.Stream
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.Reader
@@ -65,46 +65,45 @@ val records = Stream
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(Reader[IO].by) // produce stream of chars from source
   .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
-  .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
-  .map(_.to[Data]()) // convert records to case class
-  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
-val result = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+  .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Record and Stream API
+  .map(_.to[Data]) // convert records to case class
+  .handleErrorWith(ex => Stream.emit(Left(ex))) // convert global (I/O, CSV structure) errors to Either
+val list = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+val result = list.sequence  // convert List[Either[Throwable,Data]] to Either[Throwable,List[Data]]
 ```
 
-Another example may be taken from [FS2 readme](https://fs2.io/),
+Another example may be taken from [FS2 readme](https://fs2.io/#/getstarted/example),
 assuming that the data is stored and written back in `CSV` format with two fields, `date` and `temp`:
 ```scala
 import java.nio.file.Paths
 import scala.io.Codec
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect.{IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer}
 import info.fingo.spata.io.{Reader, Writer}
 
-object Converter extends IOApp {
+object Converter extends IOApp.Simple:
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
-    implicit val codec: Codec = Codec.UTF8
+  val converter: Stream[IO, Unit] =
+    given codec: Codec = Codec.UTF8
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
       .map(_.altered("temp")(fahrenheitToCelsius))
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
-  }
+      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
 
-  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
-}
+  def run: IO[Unit] = converter.compile.drain
 ```
 Modified versions of this sample may be found in [error handling](#error-handling) 
 and [schema validation](#schema-validation) parts of the tutorial.
 
-More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
+More examples of how to use the library may be found in `src/test/scala/info/fingo/sample/spata`.
 
 Tutorial
 --------
@@ -131,13 +130,19 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val output: Stream[IO, Record] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
-(Cats [IO](https://typelevel.org/cats-effect/datatypes/io.html),
-Monix [Task](https://monix.io/docs/3x/eval/task.html),
-or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
-Please note, however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
-Type class dependencies are defined in terms of the [Cats Effect](https://typelevel.org/cats-effect/typeclasses/)class hierarchy.
+([Cats Effect IO](https://typelevel.org/cats-effect/docs/getting-started)
+or [ZIO](https://zio.dev/overview/getting-started),
+especially with support for [ZIO-CE interop](https://zio.dev/guides/interop/with-cats-effect/);
+interoperability with [Monix](https://monix.io/) is not possible yet,
+but [this may change in the future](https://alexn.org/blog/2022/04/05/future-monix-typelevel/#the-future-of-monix)).
+Please note, however, that Cats Effect [IO](https://typelevel.org/cats-effect/api/3.x/cats/effect/IO.html)
+is the only effect implementation used for testing and documentation purposes.
+
+Type class dependencies are defined in terms of the
+[Cats Effect](https://typelevel.org/cats-effect/docs/typeclasses) class hierarchy. 
 To support effect suspension, spata requires in general `cats.effect.Sync` type class implementation for its effect type.
 Some methods need enhanced type classes to support asynchronous or concurrent computation.
+Some are satisfied with more general effects.
 
 Like in the case of any other FS2 processing, spata consumes only as much of the source stream as required,
 give or take a chunk size. 
@@ -150,7 +155,8 @@ If newline (`LF`, `\n`, `0x0A`) is used as the record delimiter,
 carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not escaped, to support `CRLF` line breaks.     
 
 Fields containing delimiters (field or record) or quotes have to be wrapped in quotation marks.
-As defined in RFC 4180, quotation marks in the content have to be escaped through double quotation marks.
+As defined in [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
+quotation marks in the content have to be escaped through double quotation marks.
 
 By default, in accordance with the standard, whitespace characters are considered part of the field and are not ignored.
 Nonetheless, it is possible to turn on trimming of leading and trailing whitespaces with a configuration option.
@@ -173,14 +179,16 @@ is correct with trimming on (and produces `" yyy "` for field `Y`), but will cau
 as spaces are considered regular characters in this case and quote has to be put around the whole field.
 
 Not all invisible characters (notably non-breaking space, `'\u00A0'`) are whitespaces.
-See Java `Char.isWhitespace` for details.  
+See Java's
+[Char.isWhitespace](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Character.html#isWhitespace(char))
+for details.  
 
 In addition to the `parse`, `CSVParser` provides other methods to read `CSV` data:
 *   `get`, to load data into `List[Record]`, which may be handy for small data sets,
 *   `process`, to deal with data record by record through a callback function,
 *   `async`, to process data through a callback function in an asynchronous way.
 
-The three above functions return the result (`List` or `Unit`) wrapped in an effect and require calling one of the
+The three above functions return the result (`List` or `Unit`) wrapped in an effect and require call to one of the
 "at the end of the world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
 ```scala
 val stream: Stream[IO, Char] = ???
@@ -188,13 +196,13 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
-the whole processing may run through [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html).
+the whole processing may run through [IOApp](https://typelevel.org/cats-effect/api/3.x/cats/effect/IOApp.html).
 
-If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8Decode`),
+If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode`),
 we may convert it to a stream of characters:
 ```scala
 val ss: Stream[IO, String] = ???
-val sc: Stream[IO, Char] = ss.map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
+val sc: Stream[IO, Char] = ss.map(s => Chunk.charBuffer(CharBuffer.wrap(s))).flatMap(Stream.chunk)
 ```
 
 See [Reading and writing data](#reading-and-writing-data) for helper methods

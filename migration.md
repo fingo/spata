@@ -6,7 +6,7 @@ This file described changes to be made while upgrading **spata** between incompa
 Upgrading to 2.x from 1.x
 -------------------------
 
-spata 2 introduces rendering functionality.
+**spata 2** introduces rendering functionality.
 Some changes to API were required to keep parsing and rendering in pair with each other.
 Others were made to improve the API taking the opportunity of already broken compatibility.
 
@@ -47,3 +47,50 @@ val stream = Reader[IO].read(Paths.get("source.csv"))
 *   Methods with arity-0 have been stripped of parentheses where feasible because they do not have side effects.
 *   Many classes and traits have been declared final or sealed.
 *   `Reader` trait has been moved from `reader` object into `io` package.
+
+Upgrading to 3.x from 2.x
+-------------------------
+
+**spata 3** runs on Scala 3 and requires Cats Effect 3 and FS2 3.
+
+This required a bunch of changes in the library and its API.
+First of all, spata 1 & 2 has made heavy use of shapeless and thus Scala 2 macros, which are not available for Scala 3.
+Required changes influenced the record conversion (for both, regular `Record` and `TypedRecord`)
+and schema definiition and validation.
+Second, Cats Effect 3 introduced breaking changes, which in turn made FS2 v3 incompatible with previous version.
+This required changes in the areas involving effect handling, concurrency and io.
+
+spata 3 has been fully ported to Scala 3, adapting new constructs and braceless style.
+spata 2 is being maintained on [seprate branch](https://github.com/fingo/spata/tree/spata2).
+
+### Record conversion
+
+Record conversion has been completly rewritten from shapeless to tuples, with help of `Mirror` and `inline`.
+Although you may see many differences in type signatures and context parameters of conversion functions,
+no chages in calling code should be required.
+
+### Schema and validation
+
+TODO
+
+### IO
+
+`Blocker` has been removed from Cats Effect 3 and you do not need (nor can) provide its instance for io operations.
+Thread pool assigment for blocking io is handled by runtime based on information provided by spata or FS2 io methods.
+For more information about new threading model for io and the ways to control this behavior see
+[Cats Effect 3 migration guide](https://typelevel.org/cats-effect/docs/migration-guide#blocker).
+
+This removal simplifies the `Reader.Shifting` and `Writer.Shifting` APIs - 
+no blocker is provided as a parameter anymore. Instead of
+```scala
+Stream.resource(Blocker[IO]).flatMap { blocker =>
+	Reader.shifting[IO](blocker).read("path")
+	// ...
+}
+```
+you should simply write
+```scala
+Reader.shifting[IO].read("path")
+// ...
+```
+

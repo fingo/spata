@@ -4,8 +4,8 @@ spata
 [![Build Status](https://app.travis-ci.com/fingo/spata.svg?branch=master)](https://app.travis-ci.com/fingo/spata)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://www.codacy.com/gh/fingo/spata/dashboard)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
-[![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_2.13%22)
-[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_2.13/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_2.13/latest/info/fingo/spata/index.html)
+[![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_3.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_3%22)
+[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_3/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/index.html)
 [![Gitter](https://badges.gitter.im/fingo-spata/community.svg)](https://gitter.im/fingo-spata/community)
 
 > Work in progress.
@@ -185,7 +185,7 @@ for details.
 
 In addition to the `parse`, `CSVParser` provides other methods to read `CSV` data:
 *   `get`, to load data into `List[Record]`, which may be handy for small data sets,
-*   `process`, to deal with data record by record through a callback function,
+*   `process`, to deal with data record by record through a callback function, synchronously,
 *   `async`, to process data through a callback function in an asynchronous way.
 
 The three above functions return the result (`List` or `Unit`) wrapped in an effect and require call to one of the
@@ -238,7 +238,7 @@ The main advantage of using `CSVRenderer` over `makeString` and `intersperse` me
 is its ability to properly escape special characters (delimiters and quotation marks) in source data.
 The escape policy is set through configuration and by default, the fields are quoted only when required.
 
-Like parser, renderer supports any single-character field and record delimiters.
+Like parser, renderer supports any single-character field as record delimiters.
 As result, the `render` method does not allow separating records with `CRLF`.
 If this is required, the `rows` method has to be used:
 ```scala
@@ -255,14 +255,14 @@ to transmit a stream of characters to various destinations.
 ### Configuration
 
 `CSVParser` and `CSVRenderer` are configured through `CSVConfig`, which is a parameter to their constructors.
-A more convenient way may be a builder-like method, which takes the defaults and allows altering selected parameters:
+It may be provided through a builder-like method, which takes the defaults and allows altering selected parameters:
 ```scala
 val parser = CSVParser.config.fieldDelimiter(';').noHeader.parser[IO]
 val renderer = CSVRenderer.config.fieldDelimiter(';').noHeader.renderer[IO]
 ```
 
 Individual configuration parameters are described in
-`CSVConfig`'s [Scaladoc](https://javadoc.io/doc/info.fingo/spata_2.13/latest/info/fingo/spata/CSVConfig.html).
+`CSVConfig`'s [Scaladoc](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/CSVConfig.html).
 
 A specific setting is the header mapping, available through `CSVConfig.mapHeader`.
 It allows replacing original header values with more convenient ones or even defining header if no one is present.
@@ -328,15 +328,15 @@ There are two groups of the `read` and `write` methods in `Reader` and `Writer`:
 *   basic ones, accessible through `Reader.plain` and `Writer.plain`,
     where reading and writing is done synchronously on the current thread,
 
-*   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
+*   with support for [thread shifting](https://typelevel.org/cats-effect/docs/thread-model#blocking),
     accessible through `Reader.shifting` and `Writer.shifting`.
 
 It is recommended to use the thread shifting version, especially for long reading or writing operations,
 for better thread pool utilization.
-See [a post from Daniel Spiewak](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
-about thread pools configuration.
+See [Cats Effect schedulers](https://typelevel.org/cats-effect/docs/schedulers)
+description for thread pools configuration.
 More information about threading may be found in
-[Cats Concurrency Basics](https://typelevel.org/cats-effect/concurrency/basics.html).
+[Cats Effect thread model](https://typelevel.org/cats-effect/docs/thread-model).
 
 The simplest way to read data from and write to a file is:
 ```scala
@@ -350,15 +350,13 @@ val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.ap
 // do some processing on stream
 val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.plain
 ```
-The thread shifting reader and writer provide similar methods, but require implicit `ContextShift`:
+The thread shifting reader and writer provide similar methods:
 ```scala
-implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val stream: Stream[IO, Char] = Reader.shifting[IO].read(Path.of("data.csv"))
 val eff: Stream[IO, Unit] = stream.through(Writer.shifting[IO].write(Path.of("data.csv")))
 ```
-The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
-used for regular, non-blocking operations, after the blocking I/O operation finishes.
-The `Blocker`, which provides the thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
+Cats Effect 3 provides the thread shifting facility out of the box through `Async.blocking`,
+using the built-in internal blocking thread pool.
 
 All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
 Chunk size may be supplied while creating a reader:
@@ -376,16 +374,16 @@ implicit val codec: Codec = Codec.UTF8
 The caller to a `read` or a `write` method which takes a resource as a parameter (`Source`, `InputStream` or `OutputStream`)
 is responsible for its cleanup. This may be achieved through FS2 `Stream.bracket`:
 ```scala
-val stream: Stream[IO, Unit] = for {
+val stream: Stream[IO, Unit] = for
   source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
   destination <- Stream.bracket(IO { new FileOutputStream("data.csv") })(fos => IO { fos.close() })
   out <- Reader.shifting[IO].read(source)
     // do some processing
     .through(Writer[IO].write(destination))
-} yield out
+yield out
 ```
 Other methods of resource acquisition and releasing are described in
-[Cats Effect tutorial](https://typelevel.org/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources).
+[Cats Effect tutorial](https://typelevel.org/cats-effect/docs/tutorial#acquiring-and-releasing-resources).
 
 Unlike the `Reader.read` method, which creates a new stream, `Writer.write` operates on an existing stream.
 Being often the last operation in the stream pipeline, it has to allow access to the final stream,

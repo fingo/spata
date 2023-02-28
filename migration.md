@@ -84,13 +84,13 @@ This removal simplifies the `Reader.Shifting` and `Writer.Shifting` APIs -
 no blocker is provided as a parameter anymore. Instead of
 ```scala
 Stream.resource(Blocker[IO]).flatMap { blocker =>
-	Reader.shifting[IO](blocker).read("path")
+	Reader.shifting[IO](blocker).read(Path.of("path"))
 	// ...
 }
 ```
 you should simply write
 ```scala
-Reader.shifting[IO].read("path")
+Reader.shifting[IO].read(Path.of("path"))
 // ...
 ```
 

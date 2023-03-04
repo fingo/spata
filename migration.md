@@ -54,7 +54,8 @@ Upgrading to 3.x from 2.x
 **spata 3** runs on Scala 3 and requires Cats Effect 3 and FS2 3.
 
 This required a bunch of changes in the library and its API.
-First of all, spata 1 & 2 has made heavy use of shapeless and thus Scala 2 macros, which are not available for Scala 3.
+First of all, spata 1 & 2 has made heavy use of [shapeless](https://github.com/milessabin/shapeless)
+and thus Scala 2 macros, which are not available for Scala 3.
 Required changes influenced the record conversion (for both, regular `Record` and `TypedRecord`)
 and schema definiition and validation.
 Second, Cats Effect 3 introduced breaking changes, which in turn made FS2 v3 incompatible with previous version.
@@ -69,9 +70,33 @@ Record conversion has been completly rewritten from shapeless to tuples, with he
 Although you may see many differences in type signatures and context parameters of conversion functions,
 no chages in calling code should be required.
 
+The only exception is the `to` method, for which the parentheses have been removed, and
+```scala
+val element: Decoded[Element] = record.to[Element]()
+```
+has to be changed to
+```scala
+val element: Decoded[Element] = record.to[Element]
+```
+
 ### Schema and validation
 
-TODO
+Schema definition and validation in spata 2 has been build on [shapeless](https://github.com/milessabin/shapeless).
+This has to be reworked completly for spata 3, using its new metaprogramming features.
+You may see many changes in the signatures of types used for schema definition, validation and data conversion,
+including `TypedRecord` signature, which is now parametrized by two types,
+for keys (field names) and values, instead of single type representing compund data.
+Most of them doesn't influence the user code and should work just after recompilation.
+
+The only exception, similarly to regular `Record`, is conversion method `to`,
+for which the parentheses have been removed, and
+```scala
+val stockPrice: StockPrice = typedRecord.to[StockPrice]()
+```
+has to be changed to
+```scala
+val stockPrice: StockPrice = typedRecord.to[StockPrice]
+```
 
 ### IO
 

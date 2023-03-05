@@ -6,4 +6,5 @@
 !.codacy.yml
 target/
 project/target/
+project/project/
 project/metals.sbt

@@ -898,11 +898,15 @@ object Converter extends IOApp.Simple:
       .through(CSVParser[IO].parse)
       .through(schema.validate)
       .map {
-        _.leftMap(println).map { tr =>
+        _.leftMap(_.toString).map { tr =>
           val date = tr("date")
           val temp = fahrenheitToCelsius(tr("temp"))
           Record.builder.add("date", date).add("temp", temp).get
-        }.toOption
+        }
+      }
+      .evalMap { _ match
+        case Invalid(s) => IO.println(s) >> IO.none
+        case Valid(r) => IO(Some(r))
       }
       .unNone
       .through(CSVRenderer[IO].render)
@@ -955,6 +959,7 @@ The converter example presented in [Basic usage](#basic-usage) may be enriched w
 import java.nio.file.Paths
 import scala.io.Codec
 import scala.util.Try
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}

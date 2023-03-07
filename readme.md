@@ -11,6 +11,10 @@ spata
 **spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
+> This brach is dedicated to **spata 2**, which runs on Scala 2, Cats Effect 2 and FS2 v2.
+> For **spata 3**, which runs on Scala 3, Cats Effect 3 and FS2 v3,
+> switch to [master branch](https://github.com/fingo/spata/tree/master).
+
 The main goal of the library is to provide handy, functional, stream-based API
 with easy conversion between records and case classes, completed with precise information about possible flaws
 and their location in source data for parsing while maintaining good performance.
@@ -868,6 +872,7 @@ The converter example presented in [Basic usage](#basic-usage) may be improved t
 import java.nio.file.Paths
 import java.time.LocalDate
 import scala.io.Codec
+import cats.data.Validated.{Invalid, Valid}
 import cats.effect.{Blocker, ExitCode, IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
@@ -887,11 +892,15 @@ object Converter extends IOApp {
       .through(CSVParser[IO].parse)
       .through(schema.validate)
       .map {
-        _.leftMap(println).map { tr =>
+        _.leftMap(_.toString).map { tr =>
           val date = tr("date")
           val temp = fahrenheitToCelsius(tr("temp"))
           Record.builder.add("date", date).add("temp", temp).get
-        }.toOption
+        }
+      }
+      .evalMap {
+        case Invalid(s) => IO(println(s)) *> IO.none
+        case Valid(r) => IO(Some(r))
       }
       .unNone
       .through(CSVRenderer[IO].render)

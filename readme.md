@@ -8,15 +8,15 @@ spata
 [![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_3/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/index.html)
 [![Gitter](https://badges.gitter.im/fingo-spata/community.svg)](https://gitter.im/fingo-spata/community)
 
+**spata** is a functional tabular data (`CSV`) processor for Scala.
+The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
+
 > Work in progress.
 > 
 > **spata** is being ported to Scala 3.
-> Due to its past dependency on shapeless 2 and thus Scala 2 macros,
-> this version has to introduce significant API changes.
-> **spata 3** supports Scala 3 only. Scala 2 support is still available in **spata 2**.
-
-**spata** is a functional tabular data (`CSV`) processor for Scala.
-The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
+> Due to its past dependency on shapeless 2 and thus Scala 2 macros,  this version introduced significant API changes.
+> **spata 3** supports Scala 3 only.
+> Scala 2 support is still available in [**spata 2**](https://github.com/fingo/spata/tree/spata2).
 
 The main goal of the library is to provide handy, functional, stream-based API
 with easy conversion between records and case classes, completed with precise information about possible flaws

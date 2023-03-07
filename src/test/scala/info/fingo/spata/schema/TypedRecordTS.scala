@@ -24,6 +24,13 @@ class TypedRecordTS extends AnyFunSuite {
     assert(r3("name") == name)
   }
 
+  test("Typed record prevent wrongly-typed access to its values") {
+    val r = tr(trf("title", "Dark Side of the Moon") :: trf("year", 1973) :: HNil)
+    assertCompiles("""val year: Int = r("year")""")
+    assertDoesNotCompile("""val year: String = r("year")""")
+    assertDoesNotCompile("""val year: Int = r("day")""")
+  }
+
   test("Typed record allows conversion to case classes") {
     case class FullData(id: Int, code: String, name: String, description: Option[String], inventory: Int)
     case class PartialData(id: Int, name: String)

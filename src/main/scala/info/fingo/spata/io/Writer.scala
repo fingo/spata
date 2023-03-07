@@ -8,9 +8,10 @@ package info.fingo.spata.io
 import java.io.OutputStream
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.Codec
-import cats.effect.{Blocker, ContextShift, Resource, Sync}
+import cats.effect.{Async, Sync}
 import cats.syntax.all._
 import fs2.{io, text, Chunk, Pipe, Stream}
+import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
 import info.fingo.spata.util.Logger
 
 /** Writer interface with writing operations to various destinations.
@@ -21,7 +22,7 @@ import info.fingo.spata.util.Logger
   *
   * @tparam F the effect type
   */
-sealed trait Writer[F[_]] {
+sealed trait Writer[F[_]]:
 
   /** Writes CSV to destination `OutputStream`.
     *
@@ -31,7 +32,7 @@ sealed trait Writer[F[_]] {
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit]
 
   /** Writes CSV to destination `OutputStream`.
     *
@@ -41,44 +42,42 @@ sealed trait Writer[F[_]] {
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit]
 
   /** Writes CSV to target path.
     *
     * @example
-    * {{{
-    * implicit val codec = new Codec(Charset.forName("UTF-8"))
+    * ```
+    * given codec = new Codec(Charset.forName("UTF-8"))
     * val path = Path.of("data.csv")
     * val stream: Stream[IO, Char] = ???
     * val handler: Stream[IO, Unit] = stream.through(Writer[IO]().write(path))
-    * }}}
+    * ```
     *
     * @param path the path to target file
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit]
+  def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit]
 
-  /** Alias for various `write` methods.
+  /** Alias for various [[write]] methods.
     *
     * @param csv the CSV data destination
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @tparam A type of target
     * @return pipe converting stream of characters to empty one
     */
-  def apply[A: Writer.CSV](csv: A)(implicit codec: Codec): Pipe[F, Char, Unit] = csv match {
+  def apply[A: Writer.CSV](csv: A)(using codec: Codec): Pipe[F, Char, Unit] = csv match
     case os: OutputStream => write(os)
     case p: Path => write(p)
-  }
 
-  /** Alias for `write` method.
+  /** Alias for [[write]] method.
     *
     * @param csv the CSV data destination
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
     * @return pipe converting stream of characters to empty one
     */
-  def apply(csv: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] = write(csv)
-}
+  def apply(csv: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] = write(csv)
 
 /** Utility to write external data from a stream of characters.
   * It is used through one of its inner classes:
@@ -92,13 +91,13 @@ sealed trait Writer[F[_]] {
   * is responsible for its cleanup.
   *
   * Functions writing binary data (to `java.io.InputStream` or taking `java.nio.file.Path`)
-  * use implicit [[scala.io.Codec]] to encode data. If not provided, the default JVM charset is used.
+  * use given [[scala.io.Codec]] to encode data. If not provided, the default JVM charset is used.
   *
   * For data encoded to `UTF`, the byte order mark (`BOM`) is not added to the output.
   *
   * All of above applies not only to `write` functions but also to `apply`, which internally make use of `write`.
   */
-object Writer {
+object Writer:
 
   private val autoClose = false
   private val openOptions = Seq(StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE)
@@ -120,52 +119,41 @@ object Writer {
   def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F]()
 
   /** Provides writer with support of context shifting for I/O operations.
-    *
-    * @param blocker an execution context to be used for blocking I/O operations
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Writer` with support for context shifting
-    */
-  def shifting[F[_]: Sync: ContextShift: Logger](blocker: Blocker): Shifting[F] =
-    new Shifting[F](Some(blocker))
-
-  /** Provides writer with support of context shifting for I/O operations.
     * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
     *
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     * @return `Writer` with support for context shifting
     */
-  def shifting[F[_]: Sync: ContextShift: Logger]: Shifting[F] = new Shifting[F](None)
+  def shifting[F[_]: Async: Logger]: Shifting[F] = new Shifting[F]()
 
   /** Writer which executes I/O operations on current thread, without context (thread) shifting.
     *
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     */
-  final class Plain[F[_]: Sync: Logger] private[spata] () extends Writer[F] {
+  final class Plain[F[_]: Sync: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
-    def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) => Stream.eval(fos).flatMap(os => in.through(write(os)))
 
     /** @inheritdoc */
-    def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         in.through(char2byte).evalMap(c => Sync[F].delay(os.write(c.toArray))) ++ Stream.eval(Sync[F].delay(os.flush()))
 
     /** @inheritdoc */
-    def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         Stream
           .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay {
             Files.newOutputStream(path, openOptions: _*)
-          })(os => Sync[F].delay { os.close() })
+          })(os => Sync[F].delay(os.close()))
           .flatMap(os => in.through(write(os)))
 
-    protected def char2byte(implicit codec: Codec): Pipe[F, Char, Chunk[Byte]] =
+    protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =
       (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(text.encodeC(codec.charSet))
-  }
 
   /** Writer which shifts I/O operations to a execution context provided for blocking operations.
     * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
@@ -174,60 +162,52 @@ object Writer {
     * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
     * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
     */
-  final class Shifting[F[_]: Sync: ContextShift: Logger] private[spata] (
-    blocker: Option[Blocker]
-  ) extends Writer[F] {
+  final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F]:
 
     /** @inheritdoc */
-    def write(fos: F[OutputStream])(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
-        for {
-          blocker <- Stream.resource(br)
+        for
           _ <- Logger[F].debugS("Writing data to OutputStream with context shift")
-          _ <- in.through(char2byte).through(io.writeOutputStream(fos, blocker, autoClose))
-        } yield ()
+          _ <- in.through(char2byte).through(io.writeOutputStream(fos, autoClose)).unitary
+        yield ()
 
     /** @inheritdoc */
-    def write(os: OutputStream)(implicit codec: Codec): Pipe[F, Char, Unit] = write(Sync[F].delay(os))
+    def write(os: OutputStream)(using codec: Codec): Pipe[F, Char, Unit] = write(Sync[F].delay(os))
 
     /** @inheritdoc
       *
       * @example
-      * {{{
-      * implicit val codec = new Codec(Charset.forName("UTF-8"))
+      * ```
+      * given codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
       * val stream: Stream[IO, Char] = ???
       * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO]().write(path))
-      * }}}
+      * ```
       */
-    def write(path: Path)(implicit codec: Codec): Pipe[F, Char, Unit] =
+    def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
-        for {
-          blocker <- Stream.resource(br)
+        for
           _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
-          _ <- in.through(char2byte).through(io.file.writeAll[F](path, blocker, openOptions))
-        } yield ()
+          _ <- in
+            .through(char2byte)
+            .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
+            .unitary
+        yield ()
 
-    /* Wrap provided blocker in dummy-resource or get real resource with new blocker. */
-    private def br =
-      blocker.map(b => Resource(Sync[F].delay((b, Sync[F].unit)))).getOrElse(Blocker[F])
-
-    protected def char2byte(implicit codec: Codec): Pipe[F, Char, Byte] =
-      (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(fs2.text.encode(codec.charSet))
-  }
+    protected def char2byte(using codec: Codec): Pipe[F, Char, Byte] =
+      _.chunks.map(_.mkString_("")).through(text.encode(codec.charSet))
 
   /** Representation of CSV data destination, used to witness that certain sources may be used by write operations.
     * @see [[CSV$ CSV]] object.
     */
   sealed trait CSV[-A]
 
-  /** Implicits to witness that given type is supported by `Writer` as CSV destination. */
-  object CSV {
+  /** Given instances to witness that given type is supported by `Writer` as CSV destination. */
+  object CSV:
 
     /** Witness that [[java.io.OutputStream]] may be used with `Writer` methods. */
-    implicit object outputStreamWitness extends CSV[OutputStream]
+    given outputStreamWitness: CSV[OutputStream] with {}
 
     /** Witness that [[java.nio.file.Path]] may be used with `Writer` methods. */
-    implicit object pathWitness extends CSV[Path]
-  }
-}
+    given pathWitness: CSV[Path] with {}

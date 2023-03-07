@@ -7,7 +7,7 @@ package info.fingo.spata
 
 import cats.effect.Sync
 import fs2.Stream
-import info.fingo.spata.error.StructureException
+import info.fingo.spata.error.{FieldInfo, StructureException}
 import info.fingo.spata.parser.RecordParser._
 import info.fingo.spata.util.Logger
 
@@ -31,7 +31,7 @@ final private[spata] class Content[F[_]: Sync: Logger] private (
           code,
           Position.some(recordNum - dataOffset, location.line),
           Some(location.position),
-          header(fieldNum - 1)
+          FieldInfo(fieldNum - 1, header)
         )
       )
   }
@@ -70,6 +70,6 @@ private[spata] object Content {
       case RawRecord(captions, _, _) =>
         Header.create(captions, headerMap)
       case RecordFailure(code, location, _, _) =>
-        Left(new StructureException(code, Position.some(0, location.line), Some(location.position), None))
+        Left(new StructureException(code, Position.some(0, location.line), Some(location.position), FieldInfo.none))
     }
 }

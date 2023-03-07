@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import fs2.{Chunk, Pipe, Pull, RaiseThrowable, Stream}
-import info.fingo.spata.error.HeaderError
+import info.fingo.spata.error.{FieldInfo, HeaderError}
 
 /** A utility for rendering data to CSV representation.
   *
@@ -86,11 +86,10 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
         case None => Pull.done
       }
     val pull = in.pull.uncons1.flatMap {
-      case Some((r, t)) => {
+      case Some((r, t)) =>
         val headerRow = if (config.hasHeader) Pull.output1(renderHeader(r.header)) else Pull.pure(())
         val firstRow = Pull.output1(renderRow(r, r.header))
         headerRow >> firstRow >> loop(t, r.header)
-      }
       case None => Pull.done
     }
     pull.stream.through(toChars)
@@ -123,13 +122,13 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
     (in: Stream[F, Either[HeaderError, String]]) =>
       in.rethrow
         .intersperse(srd)
-        .map(s => Chunk.chars(s.toCharArray))
+        .map(s => Chunk.array[Char](s.toCharArray))
         .flatMap(Stream.chunk)
 
   /* Renders single record into CSV string. */
   private def renderRow(record: Record, header: Header): Either[HeaderError, String] =
     header.names.map { name =>
-      record(name).map(escape).toRight(new HeaderError(Position.none, name))
+      record(name).map(escape).toRight(new HeaderError(Position.none, FieldInfo(name)))
     }.foldRight[Either[HeaderError, List[String]]](Right(Nil))((elm, seq) => elm.flatMap(s => seq.map(s :: _)))
       .map(_.mkString(sfd))
 
@@ -153,7 +152,8 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
   private def doubleQuotes(s: String): String = if (s.contains(sq)) s.replace(sq, sq * 2) else s
 
   @inline private def hasDelimiters(s: String): Boolean =
-    s.contains(config.fieldDelimiter) || s.contains(config.recordDelimiter)
+    // TODO: eliminate toChar (it has been put because of compiler returning error for it)
+    s.contains(config.fieldDelimiter.toChar) || s.contains(config.recordDelimiter.toChar)
 }
 
 /** [[CSVRenderer]] companion object with convenience methods to create renderers. */

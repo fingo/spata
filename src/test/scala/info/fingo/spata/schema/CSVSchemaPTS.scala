@@ -7,6 +7,7 @@ package info.fingo.spata.schema
 
 import java.time.LocalDate
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import info.fingo.spata.io.Reader
@@ -60,7 +61,7 @@ class CSVSchemaPTS extends Bench.LocalTime {
           .read(input)
           .through(parser.parse)
           .through(schemaFile.validate)
-          .map(_.map(_.to[MarsWeather]()))
+          .map(_.map(_.to[MarsWeather]))
           .compile
           .drain
           .unsafeRunSync()

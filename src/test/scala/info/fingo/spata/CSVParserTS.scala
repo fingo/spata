@@ -10,15 +10,15 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.LongAdder
-import scala.concurrent.ExecutionContext
 import scala.io.{BufferedSource, Source}
 import scala.collection.mutable
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import info.fingo.spata.CSVParser.Callback
-import info.fingo.spata.error.StructureException
+import info.fingo.spata.error.{FieldInfo, StructureException}
 import info.fingo.spata.io.Reader
 import info.fingo.spata.text.StringParser
 import org.scalatest.Assertion
@@ -30,8 +30,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
   private val maxFieldSize = 100
   // use smaller chunk size in tests than the default one to avoid having all data in single chunk
   private val chunkSize = 16
-
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   // wrap required test parameters into class to easier pass it around
   private class BasicTestInfo(testData: (String, String, String, String, String), val separator: Char) {
@@ -74,10 +72,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       case class Data(NAME: String, DATE: LocalDate)
       implicit val ldsp: StringParser[LocalDate] =
         (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-      val hmd = head.to[Data]()
+      val hmd = head.to[Data]
       assert(hmd.isRight)
       assert(hmd.forall(_.NAME == testInfo.firstName))
-      val lmd = last.to[Data]()
+      val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall(_.NAME == testInfo.lastName))
     }
@@ -102,10 +100,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assert(last.rowNum == list.size)
 
       type Data = (Int, String)
-      val hmd = head.to[Data]()
+      val hmd = head.to[Data]
       assert(hmd.isRight)
       assert(hmd.forall { case (_, name) => name == testInfo.firstName })
-      val lmd = last.to[Data]()
+      val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall { case (_, name) => name == testInfo.lastName })
     }
@@ -132,7 +130,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           line: Int,
           row: Int,
           col: Option[Int],
-          field: Option[String]
+          field: FieldInfo
         ) =>
           forAll(separators) { separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
@@ -156,7 +154,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           line: Int,
           row: Int,
           col: Option[Int],
-          field: Option[String]
+          field: FieldInfo
         ) =>
           forAll(separators) { separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
@@ -181,7 +179,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
       assertListLast(list, testInfo.lastName, testInfo.lastValue)
 
       case class Data(ID: Int, NAME: String)
-      val data = list.map(_.to[Data]()).collect { case Right(v) => v }
+      val data = list.map(_.to[Data]).collect { case Right(v) => v }
       assert(data.length == 3)
       assert(data.head.NAME == testInfo.firstName)
     }
@@ -230,7 +228,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           line: Int,
           row: Int,
           col: Option[Int],
-          field: Option[String]
+          field: FieldInfo
         ) =>
           forAll(separators) { separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
@@ -286,7 +284,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
           line: Int,
           row: Int,
           col: Option[Int],
-          field: Option[String]
+          field: FieldInfo
         ) =>
           forAll(separators) { separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
@@ -356,7 +354,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     line: Int,
     col: Option[Int],
     row: Int,
-    field: Option[String]
+    field: FieldInfo
   )(result: A): A = {
     ex match {
       case ex: StructureException => assertCSVException(ex, errorCode, line, col, row, field)
@@ -372,7 +370,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     line: Int,
     col: Option[Int],
     row: Int,
-    field: Option[String]
+    field: FieldInfo
   ): Unit = {
     assert(ex.messageCode == errorCode)
     assert(ex.position.forall(_.line == line))
@@ -432,69 +430,69 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     testCase match {
       case "basic" =>
         s"""1${s}Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "basic quoted" =>
         s""""1"$s"Koval, Funky"$s"01.01.2001"$s"100.00"
-           |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
-           |"3"$s"Solo, Han"$s"09.09.1999"$s"999.99"""".stripMargin
+          |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
+          |"3"$s"Solo, Han"$s"09.09.1999"$s"999.99"""".stripMargin
       case "mixed" =>
         s""""1"${s}Funky Koval${s}01.01.2001$s"100.00"
-           |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
-           |"3"$s"Solo, Han"${s}09.09.1999${s}999.99""".stripMargin
+          |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
+          |"3"$s"Solo, Han"${s}09.09.1999${s}999.99""".stripMargin
       case "spaces" =>
         s""""1"$s" Funky Koval "${s}01.01.2001$s" "
-           | 2$s Eva Solo ${s}31.12.2012${s}123.45
-           |"3"$s  Han Solo  ${s}09.09.1999$s" 999.99 """".stripMargin
+          | 2$s Eva Solo ${s}31.12.2012${s}123.45
+          |"3"$s  Han Solo  ${s}09.09.1999$s" 999.99 """".stripMargin
       case "empty values" =>
         s""""1"$s${s}01.01.2001$s
-           |"2"${s}Eva Solo${s}31.12.2012${s}123.45
-           |"3"$s""${s}09.09.1999$s""""".stripMargin
+          |"2"${s}Eva Solo${s}31.12.2012${s}123.45
+          |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "double quotes" =>
         s""""1"$s"^Funky^ Koval"$s"01.01.2001"$s"^100.00^"
-           |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
-           |"3"$s"Solo, ^Han^"$s"09.09.1999"$s"999^.^99"""".stripMargin.replace("^", "\"\"")
+          |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"
+          |"3"$s"Solo, ^Han^"$s"09.09.1999"$s"999^.^99"""".stripMargin.replace("^", "\"\"")
       case "line breaks" =>
         s"""1$s"Funky\nKoval"${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3$s"\nHan Solo"${s}09.09.1999$s"999.99\n"""".stripMargin
       case "empty lines" =>
         s"""
-           |1${s}Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99
-           |""".stripMargin
+          |1${s}Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99
+          |""".stripMargin
       case _ => throw new RuntimeException("Unknown test case")
     }
   }
 
   private lazy val errorCases = Table(
     ("testCase", "errorCode", "lineNum", "colNum", "rowNum", "field"),
-    ("missing value", "wrongNumberOfFields", 2, 1, None, None),
-    ("missing value with empty lines", "wrongNumberOfFields", 3, 1, None, None),
-    ("too many values", "wrongNumberOfFields", 2, 1, None, None),
-    ("unclosed quotation", "unclosedQuotation", 2, 1, Some(8), Some("NAME")),
-    ("unclosed quotation with empty lines", "unclosedQuotation", 3, 1, Some(8), Some("NAME")),
-    ("unescaped quotation", "unescapedQuotation", 2, 1, Some(9), Some("NAME")),
-    ("unmatched quotation", "unmatchedQuotation", 2, 1, Some(3), Some("NAME")),
-    ("unmatched quotation with escaped one", "unmatchedQuotation", 2, 1, Some(3), Some("NAME")),
-    ("field too long", "fieldTooLong", 2, 1, Some(103), Some("NAME")),
-    ("field too long through unmatched quotation", "fieldTooLong", 3, 1, Some(11), Some("NAME")),
-    ("malformed header", "unclosedQuotation", 1, 0, Some(10), None),
-    ("duplicated header", "duplicatedHeader", 1, 0, None, Some("VALUE")),
-    ("no content", "missingHeader", 1, 0, None, None),
-    ("io exception", "message", 0, 0, None, None)
+    ("missing value", "wrongNumberOfFields", 2, 1, None, FieldInfo.none),
+    ("missing value with empty lines", "wrongNumberOfFields", 3, 1, None, FieldInfo.none),
+    ("too many values", "wrongNumberOfFields", 2, 1, None, FieldInfo.none),
+    ("unclosed quotation", "unclosedQuotation", 2, 1, Some(8), FieldInfo("NAME", 1)),
+    ("unclosed quotation with empty lines", "unclosedQuotation", 3, 1, Some(8), FieldInfo("NAME", 1)),
+    ("unescaped quotation", "unescapedQuotation", 2, 1, Some(9), FieldInfo("NAME", 1)),
+    ("unmatched quotation", "unmatchedQuotation", 2, 1, Some(3), FieldInfo("NAME", 1)),
+    ("unmatched quotation with escaped one", "unmatchedQuotation", 2, 1, Some(3), FieldInfo("NAME", 1)),
+    ("field too long", "fieldTooLong", 2, 1, Some(103), FieldInfo("NAME", 1)),
+    ("field too long through unmatched quotation", "fieldTooLong", 3, 1, Some(11), FieldInfo("NAME", 1)),
+    ("malformed header", "unclosedQuotation", 1, 0, Some(10), FieldInfo.none),
+    ("duplicated header", "duplicatedHeader", 1, 0, None, FieldInfo("VALUE")),
+    ("no content", "missingHeader", 1, 0, None, FieldInfo.none),
+    ("io exception", "message", 0, 0, None, FieldInfo.none)
   )
 
   private lazy val noTrimErrorCases = Table(
     ("testCase", "errorCode", "lineNum", "colNum", "rowNum", "field"),
-    ("unclosed quotation after spaces", "unclosedQuotation", 2, 1, Some(5), Some("NAME")),
-    ("unclosed/unmatched quotation with trailing spaces", "unclosedQuotation", 2, 1, Some(5), Some("NAME"))
+    ("unclosed quotation after spaces", "unclosedQuotation", 2, 1, Some(5), FieldInfo("NAME", 1)),
+    ("unclosed/unmatched quotation with trailing spaces", "unclosedQuotation", 2, 1, Some(5), FieldInfo("NAME", 1))
   )
 
   private lazy val trimErrorCases = Table(
     ("testCase", "errorCode", "lineNum", "colNum", "rowNum", "field"),
-    ("unclosed/unmatched quotation with trailing spaces", "unmatchedQuotation", 2, 1, Some(5), Some("NAME"))
+    ("unclosed/unmatched quotation with trailing spaces", "unmatchedQuotation", 2, 1, Some(5), FieldInfo("NAME", 1))
   )
 
   private def generateErroneousCSV(testCase: String, separator: Char): Source = {
@@ -502,76 +500,76 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val csv = testCase match {
       case "missing value" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Funky Koval${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky Koval${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "missing value with empty lines" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |
-           |1${s}Funky Koval${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |
+          |1${s}Funky Koval${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "too many values" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Funky Koval${s}XYZ${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky Koval${s}XYZ${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Funky" Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky" Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed quotation with empty lines" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |
-           |1${s}Funky" Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |
+          |1${s}Funky" Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unescaped quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Funky" Koval"${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s"Funky" Koval"${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unmatched quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s"Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed quotation after spaces" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s  "Funky Koval"${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s  "Funky Koval"${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unclosed/unmatched quotation with trailing spaces" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s  "Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s  "Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "unmatched quotation with escaped one" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Funky Koval""${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s"Funky Koval""${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "field too long" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1${s}Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "field too long through unmatched quotation" =>
         s"""ID${s}NAME${s}DATE${s}VALUE
-           |1$s"Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1$s"Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "malformed header" =>
         s"""ID${s}NAME${s}D"ATE${s}VALUE
-           |1${s}Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "duplicated header" =>
         s"""ID${s}NAME${s}VALUE${s}VALUE
-           |1${s}Funky Koval${s}01.01.2001${s}100.00
-           |2${s}Eva Solo${s}31.12.2012${s}123.45
-           |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
+          |1${s}Funky Koval${s}01.01.2001${s}100.00
+          |2${s}Eva Solo${s}31.12.2012${s}123.45
+          |3${s}Han Solo${s}09.09.1999${s}999.99""".stripMargin
       case "no content" => ""
       case "io exception" => "io.exception"
       case _ => throw new RuntimeException("Unknown test case")

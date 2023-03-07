@@ -3,14 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
+
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import fs2.Stream
+import info.fingo.spata.io.{Reader, Writer}
+import info.fingo.spata.{CSVParser, CSVRenderer, Record}
+import org.scalatest.funsuite.AnyFunSuite
 
 import java.io.{File, FileOutputStream}
-import cats.effect.IO
-import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, CSVRenderer, Record}
-import info.fingo.spata.io.{Reader, Writer}
 
 /* Samples which write processing results to another CSV file */
 class FileITS extends AnyFunSuite {
@@ -40,10 +42,12 @@ class FileITS extends AnyFunSuite {
       .through(Writer[IO].write(outFile.toPath))
       .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
-    val checkAndClean = Stream.eval_(IO {
-      assert(outFile.length > 16000)
-      outFile.delete()
-    })
+    val checkAndClean = Stream
+      .eval(IO {
+        assert(outFile.length > 16000)
+        outFile.delete()
+      })
+      .drain
     // run
     output.append(checkAndClean).compile.drain.unsafeRunSync()
   }
@@ -63,10 +67,12 @@ class FileITS extends AnyFunSuite {
         .handleErrorWith(ex => errorHandler(ex, outFile))
     } yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
-    val checkAndClean = Stream.eval_(IO {
-      assert(outFile.length > 16000)
-      outFile.delete()
-    })
+    val checkAndClean = Stream
+      .eval(IO {
+        assert(outFile.length > 16000)
+        outFile.delete()
+      })
+      .drain
     // run
     outcome.append(checkAndClean).compile.drain.unsafeRunSync()
   }

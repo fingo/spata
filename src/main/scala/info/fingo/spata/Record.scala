@@ -6,10 +6,8 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
-import shapeless.{HList, LabelledGeneric}
-import info.fingo.spata.Record.ToProduct
-import info.fingo.spata.converter.{RecordFromHList, RecordToHList}
-import info.fingo.spata.error.{ContentError, DataError, HeaderError, ParsingErrorCode, StructureException}
+import info.fingo.spata.converter.{FromProduct, ToProduct}
+import info.fingo.spata.error.*
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
 
 /** CSV record representation.
@@ -47,6 +45,17 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     */
   def get[A: StringParser](key: String): Decoded[A] = retrieve(key)
 
+  // TODO: correct link to get method in doc
+  /** Safely gets typed record value.
+    *
+    * @see [[get(key:String)* get]] for details.
+    *
+    * @tparam A type to parse the field to
+    * @param idx index of retrieved field
+    * @return either parsed value or an error
+    */
+  def get[A: StringParser](idx: Int): Decoded[A] = retrieve(idx)
+
   /** Safely gets typed record value.
     *
     * The combination of `get`, [[Field]] constructor and `apply` method allows value retrieval in following form:
@@ -67,8 +76,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
   /** Converts this record to [[scala.Product]], e.g. case class.
     *
-    * The combination of `to`, [[Record.ToProduct]] constructor and `apply` method
-    * allows conversion in following form:
+    * For example:
     * {{{
     * // Assume following CSV source
     * // ----------------
@@ -79,15 +87,16 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * // and a Record created based on it
     * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
-    * val person: Decoded[Person] = record.to[Person]()
+    * val person: Decoded[Person] = record.to[Person]
     * }}}
-    * Please note, that the conversion is name-based (case class field names have to match record (CSV) header)
-    * and is case sensitive.
+    *
+    * Please note, that the conversion for case classes is name-based
+    * (case class field names have to match record (CSV) header) and is case sensitive.
     * The order of fields does not matter.
     * Case class may be narrower and effectively retrieve only a subset of record's fields.
     *
     * It is possible to use a tuple instead of case class.
-    * In such case the header must match the tuple field naming convention: `_1`, `_2` etc.
+    * In such case the conversion is index-based and header names are not taken into account.
     *
     * Current implementation supports only shallow conversion -
     * each product field has to be retrieved from single record field through [[text.StringParser StringParser]].
@@ -110,10 +119,12 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * val person: Decoded[Person] = record.to[Person]()
     * }}}
     *
-    * @tparam P the [[scala.Product]] type to converter this record to
-    * @return intermediary to infer representation type and return proper type
+    * @tparam P the [[scala.Product]] type to converter this record to,
+    * with given type class providing support for conversion (arranged internally by spata,
+    * assuming `StringParser` is available for all product field types)
+    * @return either converted product or an error
     */
-  def to[P <: Product]: ToProduct[P] = new ToProduct[P](this)
+  def to[P <: Product: ToProduct]: Decoded[P] = summon[ToProduct[P]].decode(this)
 
   /** Gets field value.
     *
@@ -253,13 +264,21 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Gets text representation of record, with fields separated by comma. */
   override def toString: String = values.mkString(",")
 
-  /* Retrieve field value using string parser with provided format */
+  /* Retrieve field value by key using string parser with provided format */
   private def retrieve[A, B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
     decode(key)(v => StringParser.parse(v, fmt))
 
-  /* Retrieve field value using string parser */
+  /* Retrieve field value by key using string parser */
   private def retrieve[A](key: String)(implicit parser: StringParser[A]): Decoded[A] =
     decode(key)(v => StringParser.parse(v))
+
+  /* Retrieve field value by index using string parser with provided format */
+  private def retrieve[A, B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
+    decode(idx)(v => StringParser.parse(v, fmt))
+
+  /* Retrieve field value by index using string parser */
+  private def retrieve[A](idx: Int)(implicit parser: StringParser[A]): Decoded[A] =
+    decode(idx)(v => StringParser.parse(v))
 
   /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
   private def decode[A](key: String)(parse: String => ParseResult[A]): Decoded[A] = {
@@ -268,9 +287,22 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       case Some(str) =>
         parse(str) match {
           case Right(value) => Right(value)
-          case Left(error) => Left(new DataError(error.content, position, key, error))
+          case Left(error) => Left(new DataError(error.content, position, FieldInfo(key), error))
         }
-      case None => Left(new HeaderError(position, key))
+      case None => Left(new HeaderError(position, FieldInfo(key)))
+    }
+  }
+
+  /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
+  private def decode[A](idx: Int)(parse: String => ParseResult[A]): Decoded[A] = {
+    val value = apply(idx)
+    value match {
+      case Some(str) =>
+        parse(str) match {
+          case Right(value) => Right(value)
+          case Left(error) => Left(new DataError(error.content, position, FieldInfo(idx), error))
+        }
+      case None => Left(new IndexError(position, FieldInfo(idx)))
     }
   }
 
@@ -286,13 +318,26 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * If wrong header key is provided this function will return `Left[error.HeaderError,_]`.
       * If parsing fails `Left[error.DataError,_]` will be returned.
       *
-      * @param key the key of retrieved field
+      * @param key the name of retrieved field
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
       * @param parser the parser for specific target type
       * @tparam B type of formatter
       * @return either parsed value or an error
       */
     def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(key, fmt)
+
+    /** Safely parses string to desired type based on provided format.
+      *
+      * If wrong index is provided this function will return `Left[error.IndexError,_]`.
+      * If parsing fails `Left[error.DataError,_]` will be returned.
+      *
+      * @param idx the index of retrieved field
+      * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
+      * @param parser the parser for specific target type
+      * @tparam B type of formatter
+      * @return either parsed value or an error
+      */
+    def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(idx, fmt)
   }
 
   /** Access to unsafe (exception throwing) methods */
@@ -369,7 +414,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
       /** Parses field to desired type based on provided format.
         *
-        * @param key the key of retrieved field
+        * @param key the name of retrieved field
         * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
         * @param parser the parser for specific target type
         * @tparam B type of concrete formatter
@@ -378,6 +423,18 @@ final class Record private (val values: IndexedSeq[String], val position: Option
         */
       @throws[ContentError]("if field cannot be parsed to requested type or incorrect key is provided")
       def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = rethrow(retrieve(key, fmt))
+
+      /** Parses field to desired type based on provided format.
+        *
+        * @param idx the index of retrieved field
+        * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
+        * @param parser the parser for specific target type
+        * @tparam B type of concrete formatter
+        * @return parsed value
+        * @throws error.ContentError if field cannot be parsed to requested type or incorrect `idx` is provided
+        */
+      @throws[ContentError]("if field cannot be parsed to requested type or incorrect index is provided")
+      def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = rethrow(retrieve(idx, fmt))
     }
   }
 }
@@ -475,15 +532,12 @@ object Record {
     * }}}
     *
     * @param product the product to convert (render) to record
-    * @param gen the generic for specified source type and [[shapeless.HList]] representation
-    * @param rHL intermediary converter from [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s to record
     * @tparam P the [[scala.Product]] type to create new record from
-    * @tparam R [[shapeless.HList]] representation type
+    * with given type class providing support for conversion (arranged internally by spata,
+    * assuming `StringRenderer` is available for all product field types)
     * @return new record
     */
-  def from[P <: Product, R <: HList](
-    product: P
-  )(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record = rHL(gen.to(product)).reversed
+  def from[P <: Product: FromProduct](product: P): Record = summon[FromProduct[P]].encode(product)
 
   /** Creates new record builder. */
   def builder: Builder = new Builder(List.empty[(String, String)])
@@ -495,45 +549,21 @@ object Record {
     */
   implicit def buildRecord(rb: Builder): Record = rb.get
 
-  /** Intermediary to delegate conversion to in order to infer [[shapeless.HList]] representation type.
-    *
-    * When converting a record to [[scala.Product]] (e.g. case class) one may use:
-    * {{{ val tp = new Record.ToProduct[C](record)() }}}
-    *
-    * @see [[Record.to]] for real world usage scenario.
-    * @param record the record to convert
-    * @tparam P the target type for conversion
-    */
-  final class ToProduct[P <: Product](record: Record) {
-
-    /** Converts record to [[scala.Product]], e.g. case class.
-      *
-      * @param gen the generic for specified target type and [[shapeless.HList]] representation
-      * @param rHL intermediary converter from record to [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s
-      * @tparam R [[shapeless.HList]] representation type
-      * @return either converted product or an error
-      */
-    final def apply[R <: HList]()(implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordToHList[R]): Decoded[P] =
-      rHL(record).map(gen.from)
-  }
-
   /** Extension of [[scala.Product]] to provide convenient conversion to records.
     *
     * @param product product to extend
-    * @tparam P concrete type of product
+    * @tparam P concrete type of product with given type class providing support for conversion
+    * (arranged internally by spata, assuming `StringRenderer` is available for all product field types)
     */
-  implicit final class ProductOps[P <: Product](product: P) {
+  implicit final class ProductOps[P <: Product: FromProduct](product: P) {
 
     /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
       *
       * @see [[Record.from]] for more information.
-      * @param gen the generic for specified source type and [[shapeless.HList]] representation
-      * @param rHL intermediary converter from [[shapeless.HList]] of [[shapeless.labelled.FieldType]]s to record
-      * @tparam R [[shapeless.HList]] representation type
+      *
       * @return new record
       */
-    def toRecord[R <: HList](implicit gen: LabelledGeneric.Aux[P, R], rHL: RecordFromHList[R]): Record =
-      Record.from(product)
+    def toRecord: Record = summon[FromProduct[P]].encode(product)
   }
 
   /** Helper to incrementally build records from typed values.

@@ -20,7 +20,7 @@ private[spata] trait ChunkAwareParser[F[_], I, O, S <: State] {
   def parse(state: S): Pipe[F, I, O] = {
 
     def loop(is: Stream[F, I], state: S): Pull[F, O, Unit] =
-      is.pull.unconsNonEmpty.flatMap {
+      is.pull.uncons.flatMap {
         case Some((h, t)) =>
           val (nextState, resultChunk) = parseChunk(h.toList, Vector.empty[O], state)
           Pull.output(resultChunk) >> next(t, nextState)

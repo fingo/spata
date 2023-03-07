@@ -102,7 +102,7 @@ object StringParser {
       * @return either parsed value or an exception
       */
     def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A] =
-      wrapExc(str) { parser(str, fmt) }
+      wrapExc(str)(parser(str, fmt))
   }
 
   /** Safely parses string to desired type.
@@ -118,7 +118,7 @@ object StringParser {
     * @return either parsed value or an [[ParseError]]
     */
   def parse[A](str: String)(implicit parser: StringParser[A]): ParseResult[A] =
-    wrapExc(str) { parser(str) }
+    wrapExc(str)(parser(str))
 
   /** Parses string to desired type based on provided format.
     *
@@ -148,8 +148,8 @@ object StringParser {
     * @tparam B type of formatter
     * @return parser which support formatted input and accepts empty one
     */
-  implicit def optionParserFmt[A, B](
-    implicit parser: FormattedStringParser[A, B]
+  implicit def optionParserFmt[A, B](implicit
+    parser: FormattedStringParser[A, B]
   ): FormattedStringParser[Option[A], B] =
     new FormattedStringParser[Option[A], B] {
       override def apply(str: String): Option[A] = if (str == null || str.isBlank) None else Some(parser(str))

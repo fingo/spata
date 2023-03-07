@@ -6,6 +6,7 @@
 package info.fingo.spata
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import info.fingo.spata.io.Reader
@@ -26,7 +27,7 @@ object CSVParserPTS extends Bench.LocalTime {
       using(amounts) in { amount =>
         testSource(amount)
           .through(parser.parse)
-          .map(_.to[(Double, Double, Double, Double, Double, Double, Double, Double, Double, String)]())
+          .map(_.to[(Double, Double, Double, Double, Double, Double, Double, Double, Double, String)])
           .compile
           .drain
           .unsafeRunSync()
@@ -37,7 +38,7 @@ object CSVParserPTS extends Bench.LocalTime {
         Reader[IO]
           .read(input)
           .through(parser.parse)
-          .map(_.to[MarsWeather]())
+          .map(_.to[MarsWeather])
           .compile
           .drain
           .unsafeRunSync()

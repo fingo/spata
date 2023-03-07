@@ -3,23 +3,23 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.time.{LocalDate, Month}
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-import java.util.concurrent.atomic.LongAdder
-import scala.concurrent.ExecutionContext
-import cats.effect.{Blocker, ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVConfig, CSVParser}
 import info.fingo.spata.CSVParser.Callback
 import info.fingo.spata.io.Reader
+import info.fingo.spata.{CSVConfig, CSVParser}
+import org.scalatest.funsuite.AnyFunSuite
+
+import java.time.{LocalDate, Month}
+import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 /* Samples which process the data asynchronously or using blocking context */
 class ThreadITS extends AnyFunSuite {
 
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
   private def println(s: String): String = s // do nothing, don't pollute test output
 
   test("spata allows asynchronous source processing") {
@@ -28,6 +28,7 @@ class ThreadITS extends AnyFunSuite {
 
     val cb: Callback = row => {
       count.increment()
+      Thread.sleep(100) // prevent calculation to be to quick
       val diff = for {
         max <- row.get[Long]("max_temp")
         min <- row.get[Long]("min_temp")
@@ -60,13 +61,12 @@ class ThreadITS extends AnyFunSuite {
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
     val parser = CSVConfig().mapHeader(mh).parser[IO] // parser with IO effect
     val records = for {
-      blocker <- Stream.resource(Blocker[IO]) // ensure creation and cleanup of blocking execution context
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      record <- Reader.shifting[IO](blocker).read(source).through(parser.parse) // get stream of CSV records
+      record <- Reader.shifting[IO].read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
-      .map(_.to[DayTemp]()) // converter records to DayTemps
+      .map(_.to[DayTemp]) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
       .filter(dt => dt.date.getYear == 2018 && dt.date.getMonth == Month.JANUARY) // filter data for specific month
       .take(30)

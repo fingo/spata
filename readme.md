@@ -4,19 +4,26 @@ spata
 [![Build Status](https://app.travis-ci.com/fingo/spata.svg?branch=master)](https://app.travis-ci.com/fingo/spata)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://www.codacy.com/gh/fingo/spata/dashboard)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
-[![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_2.13.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_2.13%22)
-[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_2.13/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_2.13/latest/info/fingo/spata/index.html)
+[![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_3.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_3%22)
+[![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_3/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/index.html)
 [![Gitter](https://badges.gitter.im/fingo-spata/community.svg)](https://gitter.im/fingo-spata/community)
 
 **spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
+
+> Work in progress.
+> 
+> **spata** is being ported to Scala 3.
+> Due to its past dependency on shapeless 2 and thus Scala 2 macros,  this version introduced significant API changes.
+> **spata 3** supports Scala 3 only.
+> Scala 2 support is still available in [**spata 2**](https://github.com/fingo/spata/tree/spata2).
 
 The main goal of the library is to provide handy, functional, stream-based API
 with easy conversion between records and case classes, completed with precise information about possible flaws
 and their location in source data for parsing while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse a well-formatted `CSV` file,
-but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.   
+but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file. 
 
 The source (while parsing) and destination (while rendering) data format is assumed to conform basically to
 [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt), but allows some variations - see `CSVConfig` for details.
@@ -30,7 +37,7 @@ The source (while parsing) and destination (while rendering) data format is assu
 Getting started
 ---------------
 
-spata is available for Scala 2.13 and requires at least Java 11.
+spata 3 is available for Scala 3.x and requires at least Java 11.
 
 To use spata you have to add this single dependency to your `build.sbt`:
 ```sbt
@@ -45,7 +52,9 @@ Basic usage
 The whole parsing process in a simple case may look like this:
 ```scala
 import scala.io.Source
+import cats.syntax.traverse.given // to get list.sequence
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global  // default IORuntime
 import fs2.Stream
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.Reader
@@ -56,46 +65,45 @@ val records = Stream
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
   .through(Reader[IO].by) // produce stream of chars from source
   .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
-  .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
-  .map(_.to[Data]()) // convert records to case class
-  .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
-val result = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+  .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Record and Stream API
+  .map(_.to[Data]) // convert records to case class
+  .handleErrorWith(ex => Stream.emit(Left(ex))) // convert global (I/O, CSV structure) errors to Either
+val list = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+val result = list.sequence  // convert List[Either[Throwable,Data]] to Either[Throwable,List[Data]]
 ```
 
-Another example may be taken from [FS2 readme](https://fs2.io/),
+Another example may be taken from [FS2 readme](https://fs2.io/#/getstarted/example),
 assuming that the data is stored and written back in `CSV` format with two fields, `date` and `temp`:
 ```scala
 import java.nio.file.Paths
 import scala.io.Codec
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect.{IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer}
 import info.fingo.spata.io.{Reader, Writer}
 
-object Converter extends IOApp {
+object Converter extends IOApp.Simple:
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
-    implicit val codec: Codec = Codec.UTF8
+  val converter: Stream[IO, Unit] =
+    given codec: Codec = Codec.UTF8
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
       .map(_.altered("temp")(fahrenheitToCelsius))
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
-  }
+      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
 
-  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
-}
+  def run: IO[Unit] = converter.compile.drain
 ```
 Modified versions of this sample may be found in [error handling](#error-handling) 
 and [schema validation](#schema-validation) parts of the tutorial.
 
-More examples of how to use the library may be found in `src/test/scala/info/fingo/spata/sample`.
+More examples of how to use the library may be found in `src/test/scala/info/fingo/sample/spata`.
 
 Tutorial
 --------
@@ -122,13 +130,19 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val output: Stream[IO, Record] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
-(Cats [IO](https://typelevel.org/cats-effect/datatypes/io.html),
-Monix [Task](https://monix.io/docs/3x/eval/task.html),
-or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
-Please note, however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
-Type class dependencies are defined in terms of the [Cats Effect](https://typelevel.org/cats-effect/typeclasses/)class hierarchy.
+([Cats Effect IO](https://typelevel.org/cats-effect/docs/getting-started)
+or [ZIO](https://zio.dev/overview/getting-started),
+especially with support for [ZIO-CE interop](https://zio.dev/guides/interop/with-cats-effect/);
+interoperability with [Monix](https://monix.io/) is not possible yet,
+but [this may change in the future](https://alexn.org/blog/2022/04/05/future-monix-typelevel/#the-future-of-monix)).
+Please note, however, that Cats Effect [IO](https://typelevel.org/cats-effect/api/3.x/cats/effect/IO.html)
+is the only effect implementation used for testing and documentation purposes.
+
+Type class dependencies are defined in terms of the
+[Cats Effect](https://typelevel.org/cats-effect/docs/typeclasses) class hierarchy. 
 To support effect suspension, spata requires in general `cats.effect.Sync` type class implementation for its effect type.
 Some methods need enhanced type classes to support asynchronous or concurrent computation.
+Some are satisfied with more general effects.
 
 Like in the case of any other FS2 processing, spata consumes only as much of the source stream as required,
 give or take a chunk size. 
@@ -141,7 +155,8 @@ If newline (`LF`, `\n`, `0x0A`) is used as the record delimiter,
 carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not escaped, to support `CRLF` line breaks.     
 
 Fields containing delimiters (field or record) or quotes have to be wrapped in quotation marks.
-As defined in RFC 4180, quotation marks in the content have to be escaped through double quotation marks.
+As defined in [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
+quotation marks in the content have to be escaped through double quotation marks.
 
 By default, in accordance with the standard, whitespace characters are considered part of the field and are not ignored.
 Nonetheless, it is possible to turn on trimming of leading and trailing whitespaces with a configuration option.
@@ -164,14 +179,16 @@ is correct with trimming on (and produces `" yyy "` for field `Y`), but will cau
 as spaces are considered regular characters in this case and quote has to be put around the whole field.
 
 Not all invisible characters (notably non-breaking space, `'\u00A0'`) are whitespaces.
-See Java `Char.isWhitespace` for details.  
+See Java's
+[Char.isWhitespace](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Character.html#isWhitespace(char))
+for details.  
 
 In addition to the `parse`, `CSVParser` provides other methods to read `CSV` data:
 *   `get`, to load data into `List[Record]`, which may be handy for small data sets,
-*   `process`, to deal with data record by record through a callback function,
+*   `process`, to deal with data record by record through a callback function, synchronously,
 *   `async`, to process data through a callback function in an asynchronous way.
 
-The three above functions return the result (`List` or `Unit`) wrapped in an effect and require calling one of the
+The three above functions return the result (`List` or `Unit`) wrapped in an effect and require call to one of the
 "at the end of the world" methods (`unsafeRunSync` or `unsafeRunAsync` for `cats.effect.IO`) to trigger computation.
 ```scala
 val stream: Stream[IO, Char] = ???
@@ -179,13 +196,13 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
-the whole processing may run through [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html).
+the whole processing may run through [IOApp](https://typelevel.org/cats-effect/api/3.x/cats/effect/IOApp.html).
 
-If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8Decode`),
+If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode`),
 we may convert it to a stream of characters:
 ```scala
 val ss: Stream[IO, String] = ???
-val sc: Stream[IO, Char] = ss.map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
+val sc: Stream[IO, Char] = ss.map(s => Chunk.charBuffer(CharBuffer.wrap(s))).flatMap(Stream.chunk)
 ```
 
 See [Reading and writing data](#reading-and-writing-data) for helper methods
@@ -221,7 +238,7 @@ The main advantage of using `CSVRenderer` over `makeString` and `intersperse` me
 is its ability to properly escape special characters (delimiters and quotation marks) in source data.
 The escape policy is set through configuration and by default, the fields are quoted only when required.
 
-Like parser, renderer supports any single-character field and record delimiters.
+Like parser, renderer supports any single-character field as record delimiters.
 As result, the `render` method does not allow separating records with `CRLF`.
 If this is required, the `rows` method has to be used:
 ```scala
@@ -238,14 +255,14 @@ to transmit a stream of characters to various destinations.
 ### Configuration
 
 `CSVParser` and `CSVRenderer` are configured through `CSVConfig`, which is a parameter to their constructors.
-A more convenient way may be a builder-like method, which takes the defaults and allows altering selected parameters:
+It may be provided through a builder-like method, which takes the defaults and allows altering selected parameters:
 ```scala
 val parser = CSVParser.config.fieldDelimiter(';').noHeader.parser[IO]
 val renderer = CSVRenderer.config.fieldDelimiter(';').noHeader.renderer[IO]
 ```
 
 Individual configuration parameters are described in
-`CSVConfig`'s [Scaladoc](https://javadoc.io/doc/info.fingo/spata_2.13/latest/info/fingo/spata/CSVConfig.html).
+`CSVConfig`'s [Scaladoc](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/CSVConfig.html).
 
 A specific setting is the header mapping, available through `CSVConfig.mapHeader`.
 It allows replacing original header values with more convenient ones or even defining header if no one is present.
@@ -311,15 +328,15 @@ There are two groups of the `read` and `write` methods in `Reader` and `Writer`:
 *   basic ones, accessible through `Reader.plain` and `Writer.plain`,
     where reading and writing is done synchronously on the current thread,
 
-*   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
+*   with support for [thread shifting](https://typelevel.org/cats-effect/docs/thread-model#blocking),
     accessible through `Reader.shifting` and `Writer.shifting`.
 
 It is recommended to use the thread shifting version, especially for long reading or writing operations,
 for better thread pool utilization.
-See [a post from Daniel Spiewak](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
-about thread pools configuration.
+See [Cats Effect schedulers](https://typelevel.org/cats-effect/docs/schedulers)
+description for thread pools configuration.
 More information about threading may be found in
-[Cats Concurrency Basics](https://typelevel.org/cats-effect/concurrency/basics.html).
+[Cats Effect thread model](https://typelevel.org/cats-effect/docs/thread-model).
 
 The simplest way to read data from and write to a file is:
 ```scala
@@ -333,15 +350,13 @@ val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.ap
 // do some processing on stream
 val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.plain
 ```
-The thread shifting reader and writer provide similar methods, but require implicit `ContextShift`:
+The thread shifting reader and writer provide similar methods:
 ```scala
-implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val stream: Stream[IO, Char] = Reader.shifting[IO].read(Path.of("data.csv"))
 val eff: Stream[IO, Unit] = stream.through(Writer.shifting[IO].write(Path.of("data.csv")))
 ```
-The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
-used for regular, non-blocking operations, after the blocking I/O operation finishes.
-The `Blocker`, which provides the thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
+Cats Effect 3 provides the thread shifting facility out of the box through `Async.blocking`,
+using the built-in internal blocking thread pool.
 
 All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
 Chunk size may be supplied while creating a reader:
@@ -351,24 +366,24 @@ val stream: Stream[IO, Char] = Reader.plain[IO](1024).read(Path.of("data.csv"))
 If not provided explicitly, a default chunk size will be used.
 
 Except for `Source`, which is already character-based,
-other data sources and all data destinations require an implicit `Codec` to convert bytes into characters:
+other data sources and all data destinations require given instance of `Codec` to convert bytes into characters:
 ```scala
-implicit val codec: Codec = Codec.UTF8
+given codec: Codec = Codec.UTF8
 ```
 
 The caller to a `read` or a `write` method which takes a resource as a parameter (`Source`, `InputStream` or `OutputStream`)
 is responsible for its cleanup. This may be achieved through FS2 `Stream.bracket`:
 ```scala
-val stream: Stream[IO, Unit] = for {
+val stream: Stream[IO, Unit] = for
   source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
   destination <- Stream.bracket(IO { new FileOutputStream("data.csv") })(fos => IO { fos.close() })
   out <- Reader.shifting[IO].read(source)
     // do some processing
     .through(Writer[IO].write(destination))
-} yield out
+yield out
 ```
 Other methods of resource acquisition and releasing are described in
-[Cats Effect tutorial](https://typelevel.org/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources).
+[Cats Effect tutorial](https://typelevel.org/cats-effect/docs/tutorial#acquiring-and-releasing-resources).
 
 Unlike the `Reader.read` method, which creates a new stream, `Writer.write` operates on an existing stream.
 Being often the last operation in the stream pipeline, it has to allow access to the final stream,
@@ -399,7 +414,7 @@ val record: Record = ???
 val value: Option[String] = record(0)
 ```
 
-`CSVRecord` supports retrieval of typed values.
+CSV `Record` supports retrieval of typed values.
 In simple cases, when the value is serialized in its canonical form,
 like ISO format for dates, which does not require any additional format information,
 or the formatting is fixed for all data, this may be done with single-parameter `get` function:
@@ -418,7 +433,7 @@ val num: Decoded[Double] = record.get[Double]("123,45", df)
 ```
 This method requires a `text.FormattedStringParser[A, B]`,
 which is also described in [Text parsing](#text-parsing-and-rendering).
-(It uses an intermediary class `Field` to provide a nice syntax, this should be however transparent in most cases).
+(It uses an intermediary class `Field` to provide a nice syntax, but this should be transparent in most cases).
 
 Above methods are available also in unsafe, exception-throwing version, accessible through `Record.unsafe` object:
 ```scala
@@ -443,13 +458,13 @@ the data can be converted from a record directly into a case class:
 ```scala
 val record: Record = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
-val element: Decoded[Element] = record.to[Element]()
+val element: Decoded[Element] = record.to[Element]
 ```
 Notice that not all source fields have to be used for conversion.
-The conversion is name-based - header keys have to match case class field names exactly, including case.
+The conversion is name-based - header keys have to match case class field names exactly, including their case.
 We can use header mapping, described in [Configuration](#configuration), if they do not match.
 
-For tuples, the header has to match tuple field names (`_1`, `_2`, etc.)
+For tuples, the header has to match traditional tuple field names (`_1`, `_2`, etc.)
 and is automatically generated in this form for source data without a header:
 ```csv
 hydrogen,H,13.99,20.271
@@ -459,15 +474,15 @@ lithium,Li,453.65,1603
 ```scala
 val record: Record = ???
 type Element = (String, String, Double, Double)
-val element: Decoded[Element] = record.to[Element]()
+val element: Decoded[Element] = record.to[Element]
 ```
 Notice that in this case the first column has been included in the conversion to ensure header and tuple field matching.
 
-Both forms of conversion require implicit `StringParser`.
+Both forms of conversion require given instance of `StringParser`.
 Parsers for common types and their default formats are provided through `StringParser` object
 and are automatically brought in scope.
 Because it is not possible to explicitly provide custom formatter while converting a record into a case class,
-an implicit `StringParser` has to be defined in case of specific formats or types:
+a given `StringParser` instance has to be defined in case of specific formats or types:
 ```csv
 element,symbol,melting,boiling
 hydrogen,H,"13,99","20,271"
@@ -478,8 +493,8 @@ lithium,Li,"453,65","1603"
 val record: Record = ???
 case class Element(symbol: String, melting: Double, boiling: Double)
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
-implicit val nsp: StringParser[Double] = (str: String) => nf.parse(str).doubleValue()
-val element: Decoded[Element] = record.to[Element]()
+given StringParser[Double] = (str: String) => nf.parse(str).doubleValue()
+val element: Decoded[Element] = record.to[Element]
 ```
 
 ### Creating and modifying records
@@ -508,7 +523,8 @@ val record = Record.fromValues("H","13.99","20.271")
 val header = record.header  // returns Header("_1", "_2", "_3")
 val value = record("_2")  // returns Some("13.99")
 ```
-Because the record's header may be needless in some scenarios (e.g. while using the index-based `CSVRenderer.rows` method),
+Because the record's header may be needless in some scenarios
+(e.g. while using the index-based `CSVRenderer.rows` method),
 its implicit creation is lazy - it is postponed until the header is accessed.
 If the header is created, each record gets its own copy.
 
@@ -528,13 +544,13 @@ The first one is to employ a record builder, which allows adding typed values to
 val record = Record.builder.add("symbol", "H").add("melting", 13.99).add("boiling", 20.271).get
 val value = record("melting")  // returns Some("13.99")
 ```
-To convert a typed value to a string, this method requires an implicit `StringRenderer[A]`,
+To convert a typed value to a string, this method requires a given `StringRenderer[A]` instance,
 which is described in [Text rendering](#text-parsing-and-rendering).
 Similarly to `StringParser`, renderers for basic types and formats are provided out of the box
 and specific ones may be implemented:
 ```scala
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
-implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
+given StringRenderer[Double] = (v: Double) => nf.format(v)
 val record = Record.builder.add("symbol", "H").add("melting", 13.99).add("boiling", 20.271).get
 val value = record("melting")  // returns Some("13,99")
 ```
@@ -549,8 +565,9 @@ val value = record("melting")  // returns Some("13.99")
 This approach relies on `StringRenderer` for data formatting as well.
 It may be used even more comfortably by calling a method directly on case class:
 ```scala
+import info.fingo.spata.Record.ProductOps
 val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
-implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
+given StringRenderer[Double] = (v: Double) => nf.format(v)
 case class Element(symbol: String, melting: Double, boiling: Double)
 val element = Element("H", 13.99, 20.271)
 val record = element.toRecord
@@ -565,8 +582,8 @@ They may be not the optimal choice for large data sets when performance matters.
 Sometimes only a few fields of the original record have to be modified and the rest remains intact.
 In such situations, it may be much more convenient to modify a record instead of creating a new one from scratch,
 especially for large records.
-Because spata supports functional code,
-modifying means the creation of a copy of the record with selected fields set to new values.
+Because `Record` is immutable,
+modifying means creation of a copy of the record with selected fields set to new values.
 
 The simplest way is to provide a new string value for a record field, referenced by key or index:
 ```scala
@@ -580,7 +597,7 @@ val record: Record = ???
 val modified: Record = record.updatedWith(0)(v => v.toUpperCase).updatedWith("key")(v => v.toUpperCase)
 ```
 
-The record provides a method to modify typed values too:
+Record provides a method to modify typed values too:
 ```scala
 val record: Record = ???
 val altered: Either[ContentError, Record] = record.altered("int value")((i: Int) => i % 2 == 0)
@@ -588,18 +605,18 @@ val altered: Either[ContentError, Record] = record.altered("int value")((i: Int)
 or in extended form:
 ```scala
 val dateFormat = DateTimeFormatter.ofPattern("dd.MM.yy")
-implicit val ldsp: StringParser[LocalDate] = (str: String) => LocalDate.parse(str, dateFormat)
-implicit val ldsr: StringRenderer[LocalDate] = (ld: LocalDate) => dateFormat.format(ld)
+given StringParser[LocalDate] = (str: String) => LocalDate.parse(str, dateFormat)
+given StringRenderer[LocalDate] = (ld: LocalDate) => dateFormat.format(ld)
 val record: Record = ???
-val altered: Either[ContentError, Record] = for {
+val altered: Either[ContentError, Record] = for
   r1 <- record.altered("field 1")((d: Double) => d.abs)
   r2 <- r1.altered("field 2")((ld: LocalDate) => ld.plusDays(1))
-} yield r2
+yield r2
 ```
 Please note, however, that this method may produce an error
 because the source values have to be parsed before being passed to the updating function.
 To support value parsing and rendering,
-an implicit `StringParser[A]` and `StringRenderer[B]` have to be provided for specific data formats.
+given instances of `StringParser[A]` and `StringRenderer[B]` have to be provided for specific data formats.
 
 All the above methods preserve record structure and keep existing record header.
 It is also possible to modify the structure, if necessary:
@@ -622,7 +639,7 @@ This is the place where spata's `text.StringParser` comes in handy.
 
 The situation is similar when typed values have to be converted to strings to create `CSV` data.
 Although there is a `toString` method available for each value, it is often insufficient,
-because a specific format of dates, numbers, and other values may be required.
+because specific format of dates, numbers, and other values may be required.
 Again, there is no single interface for encoding different types into strings.
 spata provides `text.StringRenderer` to help with this.
 
@@ -644,14 +661,14 @@ val num: ParseResult[Double] = StringParser.parse[Double]("123,45", df)
 (It uses intermediary class `Pattern` to provide nice syntax,
 this should be however transparent in most cases).
 
-These functions require implicit `StringParser` or `FormattedStringParser` respectively.
-Implicits for a few basic types are already available - see Scaladoc for `StringParser`.
+These functions require given `StringParser` or `FormattedStringParser` instance respectively.
+Given instances for a few basic types are already available - see Scaladoc for `StringParser`.
 When additional parsers are required,
 they may be easily provided by implementing `StringParser` or `FormattedStringParser` traits.
 
 Let's take `java.sql.Date` as an example. Having implemented `StringParser[Date]`:
 ```scala
-implicit val sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
+given sdf: StringParser[Date] = (s: String) => Date.valueOf(s)
 ```
 we can use it as follows:
 ```scala
@@ -660,11 +677,9 @@ val date = StringParser.parse[Date]("2020-02-02")
 
 Defining a parser with support for custom formatting requires the implementation of `FormattedStringParser`:
 ```scala
-implicit val sdf: FormattedStringParser[Date, DateFormat] =
-  new FormattedStringParser[Date, DateFormat] {
-      override def apply(str: String): Date = Date.valueOf(str.strip)
-      override def apply(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
-  }
+given sdf: FormattedStringParser[Date, DateFormat] with
+  def apply(str: String): Date = Date.valueOf(str.strip)
+  def apply(str: String, fmt: DateFormat): Date =  new Date(fmt.parse(str.strip).getTime)
 ```
 and can be used as follows:
 ```scala
@@ -681,7 +696,7 @@ This is converted to `ParseError` in `StringParser` object's `parse` method
 while keeping the original exception in the `cause` field.
 
 Although this design decision might be seen as questionable,
-as returning `Either` instead of throwing an exception could be the better choice,
+as returning `Either` instead of throwing an exception could be a better choice,
 it is made deliberately - all available Java parsing methods throw an exception,
 so it is more convenient to use them directly while implementing `StringParser` traits,
 leaving all exception handling in a single place, i.e. the `StringParser.parse` method.
@@ -700,14 +715,14 @@ val df = new DecimalFormat("#,###")
 val str: String = StringRenderer.render(123.45, df)
 ```
 
-These functions require implicit `StringRenderer` or `FormattedStringRenderer` respectively.
-Implicits for a few basic types are already available - see Scaladoc for `StringRenderer`.
+These functions require given `StringRenderer` or `FormattedStringRenderer` instance respectively.
+Given instances for a few basic types are already available - see Scaladoc for `StringRenderer`.
 When additional renderers are required,
 they may be easily provided by implementing `StringRenderer` or `FormattedStringRenderer` traits.
 
 Let's take again `java.sql.Date` as an example. Having implemented `StringRenderer[Date]`:
 ```scala
-implicit val sdf: StringRenderer[Date] = (d: Date) => if(d == null) "" else d.toString
+given sdf: StringRenderer[Date] = (d: Date) => if(d == null) "" else d.toString
 ```
 we can use it as follows:
 ```scala
@@ -717,11 +732,9 @@ val str = StringRenderer.render(date)
 
 Defining a renderer with support for custom formatting requires the implementation of `FormattedStringRenderer`:
 ```scala
-implicit val sdf: FormattedStringRenderer[Date, DateFormat] =
-  new FormattedStringRenderer[Date, DateFormat] {
-      override def apply(date: Date): String = date.toString
-      override def apply(date: Date, fmt: DateFormat): String = fmt.format(date)
-  }
+given sdf: FormattedStringRenderer[Date, DateFormat] with
+  def apply(date: Date): String = date.toString
+  def apply(date: Date, fmt: DateFormat): String = fmt.format(date)
 ```
 and can be used as follows:
 ```scala
@@ -756,14 +769,12 @@ val schema = ???
 val stream: Stream[IO, Char] = ???
 val validatedStream = stream.through(CSVParser[IO].parse).through(schema.validate)
 ```
-As a result of the validation process, the ordinary `CSV` `Record` is converted to `ValidatedRecord[T]`,
-which is an alias for `Validated[InvalidRecord, TypedRecord[T]]`.
-The parametric type `T` is the compile-time, [shapeless](https://github.com/milessabin/shapeless) based
-representation of the record data type. Because it depends on the schema definition and is quite elaborate,
+As a result of the validation process, the ordinary `CSV` `Record` is converted to `ValidatedRecord[K,V]`,
+which is an alias for `Validated[InvalidRecord, TypedRecord[K,V]]`.
+The parametric types `K` and `V` are the compile-time, tuple-based representations of the record keys and values.
+Because they depend on the schema definition and are quite elaborate,
 we are not able to manually provide it - we have to let the compiler infer it.
 This is why the type signatures are omitted from some variable definitions in code excerpts in this chapter.
-Although the compiler infers the types correctly, the IDEs and linters often wrongly report problems with the source code.
-Please do not be held back by red marks in your code editor.
 
 [Validated](https://typelevel.org/cats/datatypes/validated.html) is a Cats data type for wrapping validation results.
 It is similar to `Either`, with `Valid` corresponding to `Right` and `Invalid` to `Left`,
@@ -804,7 +815,7 @@ Typed records, similarly to regular ones, support conversion to case classes:
 ```scala
 case class StockPrice(symbol: String, price: BigDecimal)
 val typedRecord = ???
-val stockPrice: StockPrice = typedRecord.to[StockPrice]()
+val stockPrice: StockPrice = typedRecord.to[StockPrice]
 ```
 Like in the case of [regular records](#getting-actual-data),
 the conversion is name-based and may cover only a subset of a record's fields.
@@ -837,7 +848,7 @@ validatedStream.map { validated =>
 
 Schema validation requires string parsing, described in the previous chapter.
 Similarly to the conversion to case classes, we are not able to directly pass a formatter to the validation,
-so a regular `StringParser` implicit with the correct format has to be provided for each parsed type.
+so a regular `StringParser` given instance with the correct format has to be provided for each parsed type.
 All remarks described in [Text parsing and rendering](#text-parsing-and-rendering) apply to the validation process.
 
 Type verification, although probably the most important aspect of schema validation,
@@ -868,38 +879,40 @@ The converter example presented in [Basic usage](#basic-usage) may be improved t
 import java.nio.file.Paths
 import java.time.LocalDate
 import scala.io.Codec
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 import info.fingo.spata.schema.CSVSchema
 
-object Converter extends IOApp {
+object Converter extends IOApp.Simple:
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+  val converter: Stream[IO, Unit] =
     implicit val codec: Codec = Codec.UTF8
     val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .through(schema.validate)
       .map {
-        _.leftMap(println).map { tr =>
+        _.leftMap(_.toString).map { tr =>
           val date = tr("date")
           val temp = fahrenheitToCelsius(tr("temp"))
           Record.builder.add("date", date).add("temp", temp).get
-        }.toOption
+        }
+      }
+      .evalMap { _ match
+        case Invalid(s) => IO.println(s) >> IO.none
+        case Valid(r) => IO(Some(r))
       }
       .unNone
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
-  }
+      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
 
-  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
-}
+  def run: IO[Unit] = converter.compile.drain
 ```
 
 ### Error handling
@@ -913,11 +926,11 @@ There are three types of errors that may arise while parsing `CSV`:
 *   Errors caused by malformed `CSV` structure reported as `StructureException`.
     They may be caused by `CSVParser`'s methods.
 
-*   Errors caused by unexpected / incorrect data in record fields reported as `HeaderError` or `DataError`.
+*   Errors caused by unexpected / incorrect data in record fields reported as one of `ContentError` subclasses.
     They may result from interactions with `Record`.
     Alternatively, when schema validation is in use,
     this type of error results in `InvalidRecord` with `SchemaError`s (one per each field) being yielded.
-    More precisely, `HeaderError` and `DataError` are wrapped in `TypeError`
+    More precisely, `ContentError` is wrapped in `TypeError`,
     while any custom validation problem is reported as `ValidationError`. 
 
 The two first error categories are unrecoverable and stop stream processing.
@@ -935,7 +948,7 @@ As for rendering, there are basically two types of errors possible:
 
 *   Similarly to parsing, various I/O errors, when using `Writer`.
 
-Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/guide.html#error-handling) mechanism.
+Errors are raised and should be handled by using the [FS2 error handling](https://fs2.io/#/guide?id=error-handling) mechanism.
 FS2 captures exceptions thrown or reported explicitly with `raiseError`
 and in both cases is able to handle them with `handleErrorWith`.
 To fully support this, `CSVParser` and `CSVRenderer` require the `RaiseThrowable` type class instance for its effect type,
@@ -946,43 +959,42 @@ The converter example presented in [Basic usage](#basic-usage) may be enriched w
 import java.nio.file.Paths
 import scala.io.Codec
 import scala.util.Try
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.data.Validated.{Invalid, Valid}
+import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 
-object Converter extends IOApp {
+object Converter extends IOApp:
 
-  val converter: Stream[IO, ExitCode] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+  val converter: Stream[IO, ExitCode] =
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
     implicit val codec: Codec = Codec.UTF8
     val src = Paths.get("testdata/fahrenheit.txt")
     val dst = Paths.get("testdata/celsius.txt")
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(src)
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
       .map { r =>
-        for {
+        for
           date <- r.get[String]("date")
           fTemp <- r.get[Double]("temp")
           cTemp = fahrenheitToCelsius(fTemp)
-        } yield Record.builder.add("date", date).add("temp", cTemp).get
+        yield Record.builder.add("date", date).add("temp", cTemp).get
       }
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(dst))
+      .through(Writer.shifting[IO].write(dst))
       .fold(ExitCode.Success)((z, _) => z)
       .handleErrorWith { ex =>
         Try(dst.toFile.delete())
         Stream.eval(IO(println(ex)) *> IO(ExitCode.Error))
       }
-  }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.lastOrError
-}
 ```
 
 The `rethrow` method in the above code raises an error for `Left`, converting `Either` to simple values.
@@ -993,11 +1005,12 @@ See the first code snippet in [Basic usage](#basic-usage) for sample.
 
 ### Logging
 
-Logging is turned off by default in spata (no-op logger) and may be activated by defining implicit `util.Logger`,
+Logging is turned off by default in spata (no-op logger)
+and may be activated by defining given instance of `util.Logger`,
 passing an SLF4J logger instance to it:
 ```scala
 val slf4jLogger = LoggerFactory.getLogger("spata")
-implicit val spataLogger: Logger[IO] = new Logger[IO](slf4jLogger)
+given spataLogger: Logger[IO] = new Logger[IO](slf4jLogger)
 ```
 spata does not create per-class loggers but uses the provided one for all logging operations.
 
@@ -1019,23 +1032,23 @@ Alternatives
 ------------
 
 For those who need a different characteristic of a `CSV` library, there are a few alternatives available for Scala:
-*   [Itto-CSV](https://github.com/gekomad/itto-csv) - `CSV` handling library based on FS2 and Cats with support for case class conversion.
-*   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including `CSV`.
-*   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented `CSV` parser/serializer with support for different parsing engines.
-*   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use `CSV` reader/writer.
-*   [cormorant](https://github.com/davenverse/cormorant) - functional `CSV` processor with support for FS2, http4s and case class conversion. 
+*   [Itto-CSV](https://github.com/gekomad/itto-csv) - `CSV` handling library based on FS2 and Cats with support for case class conversion. Supports Scala 2 and 3.
+*   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including `CSV`. Supports Scala 2 and 3.
+*   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented `CSV` parser/serializer with support for different parsing engines. Available for Scala 2.
+*   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use `CSV` reader/writer. Available for Scala 2 and 3.
+*   [cormorant](https://github.com/davenverse/cormorant) - functional `CSV` processor with support for FS2, http4s and case class conversion. Available for Scala 2.
 
 Credits
 -------
 
 **spata** makes use of the following tools, languages, frameworks, libraries and data sets (in alphabetical order):
+*   [Cats](https://typelevel.org/cats/) licensed under [MIT](http://www.slf4j.org/license.html) /C
 *   [Cats Effect](https://typelevel.org/cats-effect/) licensed under [Apache-2.0](https://github.com/typelevel/cats-effect/blob/master/LICENSE.txt) /C
 *   [Codecov](https://codecov.io/) available under following [Terms of Use](https://codecov.io/terms) /D
 *   [FS2](https://fs2.io/) licensed under [MIT](https://github.com/functional-streams-for-scala/fs2/blob/master/LICENSE) /C
 *   [Git](https://git-scm.com/) licensed under [GPL-2.0](https://git-scm.com/about/free-and-open-source) /D
 *   [GitHub](https://github.com/) available under following [Terms of Service](https://help.github.com/en/github/site-policy/github-terms-of-service) /D
 *   [Gitter](https://gitter.im/) available under following [Terms of Use](https://about.gitlab.com/terms/) /D
-*   [http4s](https://http4s.org/) licensed under [Apache-2.0](https://github.com/http4s/http4s#license) /S
 *   [IntelliJ IDEA CE](https://www.jetbrains.com/idea/) licensed under [Apache 2.0](https://www.jetbrains.com/idea/download/) /D
 *   [javadoc.io](https://www.javadoc.io/) licensed under [Apache-2.0](https://github.com/maxcellent/javadoc.io/blob/master/LICENSE) /D
 *   [Mars weather data](https://github.com/the-pudding/data/tree/master/mars-weather) made publicly available by [NASA](https://pds.nasa.gov/) and [CAB](https://cab.inta-csic.es/rems/en) /T
@@ -1053,7 +1066,7 @@ Credits
 *   [Scalafmt](https://scalameta.org/scalafmt/docs/installation.html#sbt) licensed under [Apache-2.0](https://github.com/scalameta/scalafmt/blob/master/LICENCE.md) /D
 *   [ScalaMeter](https://scalameter.github.io/) licensed under [BSD-3-Clause](https://scalameter.github.io/home/license/) /T
 *   [ScalaTest](http://www.scalatest.org/) licensed under [Apache-2.0](http://www.scalatest.org/about) /T
-*   [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache-2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /C
+*   [shapeless](https://github.com/milessabin/shapeless) licensed under [Apache-2.0](https://github.com/milessabin/shapeless/blob/master/LICENSE) /S
 *   [SLF4J](http://www.slf4j.org/) licensed under [MIT](http://www.slf4j.org/license.html) /C
 *   [sonatype OSSRH](https://central.sonatype.org/) available under following [Terms of Service](https://central.sonatype.org/pages/central-repository-producer-terms.html) /D
 *   [Travis CI](https://travis-ci.org/) available under following [Terms of Service](https://docs.travis-ci.com/legal/terms-of-service/) /D

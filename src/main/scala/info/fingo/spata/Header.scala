@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import info.fingo.spata.Header.generate
-import info.fingo.spata.error.{ParsingErrorCode, StructureException}
+import info.fingo.spata.error.{FieldInfo, ParsingErrorCode, StructureException}
 
 /** CSV header with names of each field.
   *
@@ -93,7 +93,14 @@ object Header {
     if (doubles.isEmpty)
       Right(new Header(header))
     else
-      Left(new StructureException(ParsingErrorCode.DuplicatedHeader, Position.some(0, 1), None, doubles.headOption))
+      Left(
+        new StructureException(
+          ParsingErrorCode.DuplicatedHeader,
+          Position.some(0, 1),
+          None,
+          new FieldInfo(doubles.headOption)
+        )
+      )
   }
 }
 

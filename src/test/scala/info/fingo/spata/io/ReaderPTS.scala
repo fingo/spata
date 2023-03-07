@@ -7,8 +7,8 @@ package info.fingo.spata.io
 
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.Source
-import scala.concurrent.ExecutionContext
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
@@ -19,8 +19,6 @@ import info.fingo.spata.PerformanceTH.{input, parser}
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
 object ReaderPTS extends Bench.LocalTime {
-
-  implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 
   case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
     def apply(path: Path): Stream[IO, Char] = method(path)

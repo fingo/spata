@@ -3,16 +3,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
+
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import cats.implicits.*
+import fs2.Stream
+import info.fingo.spata.io.Reader
+import info.fingo.spata.{CSVParser, Record}
+import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDate
 import scala.util.{Failure, Success, Try}
-import cats.effect.IO
-import cats.implicits._
-import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
-import info.fingo.spata.{CSVParser, Record}
-import info.fingo.spata.io.Reader
 
 /* Samples which use console to output CSV processing results */
 class ConsoleITS extends AnyFunSuite {

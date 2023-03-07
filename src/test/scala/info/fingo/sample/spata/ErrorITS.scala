@@ -3,16 +3,18 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.io.IOException
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.{Pipe, Stream}
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.prop.TableDrivenPropertyChecks
+import info.fingo.spata.error.CSVException
 import info.fingo.spata.io.Reader
 import info.fingo.spata.{CSVParser, CSVRenderer, Header, Record}
-import info.fingo.spata.error.CSVException
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.prop.TableDrivenPropertyChecks
+
+import java.io.IOException
 
 class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
 
@@ -24,7 +26,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks {
         .bracket(IO { SampleTH.sourceFromResource(file) })(source => IO { source.close() })
         .flatMap(Reader.plain[IO].read)
         .through(CSVParser[IO].parse)
-        .map(_.to[Book]())
+        .map(_.to[Book])
         .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // converter global (I/O, CSV structure) errors to Either
       val result = stream.compile.toList.unsafeRunSync()
       assert(result.exists(_.isLeft))

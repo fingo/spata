@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import scala.util.Try
-import cats.effect.{Concurrent, Sync}
+import cats.effect.{Async => CEAsync, Sync}
 import fs2.{Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
 import info.fingo.spata.parser.RecordParser.RecordResult
@@ -97,7 +97,7 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
   /* Provided info about number of parsed records. This introduces additional overhead and is done in debug mode only.
    * Please note, that this information will be not available if stream processing ends prematurely -
    * in case of an error, as result of take(n) etc. */
-  private def debugCount: Pipe[F, Record, Record] = in => {
+  private def debugCount: Pipe[F, Record, Record] = in =>
     if (Logger[F].isDebug)
       in.noneTerminate
         .mapAccumulate(0) { (s, o) =>
@@ -106,15 +106,13 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
             case None => (s, None)
           }
         }
-        .flatMap {
-          case (s, o) =>
-            o match {
-              case Some(r) => Stream.emit(r)
-              case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
-            }
+        .flatMap { case (s, o) =>
+          o match {
+            case Some(r) => Stream.emit(r)
+            case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
+          }
         }
     else in
-  }
 
   /** Fetches whole source content into list of records.
     *
@@ -176,7 +174,7 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * @param F type class (monad) providing support for concurrency
     * @return helper class with asynchronous method
     */
-  def async(implicit F: Concurrent[F]): CSVParser.Async[F] = new CSVParser.Async(this)
+  def async(implicit F: CEAsync[F]): CSVParser.Async[F] = new CSVParser.Async(this)
 }
 
 /** [[CSVParser]] companion object with types definitions and convenience methods to create parsers. */
@@ -202,7 +200,7 @@ object CSVParser {
     * @tparam F the effect type, with type class providing support for concurrency (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     */
-  final class Async[F[_]: Concurrent: Logger] private[CSVParser] (parser: CSVParser[F]) {
+  final class Async[F[_]: CEAsync: Logger] private[CSVParser] (parser: CSVParser[F]) {
 
     /** Processes each CSV record with provided callback functions to execute some side effects.
       * Stops processing input as soon as the callback function returns false, stream is exhausted or exception thrown.
@@ -227,7 +225,7 @@ object CSVParser {
     /* Callback function wrapper to enclose it in effect F and let the stream evaluate it asynchronously when run. */
     private def evalCallback(maxConcurrent: Int)(cb: Callback): Pipe[F, Record, Boolean] =
       _.mapAsync(maxConcurrent) { pr =>
-        Concurrent[F].async[Boolean] { call =>
+        CEAsync[F].async_[Boolean] { call =>
           val result = Try(cb(pr)).toEither
           call(result)
         }

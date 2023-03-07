@@ -9,10 +9,7 @@ import scala.annotation.unused
 import scala.reflect.{classTag, ClassTag}
 import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated.{Invalid, Valid}
-import cats.effect.Sync
 import fs2.{Pipe, Stream}
-import shapeless.{::, =:!=, DepFn2, HList, HNil}
-import shapeless.labelled.{field, FieldType}
 import info.fingo.spata.Record
 import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
@@ -23,22 +20,23 @@ import info.fingo.spata.util.Logger
   *
   * Schema declares fields which are expected in CSV stream - their names and types.
   * Fields with optional values have to be defined as `Option`s:
-  * {{{
+  * ```
   * val schema = CSVSchema()
   *   .add[String]("name")
   *   .add[Option[LocalDate]]("birthday")
-  * }}}
-  * Not all fields have to be declared by schema but only a subset of them.
+  * ```
+  * Optional fields still have to exist in source data, only their values may be empty.
+  * Not all fields have to be declared by schema, any subset of them is sufficient.
   *
   * In case of header mapping through [[CSVConfig.mapHeader]],
   * the names provided in schema are the final ones, after mapping.
   *
   * Additionally, it is possible to specify per-field validators, posing additional requirements on CSV data:
-  * {{{
+  * ```
   * val schema = CSVSchema()
   *   .add[String]("code", RegexValidator("[A-Z][A-Z0-9]+"))
   *   .add[BigDecimal]("price", MinValidator(0.01))
-  * }}}
+  * ```
   * For more information on available, built-in validators
   * or how to create additional ones see [[validator.Validator Validator]].
   *
@@ -46,20 +44,20 @@ import info.fingo.spata.util.Logger
   * containing validation error together with original [[Record]] data or a [[TypedRecord]],
   * containing selected, strongly typed data - in both cases wrapped in [[cats.data.Validated]].
   *
-  * @param columns the list of typed columns with optional validators
-  * @tparam L heterogeneous list encoding the schema
+  * @param columns the typle containing typed columns with optional validators
+  * @tparam T tuple encoding the schema
   */
-final class CSVSchema[L <: HList] private (columns: L) {
+final class CSVSchema[T <: Tuple] private (columns: T):
 
   /** Gets string representation of schema.
     *
     * @return short schema description
     */
-  override def toString: String = "CSVSchema" + columns.mkString("(", ", ", ")")
+  override def toString: String = "CSVSchema" + columns.toString()
 
   /** Adds field definition to schema.
     *
-    * Field definition consists of field name and its type. Set of fields definitions constitutes schema definition.
+    * Field definition consists of field name and its type. A set of field definitions constitutes a schema definition.
     * A collection of additional [[validator.Validator Validator]]s may be added to a field.
     * When validating schema, validators are checked after field type verification
     * and receive already parsed value of type declared for a field.
@@ -77,41 +75,41 @@ final class CSVSchema[L <: HList] private (columns: L) {
     *
     * This is a chaining method which allows starting with an empty schema
     * and extending it through subsequent calls to `add`:
-    * {{{
+    * ```
     * val schema = CSVSchema()
-    *   .add[Double]("latitude", RangeValidator(-90, 90))
-    *   .add[Double]("longitude", RangeValidator(-180, 180))
-    * }}}
+    *   .add[Double]("latitude", RangeValidator(-90.0, 90.0))
+    *   .add[Double]("longitude", RangeValidator(-180.0, 180.0))
+    * ```
     *
     * @param key unique field name - a singleton string
-    * @param validators optional validators to check if field values do conform to additional rules
+    * @param validators optional validators to check that field values comply with additional rules
     * @param ev evidence that the key is unique - it is not present in the schema yet
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser: ClassTag](key: Key, validators: Validator[V]*)(
-    implicit @unused ev: NotPresent[key.type, L]
-  ): CSVSchema[Column[key.type, V] :: L] =
-    new CSVSchema[Column[key.type, V] :: L](Column(key, validators) :: columns)
+  def add[V: ClassTag: StringParser](key: Key, validators: Validator[V]*)(using
+    @unused ev: NotPresent[key.type, T]
+  ): CSVSchema[Column[key.type, V] *: T] =
+    new CSVSchema[Column[key.type, V] *: T](Column(key, validators) *: columns)
 
   /** Adds field definition to schema. Does not support attaching additional validators.
     *
-    * @see [[add[V](key:info\.fingo\.spata\.schema\.Key,* add[V](key: Key, validators: Validator[V]*)]]
+    * @see [[add(key:Key,* add[V](key: Key, validators: Validator[V]*)]]
     * @param key unique field name - a singleton string
     * @param ev evidence that the key is unique - it is not present in the schema yet
     * @tparam V field value type
     * @return new schema definition with column (field definition) added to it
     */
-  def add[V: StringParser: ClassTag](key: Key)(
-    implicit @unused ev: NotPresent[key.type, L]
-  ): CSVSchema[Column[key.type, V] :: L] =
-    new CSVSchema[Column[key.type, V] :: L](Column(key) :: columns)
+  def add[V: ClassTag: StringParser](key: Key)(using
+    @unused ev: NotPresent[key.type, T]
+  ): CSVSchema[Column[key.type, V] *: T] =
+    new CSVSchema[Column[key.type, V] *: T](Column(key) *: columns)
 
   /** Validates CSV stream against schema.
     *
     * For each input record the validation process:
     *  - parses all fields defined by schema to the declared type and, if successful,
-    *  - runs provided validators with parsed value.
+    *  - runs provided validators with parsed values.
     * The process is successful and creates a [[TypedRecord]] if values of all fields defined in schema
     * are correctly parsed and positively validated. If any of these operations fails, an [[InvalidRecord]] is yielded.
     *
@@ -121,41 +119,37 @@ final class CSVSchema[L <: HList] private (columns: L) {
     * CSV values which are not declared in schema are omitted.
     * At the extremes, empty schema always proves valid, although yields empty typed records.
     *
-    * @param enforcer implicit to recursively do the validation, provided by spata
-    * @tparam F the effect type, with a type class providing support for suspended execution
-    * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
+    * @param enforcer given value to recursively do the validation, provided by spata
+    * @tparam F the effect type, with a type class providing support for logging (provided internally by spata)
     * @return a pipe to validate [[Record]]s and turn them into [[ValidatedRecord]]s
     */
-  def validate[F[_]: Sync: Logger](implicit enforcer: SchemaEnforcer[L]): Pipe[F, Record, enforcer.Out] =
-    in => in.through(loggingPipe).map(r => validateRecord(r)(enforcer))
+  def validate[F[_]: Logger](using enforcer: SchemaEnforcer[T]): Pipe[F, Record, enforcer.Out] =
+    in => in.through(loggingPipe).map(r => validateRecord(r, enforcer))
 
   /* Validate single record against schema. */
-  private def validateRecord(r: Record)(implicit enforcer: SchemaEnforcer[L]): enforcer.Out = enforcer(columns, r)
+  private def validateRecord(r: Record, enforcer: SchemaEnforcer[T]): enforcer.Out = enforcer(columns, r)
 
   /* Add logging information to validation pipe. */
-  private def loggingPipe[F[_]: Sync: Logger]: Pipe[F, Record, Record] = in => {
+  private def loggingPipe[F[_]: Logger]: Pipe[F, Record, Record] = in =>
     if (Logger[F].isDebug)
-      // Interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
-      in.interleaveAll(Stream.eval_(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
+      // interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
+      in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
-  }
-}
 
 /** [[CSVSchema]] companion with convenience method to create empty schema. */
-object CSVSchema {
+object CSVSchema:
 
   /** Creates empty schema.
     *
-    * Schema created this way should be extended using [[CSVSchema.add[V](key:info\.fingo\.spata\.schema\.Key)* add]].
+    * Schema created this way should be extended using [[CSVSchema.add add]].
     *
     * @return schema with no field definition
     */
-  def apply(): CSVSchema[HNil] = new CSVSchema[HNil](HNil)
-}
+  def apply(): CSVSchema[EmptyTuple] = new CSVSchema(Tuple())
 
 /** CSV column representing schema field definition.
   *
-  * Columns are created by the schema [[CSVSchema.add[V](key:info\.fingo\.spata\.schema\.Key)* add]] method.
+  * Columns are created by the schema [[CSVSchema.add add]] method.
   *
   * @see [[CSVSchema]]
   * @param name the name of column - CSV field name
@@ -163,138 +157,151 @@ object CSVSchema {
   * @tparam K type of column name - the singleton string
   * @tparam V column type - CSV field value type
   */
-final class Column[K <: Key, V: StringParser: ClassTag] private (val name: K, validators: Seq[Validator[V]]) {
+final class Column[K <: Key, V: StringParser: ClassTag] private[schema] (val name: K, validators: Seq[Validator[V]]):
+
+  /* Constructor for column without custom validators. */
+  private[schema] def this(name: K) = this(name, Seq.empty)
 
   /** Gets string representation of column.
     *
     * @return short column description
     */
-  override def toString: String = {
+  override def toString: String =
     val vInfo = if (validators.isEmpty) "" else validators.map(_.name).mkString(" +", "+", "")
     s"'$name' -> ${classTag[V]}$vInfo"
-  }
 
-  /* Validates field. Positively validated values are returned as FieldType to encode both, key and value types
-   * and to be easily accommodated as shapeless records. */
-  private[schema] def validate(record: Record): Validated[FieldFlaw, FieldType[K, V]] = {
+  /* Validates field. Positively validated values are returned as pair (Tuple2) to encode both, key and value types
+   * and to be easily accommodated as typed records. */
+  private[schema] def validate(record: Record): Validated[FieldFlaw, (K, V)] =
     // get parsed value from CSV record and convert parsing error to FieldFlaw
     val typeValidated =
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, TypeError(e)))
     // call each validator, convert error to FieldFlaw and chain results, short-circuiting on error
-    val fullyValidated = typeValidated.andThen { v =>
+    val fullyValidated = typeValidated.andThen(v =>
       validators
         .map(validator => validator(v).leftMap(FieldFlaw(name, _)))
         .foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
-    }
-    // convert value to FieldType
-    fullyValidated.map(field[K](_))
-  }
-}
+    )
+    // convert value to tuple
+    fullyValidated.map((name, _))
 
-/* Companion with methods for column creation. */
-private[schema] object Column {
-  def apply[A: StringParser: ClassTag](name: String): Column[name.type, A] = new Column(name, Seq.empty)
-  def apply[A: StringParser: ClassTag](name: String, validators: Seq[Validator[A]]): Column[name.type, A] =
-    new Column(name, validators)
-}
+/** Type alias for validation result. */
+type ValidatedRecord[KS <: Tuple, VS <: Tuple] = Validated[InvalidRecord, TypedRecord[KS, VS]]
 
 /** Actual verifier of CSV data. Checks if CSV record is congruent with schema.
   *
-  * The verification is achieved through recursive implicits for heterogeneous list of columns (as input type)
-  * and heterogeneous list of typed record data (as output type).
+  * The verification is achieved through recursive implicits for tuple of columns (as input type)
+  * and tuple of typed record data (as output type).
   *
-  * @tparam L the heterogeneous list (of columns) representing schema
+  * @tparam T the tuple (of columns) representing schema
   */
-sealed trait SchemaEnforcer[L <: HList] extends DepFn2[L, Record] {
+sealed trait SchemaEnforcer[T <: Tuple]:
 
-  /** Output type of apply method - schema validation core result type. */
-  type Out <: ValidatedRecord[HList]
-}
+  /** Output type of the apply method - schema validation core result type: `ValidatedRecord[Tuple, Tuple]`. */
+  type Out
 
-/** Implicits for [[SchemaEnforcer]]. */
-object SchemaEnforcer {
-
-  /** Alias for SchemaEnforcer trait with `Out` type fixed.
+  /** Checks if record meets the type and validation rules imposed by column definitions.
+    * It is used by [[CSVSchema.validate]] method.
+    * Its instances are provided as recursive givens.
     *
-    * @tparam I input type
-    * @tparam O output type
+    * @param columns the tuple of columns containng schema definition
+    * @parem record the CSV record being checked
+    * @return [[ValidatedRecord]] paramatrized according to schema definition
     */
-  type Aux[I <: HList, O <: ValidatedRecord[HList]] = SchemaEnforcer[I] { type Out = O }
+  def apply(columns: T, record: Record): Out
 
-  /* Initial validation result for empty column list - empty typed record. */
+/** Givens for [[SchemaEnforcer]]. */
+object SchemaEnforcer:
+
+  /** Schema enforcer for empty tuple of columns. */
+  given emptyEnforcer: SchemaEnforcer[EmptyTuple] with
+
+    override type Out = ValidatedRecord[EmptyTuple, EmptyTuple]
+
+    override def apply(columns: EmptyTuple, record: Record): Out = empty(record)
+
+  /** Recursive schema enforcer for tuple of columns.
+    *
+    * @param tailEnforcer schema enforcer for column tuple tail
+    * @tparam K type of field name (key) of both, head of column tuple and head of typed record's data
+    * @tparam V type of field value of both, head of column tuple and head of typed record's data
+    * @tparam KT type of field names (keys) of record's data tail
+    * @tparam VT type of values of record's data tail
+    * @tparam CT type of column tuple tail
+    * @return schema enforcer for tuple
+    */
+  given recursiveEnforcer[K <: Key, V, KT <: Tuple, VT <: Tuple, CT <: Tuple](using
+    tailEnforcer: SchemaEnforcer[CT] { type Out = ValidatedRecord[KT, VT] },
+    ev1: Tuple.Size[K *: KT] =:= Tuple.Size[V *: VT],
+    ev2: Tuple.Union[K *: KT] <:< Key
+  ): SchemaEnforcer[Column[K, V] *: CT] with
+
+    override type Out = ValidatedRecord[K *: KT, V *: VT]
+
+    override def apply(columns: Column[K, V] *: CT, record: Record): Out =
+      val head = columns.head
+      val validated = head.validate(record)
+      val tailValidated = tailEnforcer(columns.tail, record)
+      validated match
+        // if current value is valid, add it to typed record from tail validation (or do nothing, if tail is invalid)
+        case Valid((k, v)) =>
+          tailValidated.map(tv => TypedRecord(k *: tv.keys, v *: tv.values, record.lineNum, record.rowNum))
+        // if current value is invalid, add it to list of flaws from tail validation
+        case Invalid(ff) =>
+          val flaws = tailValidated match
+            case Valid(_) => NonEmptyList.one(ff)
+            case Invalid(ir) => ff :: ir.flaws
+          Validated.invalid(InvalidRecord(record, flaws))
+
+  /* Initial validation result for empty column tuple - empty typed record. */
   private def empty(record: Record) =
-    Validated.valid[InvalidRecord, TypedRecord[HNil]](TypedRecord(HNil, record.lineNum, record.rowNum))
-
-  /** Schema enforcer for empty column list */
-  implicit val enforceHNil: Aux[HNil, ValidatedRecord[HNil]] = new SchemaEnforcer[HNil] {
-    override type Out = ValidatedRecord[HNil]
-    override def apply(columns: HNil, record: Record): Out = empty(record)
-  }
-
-  /** Recursive schema enforcer for [[shapeless.::]].
-    *
-    * @param tailEnforcer schema enforcer for column list tail
-    * @tparam K type of field name of both, column list and typed record data head
-    * @tparam V type of field value of both, column list and typed record data head
-    * @tparam TC type of column list tail
-    * @tparam TR type of typed record data tail
-    * @return schema enforcer for `HCons`
-    */
-  implicit def enforceHCons[K <: Key, V, TC <: HList, TR <: HList](
-    implicit tailEnforcer: Aux[TC, ValidatedRecord[TR]]
-  ): Aux[Column[K, V] :: TC, ValidatedRecord[FieldType[K, V] :: TR]] =
-    new SchemaEnforcer[Column[K, V] :: TC] {
-      override type Out = ValidatedRecord[FieldType[K, V] :: TR]
-      override def apply(columns: Column[K, V] :: TC, record: Record): Out = {
-        val validated = columns.head.validate(record)
-        val tailValidated = tailEnforcer(columns.tail, record)
-        validated match {
-          // if current value is valid, add it to typed record from tail validation (or do nothing, if tail is invalid)
-          case Valid(vv) => tailValidated.map(tv => TypedRecord(vv :: tv.data, record.lineNum, record.rowNum))
-          // if current value is invalid, add it to list of flaws from tail validation
-          case Invalid(iv) =>
-            val flaws = tailValidated match {
-              case Valid(_) => NonEmptyList.one(iv)
-              case Invalid(ivt) => iv :: ivt.flaws
-            }
-            Validated.invalid[InvalidRecord, TypedRecord[FieldType[K, V] :: TR]](InvalidRecord(record, flaws))
-        }
-      }
-    }
-}
+    Validated.valid[InvalidRecord, TypedRecord[EmptyTuple, EmptyTuple]](
+      TypedRecord(Tuple(), Tuple(), record.lineNum, record.rowNum)
+    )
 
 /** Proof of column name uniqueness in schema.
   *
   * Witnesses that given candidate key type (singleton string) is not present on column list yet.
   *
   * @tparam K type of column name
-  * @tparam L type of column list
+  * @tparam T type of tuple of columns
   */
-sealed trait NotPresent[K <: Key, L <: HList]
+sealed trait NotPresent[K <: Key, T <: Tuple]
 
-/** Implicits for [[NotPresent]]. */
-object NotPresent {
+/** Givens for [[NotPresent]]. */
+object NotPresent:
+
+  // The type inequality snippet is base on com.chuusai.shapeless.=:!=
+  /** Type inequalitiy. */
+  trait =!=[A, B]
+
+  /** Given for inequal types. */
+  given neq[A, B]: =!=[A, B] with {}
+
+  /** Given for equal types - due to duplication impossible to instantiate. */
+  given neqContradiction1[A]: =!=[A, A] = sys.error("unexpected invocation")
+
+  /** Given for equal types - due to duplication impossible to instantiate. */
+  given neqContradiction2[A]: =!=[A, A] = sys.error("unexpected invocation")
 
   /** [[NotPresent]] witness for empty column list.
     *
     * @tparam K type of candidate column name
-    * @return `NotPresent` implicit for empty schema
+    * @return `NotPresent` for empty schema
     */
-  implicit def notPresentHNil[K <: Key]: NotPresent[K, HNil] = new NotPresent[K, HNil] {}
+  given emptyNotPresent[K <: Key]: NotPresent[K, EmptyTuple] with {}
 
-  /** Recursive [[NotPresent]] witness for [[shapeless.::]].
+  /** Recursive [[NotPresent]] witness for tuple.
     *
-    * @param neq witnesses that column name type of list head differs from the candidate name type
+    * @param neq witnesses that column name type of tuple head differs from the candidate name type
     * @param tailNP `NotPresent` witness for list tail
     * @tparam K type of candidate column name
-    * @tparam HK type of list head column name
-    * @tparam HV type of list head column value
-    * @tparam T tail of column list
-    * @return `NotPresent` for HCons
+    * @tparam KH type of tuple head column name
+    * @tparam VH type of tuple head column value
+    * @tparam T tail of tuple of columns
+    * @return `NotPresent` for tuple
     */
-  implicit def notPresentHCons[K <: Key, HK <: Key, HV, T <: HList](
-    implicit @unused neq: K =:!= HK,
+  given recursiveNotPresent[K <: Key, KH <: Key, VH, T <: Tuple](using
+    @unused neq: K =!= KH,
     @unused tailNP: NotPresent[K, T]
-  ): NotPresent[K, Column[HK, HV] :: T] =
-    new NotPresent[K, Column[HK, HV] :: T] {}
-}
+  ): NotPresent[K, Column[KH, VH] *: T] with {}

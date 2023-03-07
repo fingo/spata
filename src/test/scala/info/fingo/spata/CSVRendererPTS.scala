@@ -5,6 +5,7 @@
  */
 package info.fingo.spata
 
+import cats.effect.unsafe.implicits.global
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
 import info.fingo.spata.Record.ProductOps

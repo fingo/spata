@@ -3,17 +3,19 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata.sample
+package info.fingo.sample.spata
 
-import java.time.LocalDate
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import fs2.Stream
-import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.CSVConfig
 import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.CSVSchema
 import info.fingo.spata.schema.validator.FiniteValidator
+import org.scalatest.funsuite.AnyFunSuite
 import org.slf4j.LoggerFactory
+
+import java.time.LocalDate
 
 /* Sample which validates CSV and provides typed records. */
 class ValidateITS extends AnyFunSuite {

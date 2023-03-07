@@ -54,7 +54,7 @@ final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
         val newCounters = recalculateCounters(state.counters, cs)
         parseChunk(tail, output :+ field, StateFP(newCounters, LocalCounts(field.counters.nextPosition)))
       case (cs: CharState) :: tail =>
-        cs.char.map(state.buffer.append)
+        cs.char.map(state.buffer.append(_))
         val newCounters = recalculateCounters(state.counters, cs)
         val newLC = recalculateLocalCounts(state.lc, cs)
         parseChunk(tail, output, StateFP(newCounters, newLC, state.buffer))

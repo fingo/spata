@@ -14,6 +14,8 @@ The library is backed by [FS2 - Functional Streams for Scala](https://github.com
 > This brach is dedicated to **spata 2**, which runs on Scala 2, Cats Effect 2 and FS2 v2.
 > For **spata 3**, which runs on Scala 3, Cats Effect 3 and FS2 v3,
 > switch to [master branch](https://github.com/fingo/spata/tree/master).
+> For version supporting Cats Effect 3 / FS2 v3 on Scala 2,
+> please see [s2ce3](https://github.com/fingo/spata/tree/s2ce3).
 
 The main goal of the library is to provide handy, functional, stream-based API
 with easy conversion between records and case classes, completed with precise information about possible flaws

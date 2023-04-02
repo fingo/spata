@@ -14,7 +14,7 @@ The library is backed by [FS2 - Functional Streams for Scala](https://github.com
 > Work in progress.
 > 
 > **spata** is being ported to Scala 3.
-> Due to its past dependency on shapeless 2 and thus Scala 2 macros,  this version introduced significant API changes.
+> Due to its past dependency on shapeless 2 and thus Scala 2 macros, this version introduced significant API changes.
 > **spata 3** supports Scala 3 only.
 > Scala 2 support is still available in [**spata 2**](https://github.com/fingo/spata/tree/spata2).
 
@@ -879,7 +879,7 @@ The converter example presented in [Basic usage](#basic-usage) may be improved t
 import java.nio.file.Paths
 import java.time.LocalDate
 import scala.io.Codec
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}

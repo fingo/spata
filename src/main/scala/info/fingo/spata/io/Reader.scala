@@ -44,7 +44,7 @@ sealed trait Reader[F[_]]:
     * ```
     * val stream = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .flatMap(Reader[IO]().read)
+    *   .flatMap(Reader[IO].read)
     * ```
     *
     * @param source the source containing CSV content
@@ -132,10 +132,10 @@ sealed trait Reader[F[_]]:
   * It is used through one of its inner classes:
   *  - [[Reader.Plain]] for standard reading operations executed on current thread,
   *  - [[Reader.Shifting]] to support context (thread) shifting for blocking operations
-  *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
+  *  (see [[https://typelevel.org/cats-effect/docs/thread-model#blocking Cats Effect thread model]]).
   *
   * The reading functions in [[Reader.Shifting]], except the one reading from [[scala.io.Source]],
-  * use [[https://fs2.io/io.html fs2-io]] library.
+  * use [[https://fs2.io/#/io fs2-io]] library.
   *
   * In every case, the caller of function taking resource ([[scala.io.Source]] or `java.io.InputStream`) as a parameter
   * is responsible for its cleanup.
@@ -160,7 +160,7 @@ object Reader:
 
   /** Alias for [[plain(chunkSize* plain]].
     *
-    * @param chunkSize size of data chunk - see [[https://fs2.io/guide.html#chunks FS2 Chunks]].
+    * @param chunkSize size of data chunk - see [[https://fs2.io/#/guide?id=chunks FS2 Chunks]].
     * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     * @return basic `Reader`
@@ -192,22 +192,24 @@ object Reader:
     */
   def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F](defaultChunkSize)
 
-  /** Provides reader with support of context shifting for I/O operations.
-    * Uses internal, default blocker backed by a new cached thread pool.
+  /** Provides reader with support of context (thread) shifting for I/O operations.
+    * Uses the built-in internal blocking thread pool.
     *
     * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Reader` with support for context shifting
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Reader` with support for thread shifting
     */
   def shifting[F[_]: Async: Logger](chunkSize: Int): Shifting[F] = new Shifting[F](chunkSize)
 
-  /** Provides reader with support of context shifting for I/O operations.
-    * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
+  /** Provides reader with support of context (thread) shifting for I/O operations.
+    * Uses the built-in internal blocking thread pool and default chunks size.
     *
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Reader` with support for context shifting
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Reader` with support for thread shifting
     */
   def shifting[F[_]: Async: Logger]: Shifting[F] = new Shifting[F](defaultChunkSize)
 
@@ -245,13 +247,13 @@ object Reader:
         })(source => Sync[F].delay(source.close()))
         .flatMap(read)
 
-  /** Reader which shifts I/O operations to a execution context provided for blocking operations.
-    * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
+  /** Reader which shifts I/O operations to a thread pool provided for blocking operations.
+    * Uses the built-in internal blocking thread pool.
     *
-    * @param blocker optional execution context to be used for blocking I/O operations
     * @param chunkSize size of data chunk
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
     */
   final class Shifting[F[_]: Async: Logger: RaiseThrowable] private[spata] (override val chunkSize: Int)
     extends Reader[F]:
@@ -262,10 +264,10 @@ object Reader:
       * ```
       * val stream = Stream
       *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-      *   .flatMap(Reader.shifting[IO]().read)
+      *   .flatMap(Reader.shifting[IO].read)
       * ```
       *
-      * @note This function is much less efficient for most use cases than its non-shifting counterpart,
+      * @note This function is less efficient for most use cases than its non-shifting counterpart,
       * [[Plain.read(source* Plain.read]].
       * This is due to [[scala.io.Source]] character-based iterator,
       * which causes context shift for each fetched character.
@@ -292,7 +294,7 @@ object Reader:
       * ```
       * given codec = new Codec(Charset.forName("ISO-8859-2"))
       * val path = Path.of("data.csv")
-      * val stream = Reader.shifting[IO]().read(path)
+      * val stream = Reader.shifting[IO].read(path)
       * ```
       */
     def read(path: Path)(using codec: Codec): Stream[F, Char] =

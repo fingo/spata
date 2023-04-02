@@ -51,7 +51,7 @@ sealed trait Writer[F[_]]:
     * given codec = new Codec(Charset.forName("UTF-8"))
     * val path = Path.of("data.csv")
     * val stream: Stream[IO, Char] = ???
-    * val handler: Stream[IO, Unit] = stream.through(Writer[IO]().write(path))
+    * val handler: Stream[IO, Unit] = stream.through(Writer[IO].write(path))
     * ```
     *
     * @param path the path to target file
@@ -83,9 +83,9 @@ sealed trait Writer[F[_]]:
   * It is used through one of its inner classes:
   *  - [[Writer.Plain]] for standard writing operations executed on current thread,
   *  - [[Writer.Shifting]] to support context (thread) shifting for blocking operations
-  *  (see [[https://typelevel.org/cats-effect/concurrency/basics.html#blocking-threads Cats Effect concurrency guide]]).
+  *  (see [[https://typelevel.org/cats-effect/docs/thread-model#blocking Cats Effect thread model]]).
   *
-  * The writing functions in [[Writer.Shifting]] use [[https://fs2.io/io.html fs2-io]] library.
+  * The writing functions in [[Writer.Shifting]] use [[https://fs2.io/#/io fs2-io]] library.
   *
   * In every case, the caller of function taking resource (`java.io.OutputStream`) as a parameter
   * is responsible for its cleanup.
@@ -118,12 +118,13 @@ object Writer:
     */
   def plain[F[_]: Sync: Logger]: Plain[F] = new Plain[F]()
 
-  /** Provides writer with support of context shifting for I/O operations.
-    * Uses internal, default blocker backed by a new cached thread pool and default chunks size.
+  /** Provides writer with support of context (thread) shifting for I/O operations.
+    * Uses the built-in internal blocking thread pool and default chunks size.
     *
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
-    * @return `Writer` with support for context shifting
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Writer` with support for thread shifting
     */
   def shifting[F[_]: Async: Logger]: Shifting[F] = new Shifting[F]()
 
@@ -155,12 +156,12 @@ object Writer:
     protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =
       (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(text.encodeC(codec.charSet))
 
-  /** Writer which shifts I/O operations to a execution context provided for blocking operations.
-    * If no blocker is provided, a new one, backed by a cached thread pool, is allocated.
+  /** Writer which shifts I/O operations to a thread pool provided for blocking operations.
+    * Uses the built-in internal blocking thread pool.
     *
-    * @param blocker optional execution context to be used for blocking I/O operations
-    * @tparam F the effect type, with type classes providing support for delayed execution (typically [[cats.effect.IO]]),
-    * execution environment for non-blocking operation (to shift back to) and logging (provided internally by spata)
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
     */
   final class Shifting[F[_]: Async: Logger] private[spata] () extends Writer[F]:
 
@@ -182,7 +183,7 @@ object Writer:
       * given codec = new Codec(Charset.forName("UTF-8"))
       * val path = Path.of("data.csv")
       * val stream: Stream[IO, Char] = ???
-      * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO]().write(path))
+      * val handler: Stream[IO, Unit] = stream.through(wW.shifting[IO].write(path))
       * ```
       */
     def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =

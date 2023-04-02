@@ -5,7 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  scalaVersion := "2.13.7"
+  scalaVersion := "2.13.10"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -25,14 +25,14 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.3.3",
-      "co.fs2" %% "fs2-core" % "3.2.4",
-      "co.fs2" %% "fs2-io" % "3.2.4",
-      "com.chuusai" %% "shapeless" % "2.3.7",
-      "org.slf4j" % "slf4j-api" % "1.7.32",
-      "org.scalatest" %% "scalatest" % "3.2.10" % Test,
+      "org.typelevel" %% "cats-effect" % "3.4.5",
+      "co.fs2" %% "fs2-core" % "3.5.0",
+      "co.fs2" %% "fs2-io" % "3.5.0",
+      "com.chuusai" %% "shapeless" % "2.3.10",
+      "org.slf4j" % "slf4j-api" % "2.0.6",
+      "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       "com.storm-enroute" %% "scalameter" % "0.21" % Test,
-      "org.slf4j" % "slf4j-simple" % "1.7.32" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.6" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),
@@ -61,7 +61,7 @@ lazy val publishSettings = Seq(
 )
 
 lazy val scalacSettings = Seq( // based on https://nathankleyn.com/2019/05/13/recommended-scalac-flags-for-2-13/
-  "-target:11",
+  "-release:11",
   "-deprecation", // Emit warning and location for usages of deprecated APIs.
   "-explaintypes", // Explain type errors in more detail.
   "-feature", // Emit warning and location for usages of features that should be imported explicitly.

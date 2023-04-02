@@ -11,6 +11,14 @@ spata
 **spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
+> This brach is dedicated to **spata**, running on Scala 2, with support for Cats Effect 3 and FS2 v3.
+> This version is incompatible with spata 2 and spata 3 and it is not published.
+> It is provided here to be built from sources for those, who require this intermediary variant.
+> For **spata 3**, which runs on Scala 3, Cats Effect 3 and FS2 v3,
+> switch to [master branch](https://github.com/fingo/spata/tree/master).
+> For **spata** version supporting Cats Effect 2 and FS2 v2 on Scala 2,
+> please see [spata2](https://github.com/fingo/spata/tree/spata2).
+
 The main goal of the library is to provide handy, functional, stream-based API
 with easy conversion between records and case classes, completed with precise information about possible flaws
 and their location in source data for parsing while maintaining good performance.
@@ -30,15 +38,20 @@ The source (while parsing) and destination (while rendering) data format is assu
 Getting started
 ---------------
 
-spata is available for Scala 2.13 and requires at least Java 11.
+This version of spata is available for Scala 2.13 and requires at least Java 11.
 
-To use spata you have to add this single dependency to your `build.sbt`:
+To use this version of spata you have to build it from sources with `sbt package`,
+copy it to your local `lib` and add its dependencies to your `build.sbt`:
 ```sbt
-libraryDependencies += "info.fingo" %% "spata" % "<version>"
-``` 
-The latest version may be found on the badge above.
+libraryDependencies ++= Seq(
+  "com.chuusai" %% "shapeless" % "2.3.10",
+  "co.fs2" %% "fs2-core" % "3.5.0",
+  "co.fs2" %% "fs2-io" % "3.5.0",
+  "org.slf4j" % "slf4j-simple" % "2.0.6"
+)
+```
 
-Link to the current API version is available through the badge as well. 
+To get up-to-date API of the library, generate it through `sbt doc`. 
 
 Basic usage
 -----------
@@ -46,20 +59,22 @@ The whole parsing process in a simple case may look like this:
 ```scala
 import scala.io.Source
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global  // default IORuntime
+import cats.syntax.traverse._   // to get list.sequence
 import fs2.Stream
 import info.fingo.spata.CSVParser
 import info.fingo.spata.io.Reader
 
-case class Data(item: String, value: Double)
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
-  .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+  .bracket(IO { Source.fromFile("testdata/input.csv") })(source => IO { source.close() })
   .through(Reader[IO].by) // produce stream of chars from source
   .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Stream API
   .map(_.to[Data]()) // convert records to case class
   .handleErrorWith(ex => Stream.eval(IO(Left(ex)))) // convert global (I/O, CSV structure) errors to Either
-val result = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+val list = records.compile.toList.unsafeRunSync() // run everything while converting result to list
+val result = list.sequence  // convert List[Either[Throwable,Data]] to Either[Throwable,List[Data]]
 ```
 
 Another example may be taken from [FS2 readme](https://fs2.io/),
@@ -67,29 +82,29 @@ assuming that the data is stored and written back in `CSV` format with two field
 ```scala
 import java.nio.file.Paths
 import scala.io.Codec
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect.{IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer}
 import info.fingo.spata.io.{Reader, Writer}
 
-object Converter extends IOApp {
+object Converter extends IOApp.Simple {
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+  val converter: Stream[IO, Unit] = {
     implicit val codec: Codec = Codec.UTF8
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
       .map(_.altered("temp")(fahrenheitToCelsius))
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
+      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
   }
 
-  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
+  def run: IO[Unit] = converter.compile.drain
 }
 ```
 Modified versions of this sample may be found in [error handling](#error-handling) 
@@ -122,13 +137,19 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val output: Stream[IO, Record] = input.through(parser.parse)
 ```
 In accordance with FS2, spata is polymorphic in the effect type and may be used with different effect implementations
-(Cats [IO](https://typelevel.org/cats-effect/datatypes/io.html),
-Monix [Task](https://monix.io/docs/3x/eval/task.html),
-or ZIO [ZIO](https://zio.dev/docs/datatypes/datatypes_io)).
-Please note, however, that Cats Effect `IO` is the only effect implementation used for testing and documentation purposes. 
-Type class dependencies are defined in terms of the [Cats Effect](https://typelevel.org/cats-effect/typeclasses/)class hierarchy.
+([Cats Effect IO](https://typelevel.org/cats-effect/docs/getting-started)
+or [ZIO](https://zio.dev/overview/getting-started),
+especially with support for [ZIO-CE interop](https://zio.dev/guides/interop/with-cats-effect/);
+interoperability with [Monix](https://monix.io/) is not possible yet,
+but [this may change in the future](https://alexn.org/blog/2022/04/05/future-monix-typelevel/#the-future-of-monix)).
+Please note, however, that Cats Effect [IO](https://typelevel.org/cats-effect/api/3.x/cats/effect/IO.html)
+is the only effect implementation used for testing and documentation purposes.
+
+Type class dependencies are defined in terms of the
+[Cats Effect](https://typelevel.org/cats-effect/docs/typeclasses) class hierarchy. 
 To support effect suspension, spata requires in general `cats.effect.Sync` type class implementation for its effect type.
 Some methods need enhanced type classes to support asynchronous or concurrent computation.
+Some are satisfied with more general effects.
 
 Like in the case of any other FS2 processing, spata consumes only as much of the source stream as required,
 give or take a chunk size. 
@@ -179,13 +200,13 @@ val parser: CSVParser[IO] = CSVParser[IO]
 val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
-the whole processing may run through [IOApp](https://typelevel.org/cats-effect/datatypes/ioapp.html).
+the whole processing may run through [IOApp](https://typelevel.org/cats-effect/api/3.x/cats/effect/IOApp.html).
 
 If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8Decode`),
 we may convert it to a stream of characters:
 ```scala
 val ss: Stream[IO, String] = ???
-val sc: Stream[IO, Char] = ss.map(s => Chunk.chars(s.toCharArray)).flatMap(Stream.chunk)
+val sc: Stream[IO, Char] = ss.map(s => Chunk.charBuffer(CharBuffer.wrap(s))).flatMap(Stream.chunk)
 ```
 
 See [Reading and writing data](#reading-and-writing-data) for helper methods
@@ -311,15 +332,15 @@ There are two groups of the `read` and `write` methods in `Reader` and `Writer`:
 *   basic ones, accessible through `Reader.plain` and `Writer.plain`,
     where reading and writing is done synchronously on the current thread,
 
-*   with support for [thread shifting](https://typelevel.org/cats-effect/datatypes/io.html#thread-shifting),
+*   with support for [thread shifting](https://typelevel.org/cats-effect/docs/thread-model#blocking),
     accessible through `Reader.shifting` and `Writer.shifting`.
 
 It is recommended to use the thread shifting version, especially for long reading or writing operations,
 for better thread pool utilization.
-See [a post from Daniel Spiewak](https://gist.github.com/djspiewak/46b543800958cf61af6efa8e072bfd5c)
-about thread pools configuration.
+See [Cats Effect schedulers](https://typelevel.org/cats-effect/docs/schedulers)
+description for thread pools configuration.
 More information about threading may be found in
-[Cats Concurrency Basics](https://typelevel.org/cats-effect/concurrency/basics.html).
+[Cats Effect thread model](https://typelevel.org/cats-effect/docs/thread-model).
 
 The simplest way to read data from and write to a file is:
 ```scala
@@ -333,15 +354,13 @@ val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.ap
 // do some processing on stream
 val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.plain
 ```
-The thread shifting reader and writer provide similar methods, but require implicit `ContextShift`:
+The thread shifting reader and writer provide similar methods:
 ```scala
-implicit val cs: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 val stream: Stream[IO, Char] = Reader.shifting[IO].read(Path.of("data.csv"))
 val eff: Stream[IO, Unit] = stream.through(Writer.shifting[IO].write(Path.of("data.csv")))
 ```
-The `ExecutionContext` provided to `ContextShift` is used to switch the context back to the CPU-bound one,
-used for regular, non-blocking operations, after the blocking I/O operation finishes.
-The `Blocker`, which provides the thread pool for blocking I/O, may be passed to `shifting` or will be created internally.
+Cats Effect 3 provides the thread shifting facility out of the box through `Async.blocking`,
+using the built-in internal blocking thread pool.
 
 All `read` operations load data in [chunks](https://fs2.io/guide.html#chunks) for better performance.
 Chunk size may be supplied while creating a reader:
@@ -368,7 +387,7 @@ val stream: Stream[IO, Unit] = for {
 } yield out
 ```
 Other methods of resource acquisition and releasing are described in
-[Cats Effect tutorial](https://typelevel.org/cats-effect/tutorial/tutorial.html#acquiring-and-releasing-resources).
+[Cats Effect tutorial](https://typelevel.org/cats-effect/docs/tutorial#acquiring-and-releasing-resources).
 
 Unlike the `Reader.read` method, which creates a new stream, `Writer.write` operates on an existing stream.
 Being often the last operation in the stream pipeline, it has to allow access to the final stream,
@@ -553,7 +572,7 @@ val nf = NumberFormat.getInstance(new Locale("pl", "PL"))
 implicit val nsr: StringRenderer[Double] = (v: Double) => nf.format(v)
 case class Element(symbol: String, melting: Double, boiling: Double)
 val element = Element("H", 13.99, 20.271)
-val record = element.toRecord
+val record = element.toRecords  // requires import of Record.ProductOps
 val value = record("melting")  // returns Some("13,99")
 ```
 
@@ -868,37 +887,42 @@ The converter example presented in [Basic usage](#basic-usage) may be improved t
 import java.nio.file.Paths
 import java.time.LocalDate
 import scala.io.Codec
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.data.Validated.{Invalid, Valid}
+import cats.effect.{IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 import info.fingo.spata.schema.CSVSchema
 
-object Converter extends IOApp {
+object Converter extends IOApp.Simple {
 
-  val converter: Stream[IO, Unit] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+  val converter: Stream[IO, Unit] = {
     implicit val codec: Codec = Codec.UTF8
     val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .through(schema.validate)
       .map {
-        _.leftMap(println).map { tr =>
+        _.leftMap(_.toString).map { tr =>
           val date = tr("date")
           val temp = fahrenheitToCelsius(tr("temp"))
           Record.builder.add("date", date).add("temp", temp).get
-        }.toOption
+        }
+      }
+      .evalMap {
+        case Invalid(s) => IO(println(s)) *> IO.none
+        case Valid(r) => IO(Some(r))
       }
       .unNone
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(Paths.get("testdata/celsius.txt")))
+      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
   }
 
-  def run(args: List[String]): IO[ExitCode] = converter.compile.drain.as(ExitCode.Success)
+  def run: IO[Unit] = converter.compile.drain
 }
 ```
 
@@ -946,21 +970,21 @@ The converter example presented in [Basic usage](#basic-usage) may be enriched w
 import java.nio.file.Paths
 import scala.io.Codec
 import scala.util.Try
-import cats.effect.{Blocker, ExitCode, IO, IOApp}
+import cats.effect.{ExitCode, IO, IOApp}
 import fs2.Stream
 import info.fingo.spata.{CSVParser, CSVRenderer, Record}
 import info.fingo.spata.io.{Reader, Writer}
 
 object Converter extends IOApp {
 
-  val converter: Stream[IO, ExitCode] = Stream.resource(Blocker[IO]).flatMap { blocker =>
+  val converter: Stream[IO, ExitCode] = {
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
     implicit val codec: Codec = Codec.UTF8
     val src = Paths.get("testdata/fahrenheit.txt")
     val dst = Paths.get("testdata/celsius.txt")
 
     Reader
-      .shifting[IO](blocker)
+      .shifting[IO]
       .read(src)
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
@@ -973,7 +997,7 @@ object Converter extends IOApp {
       }
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO](blocker).write(dst))
+      .through(Writer.shifting[IO].write(dst))
       .fold(ExitCode.Success)((z, _) => z)
       .handleErrorWith { ex =>
         Try(dst.toFile.delete())

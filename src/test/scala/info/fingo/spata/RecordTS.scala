@@ -126,7 +126,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks {
       if (sValue.trim.isEmpty)
         assert(md.forall(_.value.isEmpty))
       else
-        assert(md.forall(_.value.contains(value)))
+        assert(md.forall(_.value == Some(value)))
     }
   }
 

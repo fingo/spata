@@ -549,23 +549,40 @@ object Record {
     */
   implicit def buildRecord(rb: Builder): Record = rb.get
 
-  /** Extension of [[scala.Product]] to provide convenient conversion to records.
-    *
-    * @param product product to extend
-    * @tparam P concrete type of product with given type class providing support for conversion
-    * (arranged internally by spata, assuming `StringRenderer` is available for all product field types)
-    */
-  implicit final class ProductOps[P <: Product: FromProduct](product: P) {
+  // /** Extension of [[scala.Product]] to provide convenient conversion to records.
+  //   *
+  //   * @param product product to extend
+  //   * @tparam P concrete type of product with given type class providing support for conversion
+  //   * (arranged internally by spata, assuming `StringRenderer` is available for all product field types)
+  //   */
+  // implicit final class ProductOps[P <: Product: FromProduct](product: P) {
 
+  //   /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
+  //     *
+  //     * @see [[Record.from]] for more information.
+  //     *
+  //     * @return new record
+  //     */
+  //   def toRecord: Record = summon[FromProduct[P]].encode(product)
+  // }
+
+  /** Extension of [[scala.Product]] to provide convenient conversion to records. */
+  trait ProductOps {
     /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
       *
       * @see [[Record.from]] for more information.
       *
+      * @param product product to extend
+      * @tparam P concrete type of product with given type class providing support for conversion
       * @return new record
       */
-    def toRecord: Record = summon[FromProduct[P]].encode(product)
+    extension [P <: Product: FromProduct](product: P)
+      def toRecord: Record = summon[FromProduct[P]].encode(product)
   }
 
+  /** Given instance to easily bring ProductOps extension in scope. */
+  given ProductOps: ProductOps()
+  
   /** Helper to incrementally build records from typed values.
     * Supports also values removal.
     *

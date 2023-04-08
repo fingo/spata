@@ -22,7 +22,7 @@ import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, 
   * @param position record position in source data
   * @param hdr indexing header (field names)
   */
-final class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]) {
+final class Record private (val values: IndexedSeq[String], val position: Option[Position])(hdr: Option[Header]):
   self =>
 
   /** Safely gets typed record value.
@@ -170,10 +170,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @param f the function to be applied to existing value
     * @return a new record with updated value
     */
-  def updatedWith(key: String)(f: String => String): Record = {
+  def updatedWith(key: String)(f: String => String): Record =
     val idx = header(key)
     idx.map(updatedWith(_)(f)).getOrElse(this)
-  }
 
   /** Creates new record with value at given index updated with provided one.
     * Original record is returned if the index is out of bounds.
@@ -199,10 +198,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   def updatedWith(idx: Int)(f: String => String): Record =
     this(idx).map { v =>
       val nvs = values.updated(idx, f(v))
-      hdr match { // do not access and create header if not necessary
+      hdr match // do not access and create header if not necessary
         case Some(h) => Record(nvs: _*)(h)
         case None => Record.fromValues(nvs: _*)
-      }
     }.getOrElse(this)
 
   /** Creates new record with value at given key updated by provided function.
@@ -281,37 +279,31 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     decode(idx)(v => StringParser.parse(v))
 
   /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
-  private def decode[A](key: String)(parse: String => ParseResult[A]): Decoded[A] = {
+  private def decode[A](key: String)(parse: String => ParseResult[A]): Decoded[A] =
     val value = apply(key)
-    value match {
+    value match
       case Some(str) =>
-        parse(str) match {
+        parse(str) match
           case Right(value) => Right(value)
           case Left(error) => Left(new DataError(error.content, position, FieldInfo(key), error))
-        }
       case None => Left(new HeaderError(position, FieldInfo(key)))
-    }
-  }
 
   /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
-  private def decode[A](idx: Int)(parse: String => ParseResult[A]): Decoded[A] = {
+  private def decode[A](idx: Int)(parse: String => ParseResult[A]): Decoded[A] =
     val value = apply(idx)
-    value match {
+    value match
       case Some(str) =>
-        parse(str) match {
+        parse(str) match
           case Right(value) => Right(value)
           case Left(error) => Left(new DataError(error.content, position, FieldInfo(idx), error))
-        }
       case None => Left(new IndexError(position, FieldInfo(idx)))
-    }
-  }
 
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     * Provides exception-free parsing method.
     *
     * @tparam A target type for parsing
     */
-  final class Field[A] {
+  final class Field[A]:
 
     /** Safely parses string to desired type based on provided format.
       *
@@ -338,10 +330,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * @return either parsed value or an error
       */
     def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(idx, fmt)
-  }
 
   /** Access to unsafe (exception throwing) methods */
-  object unsafe {
+  object unsafe:
 
     /** Gets typed record value.
       *
@@ -401,16 +392,15 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     def apply(idx: Int): String = values(idx)
 
     /* Throws exception if Either is Left. */
-    private def rethrow[A](result: Decoded[A]) = result match {
+    private def rethrow[A](result: Decoded[A]) = result match
       case Right(value) => value
       case Left(error) => throw error
-    }
 
     /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
       *
       * @tparam A target type for parsing
       */
-    final class Field[A] {
+    final class Field[A]:
 
       /** Parses field to desired type based on provided format.
         *
@@ -435,12 +425,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
         */
       @throws[ContentError]("if field cannot be parsed to requested type or incorrect index is provided")
       def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = rethrow(retrieve(idx, fmt))
-    }
-  }
-}
 
 /** Record helper object. Used to create and convert records. */
-object Record {
+object Record:
 
   /* Creates `Record`. See Record class for more information about parameters.
    * This method is used by CSVParser to validate header and content conformance of parsed records.
@@ -448,10 +435,8 @@ object Record {
   private[spata] def create(values: IndexedSeq[String], rowNum: Int, lineNum: Int)(
     header: Header
   ): Either[StructureException, Record] =
-    if (values.size == header.size)
-      Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
-    else
-      Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
+    if values.size == header.size then Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
+    else Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
 
   /** Creates record.
     *
@@ -464,15 +449,13 @@ object Record {
     * @param header record header - keys for values (field names)
     * @return new record
     */
-  def apply(values: String*)(header: Header): Record = {
+  def apply(values: String*)(header: Header): Record =
     val HS = header.size
-    val hdr = values.size match {
+    val hdr = values.size match
       case HS => header
       case vs if vs < HS => header.shrink(vs)
       case vs => header.extend(vs)
-    }
     new Record(values.toIndexedSeq, Position.none)(Some(hdr))
-  }
 
   /** Creates record from list of values.
     * Record header is created in tuple-like form: `_1`, `_2`, `_3` etc.
@@ -494,10 +477,9 @@ object Record {
     * @param keysValues list of keys (names) and values forming record
     * @return new record
     */
-  def fromPairs(keysValues: (String, String)*): Record = {
+  def fromPairs(keysValues: (String, String)*): Record =
     val (k, v) = keysValues.unzip
     new Record(v.toIndexedSeq, Position.none)(Some(Header(k: _*)))
-  }
 
   /** Creates a record from [[scala.Product]], e.g. case class.
     *
@@ -567,7 +549,7 @@ object Record {
   // }
 
   /** Extension of [[scala.Product]] to provide convenient conversion to records. */
-  trait ProductOps {
+  trait ProductOps:
     /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
       *
       * @see [[Record.from]] for more information.
@@ -576,20 +558,18 @@ object Record {
       * @tparam P concrete type of product with given type class providing support for conversion
       * @return new record
       */
-    extension [P <: Product: FromProduct](product: P)
-      def toRecord: Record = summon[FromProduct[P]].encode(product)
-  }
+    extension [P <: Product: FromProduct](product: P) def toRecord: Record = summon[FromProduct[P]].encode(product)
 
   /** Given instance to easily bring ProductOps extension in scope. */
   given ProductOps: ProductOps()
-  
+
   /** Helper to incrementally build records from typed values.
     * Supports also values removal.
     *
     * @param buf buffer used to incrementally build record's content.
     * @param removed keys of fields to be removed from record
     */
-  final class Builder private (buf: List[(String, String)], removed: Set[String]) {
+  final class Builder private (buf: List[(String, String)], removed: Set[String]):
 
     /* Auxiliary constructor, to simplify builder creation */
     private[Record] def this(buf: List[(String, String)]) = this(buf, Set.empty[String])
@@ -628,18 +608,13 @@ object Record {
       *
       * @return new record with values from this builder.
       */
-    def get: Record = {
+    def get: Record =
       val result =
-        if (removed.isEmpty)
-          buf
-        else
-          buf.filterNot { case (k, _) => removed.contains(k) }
+        if removed.isEmpty then buf
+        else buf.filterNot { case (k, _) => removed.contains(k) }
       Record.fromPairs(result.reverse: _*)
-    }
 
     /* Gets final record from this builder with reversed order of the fields,
      * which really means preserving the order, because values ate prepended.
      */
     private[spata] def reversed: Record = Record.fromPairs(buf: _*)
-  }
-}

@@ -5,8 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  crossScalaVersions := Seq("3.2.1", "2.13.10"),
-  scalaVersion := "3.2.1"
+  scalaVersion := "3.2.2"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -26,14 +25,14 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.4.5",
-      "co.fs2" %% "fs2-core" % "3.5.0",
-      "co.fs2" %% "fs2-io" % "3.5.0",
-      "org.slf4j" % "slf4j-api" % "2.0.6",
+      "org.typelevel" %% "cats-effect" % "3.4.8",
+      "co.fs2" %% "fs2-core" % "3.6.1",
+      "co.fs2" %% "fs2-io" % "3.6.1",
+      "org.slf4j" % "slf4j-api" % "2.0.7",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
         exclude("org.scala-lang.modules", "scala-xml_2.13"),
-      "org.slf4j" % "slf4j-simple" % "2.0.6" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.7" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

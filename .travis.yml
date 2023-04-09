@@ -11,15 +11,14 @@ jobs:
       script: sbt check
     - stage: test
       name: "Unit tests"
-      script: sbt clean test
-#      script: sbt clean coverage test coverageReport
-#      after_success: bash <(curl -s https://codecov.io/bash)
+      script: sbt clean coverage test coverageReport
+      after_success: bash <(curl -s https://codecov.io/bash)
     - stage: compatibility
       name: "Binary compatibility"
       script: sbt mima
     - stage: performance
       name: "Performance tests"
-      script: sbt perf:test
+      script: sbt Perf/test
     - stage: doc
       name: "API documentation"
       script: sbt doc

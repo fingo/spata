@@ -27,15 +27,14 @@ class SampleITS extends AnyFunSuite {
       implicit val codec: Codec = Codec.UTF8
       def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-      Reader
-        .shifting[IO]
+      Reader[IO]
         .read(Paths.get(fahrenheitCSV.toUri))
         .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
         .map(_.altered("temp")(fahrenheitToCelsius))
         .rethrow
         .through(CSVRenderer[IO].render)
-        .through(Writer.shifting[IO].write(Paths.get(celsiusCSV.toUri)))
+        .through(Writer[IO].write(Paths.get(celsiusCSV.toUri)))
     }
 
     Files.writeString(fahrenheitCSV, fahrenheitData)

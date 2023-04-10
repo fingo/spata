@@ -116,7 +116,7 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val writers = Table(
     ("name", "writer"),
-    ("plain", Writer[IO]),
+    ("plain", Writer.plain[IO]),
     ("shifting", Writer.shifting[IO])
   )
 

@@ -33,7 +33,7 @@ class ConsoleITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(Reader[IO].by)
+      .through(Reader.plain[IO].by)
       .through(CSVParser[IO].parse) // parser with default configuration and IO effect
     // converter and aggregate data, get stream of YTs
     val aggregates = records
@@ -67,7 +67,7 @@ class ConsoleITS extends AnyFunSuite {
     Try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         CSVParser[IO] // parser with default configuration and IO effect
-          .process(Reader[IO].read(source)) { record =>
+          .process(Reader.plain[IO].read(source)) { record =>
             if (record.get[Double]("max_temp").exists(_ > 0)) {
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
@@ -90,7 +90,7 @@ class ConsoleITS extends AnyFunSuite {
     Try {
       SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
         // get 500 first records
-        val records = CSVParser[IO].get(Reader[IO].read(source), 500).unsafeRunSync()
+        val records = CSVParser[IO].get(Reader.plain[IO].read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
         val info = over0.map(r => s"Over 0 temperature found on ${r("terrestrial_date")}")

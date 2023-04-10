@@ -119,3 +119,13 @@ Reader.shifting[IO].read(Path.of("path"))
 // ...
 ```
 
+Taking advantage of simpliefied API for thread shifting,
+the shifting versions of `Reader` and `Writer` have been promoted to default ones.
+So, you can even further simplify above snippet:
+```scala
+Reader[IO].read(Path.of("path"))
+// ...
+```
+As a consequence, `Reader.plain` and `Writer.plain` have to be called explicitly to get the simple, blocking IO.
+This may be important when using `scala.io.Source`,
+as in this case this modified default behaviour may negatively influnce performance.

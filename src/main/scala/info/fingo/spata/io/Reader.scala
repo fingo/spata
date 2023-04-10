@@ -158,22 +158,24 @@ object Reader:
   private val bom = "\uFEFF".head
   private val UTFCharsetPrefix = "UTF-"
 
-  /** Alias for [[plain(chunkSize* plain]].
+  /** Alias for [[plain(chunkSize* shifting]].
     *
     * @param chunkSize size of data chunk - see [[https://fs2.io/#/guide?id=chunks FS2 Chunks]].
-    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
-    * and logging (provided internally by spata)
-    * @return basic `Reader`
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Reader` with support for thread shifting
     */
-  def apply[F[_]: Sync: Logger](chunkSize: Int): Plain[F] = plain(chunkSize)
+  def apply[F[_]: Async: Logger](chunkSize: Int): Shifting[F] = shifting(chunkSize)
 
-  /** Alias for [[plain]].
+  /** Alias for [[shifting]].
     *
-    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
-    * and logging (provided internally by spata)
-    * @return basic `Reader`
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Reader` with support for thread shifting
     */
-  def apply[F[_]: Sync: Logger]: Plain[F] = plain(defaultChunkSize)
+  def apply[F[_]: Async: Logger]: Shifting[F] = shifting(defaultChunkSize)
 
   /** Provides basic reader executing I/O on current thread.
     *
@@ -270,18 +272,18 @@ object Reader:
       * @note This function is less efficient for most use cases than its non-shifting counterpart,
       * [[Plain.read(source* Plain.read]].
       * This is due to [[scala.io.Source]] character-based iterator,
-      * which causes context shift for each fetched character.
+      * which causes thread shift for each fetched character.
       */
     def read(source: Source): Stream[F, Char] =
       for
-        _ <- Logger[F].debugS("Reading data from Source with context shift")
+        _ <- Logger[F].debugS("Reading data from Source with thread shifting")
         char <- Stream.fromBlockingIterator[F](source, chunkSize).through(skipBom)
       yield char
 
     /** @inheritdoc */
     def read(fis: F[InputStream])(using codec: Codec): Stream[F, Char] =
       for
-        _ <- Logger[F].debugS("Reading data from InputStream with context shift")
+        _ <- Logger[F].debugS("Reading data from InputStream with thread shifting")
         char <- io.readInputStream(fis, chunkSize, autoClose).through(byte2char)
       yield char
 
@@ -299,7 +301,7 @@ object Reader:
       */
     def read(path: Path)(using codec: Codec): Stream[F, Char] =
       for
-        _ <- Logger[F].debugS(s"Reading data from path $path with context shift")
+        _ <- Logger[F].debugS(s"Reading data from path $path with thread shifting")
         char <- FFiles[F]
           .readAll(FPath.fromNioPath(path), chunkSize, Flags.Read)
           .through(byte2char)

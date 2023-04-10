@@ -30,7 +30,7 @@ class FileITS extends AnyFunSuite {
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
-      .through(Reader[IO].by)
+      .through(Reader.plain[IO].by)
       .through(CSVParser[IO].parse) // parser with default configuration and IO effect
     // converter and aggregate data, get stream of YTs
     val dtvs = records.map(dtvFromRecord).rethrow // rethrow to get rid of either, which may result in an error
@@ -39,7 +39,7 @@ class FileITS extends AnyFunSuite {
     val output = dtvs
       .map(dtv => Record.from(dtv))
       .through(CSVRenderer[IO].render) // renderer with default configuration and IO effect
-      .through(Writer[IO].write(outFile.toPath))
+      .through(Writer.plain[IO].write(outFile.toPath))
       .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream
@@ -58,12 +58,12 @@ class FileITS extends AnyFunSuite {
       // get stream of CSV records while ensuring source cleanup
       source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
       destination <- Stream.bracket(IO { new FileOutputStream(outFile) })(destination => IO { destination.close() })
-      out <- Reader[IO]
+      out <- Reader.plain[IO]
         .read(source)
         .through(CSVParser[IO].parse) // parser with default configuration and IO effect
         .filter(record => !record("max_temp").contains("NaN") && !record("min_temp").contains("NaN"))
         .through(CSVRenderer[IO].render) // convert back to string representation
-        .through(Writer[IO].write(destination)) // write data to output file
+        .through(Writer.plain[IO].write(destination)) // write data to output file
         .handleErrorWith(ex => errorHandler(ex, outFile))
     } yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)

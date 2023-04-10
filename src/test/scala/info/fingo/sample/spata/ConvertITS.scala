@@ -24,7 +24,7 @@ class ConvertITS extends AnyFunSuite {
     val parser = CSVConfig().mapHeader(mh).stripSpaces.parser[IO] // parser with IO effect
     val stream = Stream
       .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
-      .through(Reader[IO].by)
+      .through(Reader.plain[IO].by)
       .through(parser.parse) // get stream of CSV records
       .map(_.to[DayTemp]) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error

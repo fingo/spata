@@ -338,7 +338,7 @@ More information about threading may be found in
 [Cats Effect thread model](https://typelevel.org/cats-effect/docs/thread-model).
 The plain (non-shifting) versions could be useful when (for any reason),
 the underlying effect system is limited to `Sync` type class (the shifting versions require `Async`),
-or the data is read from `scala.io.Source` - the shifting version may be less performant in this case.
+or the data is read from `scala.io.Source` - the shifting version may be less performant in some scenarios.
 
 The simplest way to read data from and write to a file is:
 ```scala

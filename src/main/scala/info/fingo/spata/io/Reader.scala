@@ -269,10 +269,9 @@ object Reader:
       *   .flatMap(Reader.shifting[IO].read)
       * ```
       *
-      * @note This function is less efficient for most use cases than its non-shifting counterpart,
-      * [[Plain.read(source* Plain.read]].
-      * This is due to [[scala.io.Source]] character-based iterator,
-      * which causes thread shift for each fetched character.
+      * @note This function may be less efficient than its non-shifting counterpart [[Plain.read(source* Plain.read]],
+      * especially for small chunk sizes. This is due to [[scala.io.Source]] character-based iterator,
+      * which causes frequent thread shifts.
       */
     def read(source: Source): Stream[F, Char] =
       for

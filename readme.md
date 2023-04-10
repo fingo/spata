@@ -63,7 +63,7 @@ case class Data(item: String, value: Double)
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-  .through(Reader[IO].by) // produce stream of chars from source
+  .through(Reader.plain[IO].by) // produce stream of chars from source
   .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Record and Stream API
   .map(_.to[Data]) // convert records to case class
@@ -88,15 +88,14 @@ object Converter extends IOApp.Simple:
     given codec: Codec = Codec.UTF8
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-    Reader
-      .shifting[IO]
+    Reader[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
       .map(_.altered("temp")(fahrenheitToCelsius))
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
+      .through(Writer[IO].write(Paths.get("testdata/celsius.txt")))
 
   def run: IO[Unit] = converter.compile.drain
 ```
@@ -337,18 +336,21 @@ See [Cats Effect schedulers](https://typelevel.org/cats-effect/docs/schedulers)
 description for thread pools configuration.
 More information about threading may be found in
 [Cats Effect thread model](https://typelevel.org/cats-effect/docs/thread-model).
+The plain (non-shifting) versions could be useful when (for any reason),
+the underlying effect system is limited to `Sync` type class (the shifting versions require `Async`),
+or the data is read from `scala.io.Source` - the shifting version may be less performant in some scenarios.
 
 The simplest way to read data from and write to a file is:
+```scala
+val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.apply is an alias for Reader.shifting
+// do some processing on stream
+val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.shifting
+```
+There are explicit methods for reader and writer without thread shifting (doing i/o on current thread):
 ```scala
 val stream: Stream[IO, Char] = Reader.plain[IO].read(Path.of("data.csv"))
 // do some processing on stream
 val eff: Stream[IO, Unit] = stream.through(Writer.plain[IO].write(Path.of("data.csv")))
-```
-or even:
-```scala
-val stream: Stream[IO, Char] = Reader[IO].read(Path.of("data.csv")) // Reader.apply is an alias for Reader.plain
-// do some processing on stream
-val eff: Stream[IO, Unit] = stream.through(Writer[IO].write(Path.of("data.csv"))) // Writer.apply is an alias for Writer.plain
 ```
 The thread shifting reader and writer provide similar methods:
 ```scala
@@ -892,8 +894,7 @@ object Converter extends IOApp.Simple:
     val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
-    Reader
-      .shifting[IO]
+    Reader[IO]
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .through(schema.validate)
@@ -910,7 +911,7 @@ object Converter extends IOApp.Simple:
       }
       .unNone
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO].write(Paths.get("testdata/celsius.txt")))
+      .through(Writer[IO].write(Paths.get("testdata/celsius.txt")))
 
   def run: IO[Unit] = converter.compile.drain
 ```
@@ -973,8 +974,7 @@ object Converter extends IOApp:
     val src = Paths.get("testdata/fahrenheit.txt")
     val dst = Paths.get("testdata/celsius.txt")
 
-    Reader
-      .shifting[IO]
+    Reader[IO]
       .read(src)
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
@@ -987,7 +987,7 @@ object Converter extends IOApp:
       }
       .rethrow
       .through(CSVRenderer[IO].render)
-      .through(Writer.shifting[IO].write(dst))
+      .through(Writer[IO].write(dst))
       .fold(ExitCode.Success)((z, _) => z)
       .handleErrorWith { ex =>
         Try(dst.toFile.delete())

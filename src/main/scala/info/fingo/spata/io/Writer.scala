@@ -102,13 +102,14 @@ object Writer:
   private val autoClose = false
   private val openOptions = Seq(StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE)
 
-  /** Alias for [[plain]].
+  /** Alias for [[shifting]].
     *
-    * @tparam F the effect type, with type class providing support for delayed execution (typically [[cats.effect.IO]])
-    * and logging (provided internally by spata)
-    * @return basic `Writer`
+    * @tparam F the effect type, with type classes providing support for suspended execution
+    * (typically [[cats.effect.IO]]), `Async` execution environment with blocking and non-blocking thread pools
+    * (to shift back and forth) and logging (provided internally by spata).
+    * @return `Writer` with support for thread shifting
     */
-  def apply[F[_]: Sync: Logger]: Plain[F] = plain
+  def apply[F[_]: Async: Logger]: Shifting[F] = shifting
 
   /** Provides basic writer executing I/O on current thread.
     *
@@ -169,7 +170,7 @@ object Writer:
     def write(fos: F[OutputStream])(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for
-          _ <- Logger[F].debugS("Writing data to OutputStream with context shift")
+          _ <- Logger[F].debugS("Writing data to OutputStream with thread shifting")
           _ <- in.through(char2byte).through(io.writeOutputStream(fos, autoClose)).unitary
         yield ()
 
@@ -189,7 +190,7 @@ object Writer:
     def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         for
-          _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
+          _ <- Logger[F].debugS(s"Writing data to path $path with thread shifting")
           _ <- in
             .through(char2byte)
             .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))

@@ -276,7 +276,7 @@ object NotPresent:
   trait =!=[A, B]
 
   /** Given for inequal types. */
-  given neq[A, B]: =!=[A, B] with {}
+  given neq[A, B]: =!=[A, B]()
 
   /** Given for equal types - due to duplication impossible to instantiate. */
   given neqContradiction1[A]: =!=[A, A] = sys.error("unexpected invocation")
@@ -289,7 +289,7 @@ object NotPresent:
     * @tparam K type of candidate column name
     * @return `NotPresent` for empty schema
     */
-  given emptyNotPresent[K <: Key]: NotPresent[K, EmptyTuple] with {}
+  given emptyNotPresent[K <: Key]: NotPresent[K, EmptyTuple]()
 
   /** Recursive [[NotPresent]] witness for tuple.
     *
@@ -304,4 +304,4 @@ object NotPresent:
   given recursiveNotPresent[K <: Key, KH <: Key, VH, T <: Tuple](using
     @unused neq: K =!= KH,
     @unused tailNP: NotPresent[K, T]
-  ): NotPresent[K, Column[KH, VH] *: T] with {}
+  ): NotPresent[K, Column[KH, VH] *: T]()

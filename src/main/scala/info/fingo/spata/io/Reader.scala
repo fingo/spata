@@ -325,10 +325,10 @@ object Reader:
   object CSV:
 
     /** Witness that [[scala.io.Source]] may be used with `Reader` methods. */
-    given sourceWitness: CSV[Source] with {}
+    given sourceWitness: CSV[Source]()
 
     /** Witness that [[java.io.InputStream]] may be used with `Reader` methods. */
-    given inputStreamWitness: CSV[InputStream] with {}
+    given inputStreamWitness: CSV[InputStream]()
 
     /** Witness that [[java.nio.file.Path]] may be used with `Reader` methods. */
-    given pathWitness: CSV[Path] with {}
+    given pathWitness: CSV[Path]()

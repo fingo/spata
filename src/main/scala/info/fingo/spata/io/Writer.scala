@@ -209,7 +209,7 @@ object Writer:
   object CSV:
 
     /** Witness that [[java.io.OutputStream]] may be used with `Writer` methods. */
-    given outputStreamWitness: CSV[OutputStream] with {}
+    given outputStreamWitness: CSV[OutputStream]()
 
     /** Witness that [[java.nio.file.Path]] may be used with `Writer` methods. */
-    given pathWitness: CSV[Path] with {}
+    given pathWitness: CSV[Path]()

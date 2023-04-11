@@ -6,7 +6,7 @@
 package info.fingo.spata
 
 import java.util.NoSuchElementException
-import info.fingo.spata.converter.{FromProduct, ToProduct}
+import info.fingo.spata.converter.{FromProduct, FromTuple, ToProduct, ToTuple}
 import info.fingo.spata.error.*
 import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
 
@@ -45,7 +45,6 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     */
   def get[A: StringParser](key: String): Decoded[A] = retrieve(key)
 
-  // TODO: correct link to get method in doc
   /** Safely gets typed record value.
     *
     * @see [[get(key:String)* get]] for details.
@@ -59,11 +58,13 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Safely gets typed record value.
     *
     * The combination of `get`, [[Field]] constructor and `apply` method allows value retrieval in following form:
-    * {{{ val date: Decoded[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
+    * ```
+    * val date: Decoded[LocalDate] = record.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy"))
+    * ```
     * (type of formatter is inferred based on target type).
     *
     * Parsers for basic types are available through [[text.StringParser$ StringParser]] object.
-    * Additional ones may be provided as implicits.
+    * Additional ones may be provided as given instances.
     *
     * To parse optional values provide `Option[_]` as type parameter.
     * Parsing empty value to simple type will result in an error.
@@ -77,10 +78,10 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   /** Converts this record to [[scala.Product]], e.g. case class.
     *
     * For example:
-    * {{{
+    * ```
     * // Assume following CSV source
     * // ----------------
-    * // name,born
+    * // name,born,died
     * // Nicolaus Copernicus,1473-02-19,1543-05-24
     * // Johannes Hevelius,1611-01-28,
     * // ----------------
@@ -88,23 +89,23 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * val person: Decoded[Person] = record.to[Person]
-    * }}}
+    * ```
     *
     * Please note, that the conversion for case classes is name-based
     * (case class field names have to match record (CSV) header) and is case sensitive.
     * The order of fields does not matter.
     * Case class may be narrower and effectively retrieve only a subset of record's fields.
     *
-    * It is possible to use a tuple instead of case class.
-    * In such case the conversion is index-based and header names are not taken into account.
+    * It is possible to use a tuple instead of case class - see the tuple-optimized version of [[to]].
     *
     * Current implementation supports only shallow conversion -
     * each product field has to be retrieved from single record field through [[text.StringParser StringParser]].
     *
     * Because conversion to product requires parsing of all fields through [[text.StringParser StringParser]],
     * there is no way to provide custom formatter, like while using [[get[A]:* get]] method.
-    * If other then the default formatting has to be handled, a custom implicit `stringParser` has to be provided:
-    * {{{
+    * If other then the default formatting has to be handled,
+    * a custom given instance `stringParser` has to be provided:
+    * ```
     * // Assume following CSV source
     * // ----------------
     * // name,born,died
@@ -114,10 +115,10 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * // and a Record created based on it
     * val record: Record = ???
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
-    * implicit val ldsp: StringParser[LocalDate] = (str: String) =>
-    *     LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-    * val person: Decoded[Person] = record.to[Person]()
-    * }}}
+    * given ldsp: StringParser[LocalDate] with
+    *   def apply(str: String) = LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+    * val person: Decoded[Person] = record.to[Person]
+    * ```
     *
     * @tparam P the [[scala.Product]] type to converter this record to,
     * with given type class providing support for conversion (arranged internally by spata,
@@ -125,6 +126,56 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @return either converted product or an error
     */
   def to[P <: Product: ToProduct]: Decoded[P] = summon[ToProduct[P]].decode(this)
+
+  /** Converts this record to [[scala.Tuple]].
+    * Althogh the product conversion [[to]] method works for tuples too,
+    * this tuple-optimized version is more efficient.
+    *
+    * For example:
+    * ```
+    * // Assume following CSV source
+    * // ----------------
+    * // name,born,died
+    * // Nicolaus Copernicus,1473-02-19,1543-05-24
+    * // Johannes Hevelius,1611-01-28,
+    * // ----------------
+    * // and a Record created based on it
+    * val record: Record = ???
+    * tyoe T3 = (String, LocalDate, Option[LocalDate])
+    * val person: Decoded[T3] = record.to[T3]
+    * ```
+    *
+    * Please note, that the conversion to tuples is index-based and header names are not taken into account.
+    * Tuple may be narrower and effectively retrieve only an initial subset of record's fields.
+    *
+    * Current implementation supports only shallow conversion -
+    * each tuple field has to be retrieved from single record field through [[text.StringParser StringParser]].
+    *
+    * Because conversion to tuple requires parsing of all fields through [[text.StringParser StringParser]],
+    * there is no way to provide custom formatter, like while using [[get[A]:* get]] method.
+    * If other then the default formatting has to be handled,
+    * a custom given instnce of `stringParser` has to be provided:
+    * ```
+    * // Assume following CSV source
+    * // ----------------
+    * // name,born,died
+    * // Nicolaus Copernicus,19.02.1473,24.05.1543
+    * // Johannes Hevelius,28.01.1611,
+    * // ----------------
+    * // and a Record created based on it
+    * val record: Record = ???
+    * tyoe T3 = (String, LocalDate, Option[LocalDate])
+    * given ldsp: StringParser[LocalDate] with
+    *   def apply(str: String) = LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+    * val person: Decoded[T3] = record.to[T3]
+    * ```
+    *
+    * @tparam T the [[scala.Tuple]] type to converter this record to,
+    * with given type class providing support for conversion (arranged internally by spata,
+    * assuming `StringParser` is available for all tuple field types)
+    * @return either converted tuple or an error
+    */
+  def to[T <: Tuple: ToTuple]: Decoded[T] = summon[ToTuple[T]].decode(this)
 
   /** Gets field value.
     *
@@ -162,9 +213,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * The new record shares the header with the old one.
     *
     * @example
-    * {{{
+    * ```
     * val updated = record.updatedWith("name")(s => s.toLowerCase)
-    * }}}
+    * ```
     *
     * @param key the key (name) of field to be updated
     * @param f the function to be applied to existing value
@@ -211,9 +262,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * The new record shares the header with the old one.
     *
     * @example
-    * {{{
+    * ```
     * val kmToMile = record.altered[Double,Double]("distance")(km => 0.621371 * km)
-    * }}}
+    * ```
     *
     * @param key the key (name) of field to be updated
     * @param f the function to be applied to existing value
@@ -233,9 +284,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * Please note, that this method creates new header for each patched record.
     *
     * @example
-    * {{{
+    * ```
     * val imperial = record.patch.remove("m").add("foot", foot).add("yard", yard).get
-    * }}}
+    * ```
     *
     * @see [[Record.Builder]]
     * @return record builder
@@ -263,19 +314,19 @@ final class Record private (val values: IndexedSeq[String], val position: Option
   override def toString: String = values.mkString(",")
 
   /* Retrieve field value by key using string parser with provided format */
-  private def retrieve[A, B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
+  private def retrieve[A, B](key: String, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] =
     decode(key)(v => StringParser.parse(v, fmt))
 
   /* Retrieve field value by key using string parser */
-  private def retrieve[A](key: String)(implicit parser: StringParser[A]): Decoded[A] =
+  private def retrieve[A](key: String)(using parser: StringParser[A]): Decoded[A] =
     decode(key)(v => StringParser.parse(v))
 
   /* Retrieve field value by index using string parser with provided format */
-  private def retrieve[A, B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] =
+  private def retrieve[A, B](idx: Int, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] =
     decode(idx)(v => StringParser.parse(v, fmt))
 
   /* Retrieve field value by index using string parser */
-  private def retrieve[A](idx: Int)(implicit parser: StringParser[A]): Decoded[A] =
+  private def retrieve[A](idx: Int)(using parser: StringParser[A]): Decoded[A] =
     decode(idx)(v => StringParser.parse(v))
 
   /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
@@ -316,7 +367,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * @tparam B type of formatter
       * @return either parsed value or an error
       */
-    def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(key, fmt)
+    def apply[B](key: String, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(key, fmt)
 
     /** Safely parses string to desired type based on provided format.
       *
@@ -329,7 +380,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * @tparam B type of formatter
       * @return either parsed value or an error
       */
-    def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(idx, fmt)
+    def apply[B](idx: Int, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] = retrieve(idx, fmt)
 
   /** Access to unsafe (exception throwing) methods */
   object unsafe:
@@ -357,12 +408,14 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       *
       * The combination of `get`, [[Field]] constructor and `apply` method
       * allows value retrieval in following form:
-      * {{{ val date: LocalDate = record.unsafe.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy")) }}}
+      * ```
+      * val date: LocalDate = record.unsafe.get[LocalDate]("key", DateTimeFormatter.ofPattern("dd.MM.yy"))
+      * ```
       * (type of formatter is inferred based on target type).
       *
       * Parsers for basic types (as required by [[Field]])
       * are available through [[text.StringParser$ StringParser]] object.
-      * Additional ones may be provided as implicits.
+      * Additional ones may be provided as given instances.
       *
       * To parse optional values provide `Option[_]` as type parameter.
       * Parsing empty value to simple type will throw an exception.
@@ -412,7 +465,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
         * @throws error.ContentError if field cannot be parsed to requested type or incorrect `key` is provided
         */
       @throws[ContentError]("if field cannot be parsed to requested type or incorrect key is provided")
-      def apply[B](key: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = rethrow(retrieve(key, fmt))
+      def apply[B](key: String, fmt: B)(using parser: FormattedStringParser[A, B]): A = rethrow(retrieve(key, fmt))
 
       /** Parses field to desired type based on provided format.
         *
@@ -424,7 +477,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
         * @throws error.ContentError if field cannot be parsed to requested type or incorrect `idx` is provided
         */
       @throws[ContentError]("if field cannot be parsed to requested type or incorrect index is provided")
-      def apply[B](idx: Int, fmt: B)(implicit parser: FormattedStringParser[A, B]): A = rethrow(retrieve(idx, fmt))
+      def apply[B](idx: Int, fmt: B)(using parser: FormattedStringParser[A, B]): A = rethrow(retrieve(idx, fmt))
 
 /** Record helper object. Used to create and convert records. */
 object Record:
@@ -483,35 +536,35 @@ object Record:
 
   /** Creates a record from [[scala.Product]], e.g. case class.
     *
-    * This renders to product (class) values to string representation. In contrast to simple `toString` operation,
+    * This renders product (class) values to string representation. In contrast to simple `toString` operation,
     * this process allows more control over output format,
     * e.g. taking into account locale or render simple value from [[scala.Option]].
     *
-    * {{{
+    * ```
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * val person: Person = Person("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
     * val record: Record = Record.from(person)
-    * }}}
+    * ```
     *
     * Please note, that the conversion is name-based (case class field names are used to form record header)
     * and is case sensitive.
     *
-    * It is possible to use a tuple instead of case class.
-    * In such case the header will be created from tuple field naming convention: `_1`, `_2` etc.
+    * It is possible to use a tuple instead of case class, using tuple-optimized [[from]] method.
     *
     * Current implementation supports only shallow conversion -
     * each product field has to be rendered to single record field through [[text.StringRenderer StringRenderer]].
     *
     * Because conversion from product requires rendering of all fields through [[text.StringRenderer StringRenderer]],
     * there is no way to provide custom formatter.
-    * If other then the default formatting has to be used, a custom implicit `stringRenderer` has to be provided:
-    * {{{
+    * If other then the default formatting has to be used,
+    * a custom given instance of `stringRenderer` has to be provided:
+    * ```
     * case class Person(name: String, born: LocalDate, died: Option[LocalDate])
     * val person: Person = Person("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
-    * implicit val ldsr: StringRenderer[LocalDate] = (date: LocalDate) =>
-    *   DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
+    * given ldsr: StringRenderer[LocalDate] with
+    *   def apply(date: LocalDate) = DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
     * val record: Record = Record.from(person)
-    * }}}
+    * ```
     *
     * @param product the product to convert (render) to record
     * @tparam P the [[scala.Product]] type to create new record from
@@ -520,6 +573,45 @@ object Record:
     * @return new record
     */
   def from[P <: Product: FromProduct](product: P): Record = summon[FromProduct[P]].encode(product)
+
+  /** Creates a record from [[scala.Tuple]].
+    * Althogh conversion [[from]] product works for tuples too, this tuple-optimized version is more efficient.
+    *
+    * This renders tuple values to string representation. In contrast to simple `toString` operation,
+    * this process allows more control over output format,
+    * e.g. taking into account locale or render simple value from [[scala.Option]].
+    *
+    * ```
+    * type T3 = (String, LocalDate, Option[LocalDate])
+    * val tuple: T3 = ("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
+    * val record: Record = Record.from(tuple)
+    * ```
+    *
+    * Please note, that the conversion is index-based
+    * and the header will be created from tuple field naming convention: `_1`, `_2` etc.
+    *
+    * Current implementation supports only shallow conversion -
+    * each tuple field has to be rendered to single record field through [[text.StringRenderer StringRenderer]].
+    *
+    * Because conversion from tuple requires rendering of all fields through [[text.StringRenderer StringRenderer]],
+    * there is no way to provide custom formatter.
+    * If other then the default formatting has to be used,
+    * a custom given instance of `stringRenderer` has to be provided:
+    * ```
+    * type T3 = (String, LocalDate, Option[LocalDate])
+    * val tuple: T3 = ("Nicolaus Copernicus", LocalDate.of(1473,2,19), Some(LocalDate.of(1543,5,24)))
+    * given ldsr: StringRenderer[LocalDate] with
+    *   def apply(date: LocalDate) = DateTimeFormatter.ofPattern("dd.MM.yyyy").format(date)
+    * val record: Record = Record.from(tuple)
+    * ```
+    *
+    * @param tuple the tuple to convert (render) to record
+    * @tparam T the [[scala.Tuple]] type to create new record from
+    * with given type class providing support for conversion (arranged internally by spata,
+    * assuming `StringRenderer` is available for all tuple field types)
+    * @return new record
+    */
+  def from[T <: Tuple: FromTuple](tuple: T): Record = summon[FromTuple[T]].encode(tuple)
 
   /** Creates new record builder. */
   def builder: Builder = new Builder(List.empty[(String, String)])
@@ -530,23 +622,6 @@ object Record:
     * @return new Record with values from provided builder
     */
   implicit def buildRecord(rb: Builder): Record = rb.get
-
-  // /** Extension of [[scala.Product]] to provide convenient conversion to records.
-  //   *
-  //   * @param product product to extend
-  //   * @tparam P concrete type of product with given type class providing support for conversion
-  //   * (arranged internally by spata, assuming `StringRenderer` is available for all product field types)
-  //   */
-  // implicit final class ProductOps[P <: Product: FromProduct](product: P) {
-
-  //   /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
-  //     *
-  //     * @see [[Record.from]] for more information.
-  //     *
-  //     * @return new record
-  //     */
-  //   def toRecord: Record = summon[FromProduct[P]].encode(product)
-  // }
 
   /** Extension of [[scala.Product]] to provide convenient conversion to records. */
   trait ProductOps:
@@ -559,6 +634,17 @@ object Record:
       * @return new record
       */
     extension [P <: Product: FromProduct](product: P) def toRecord: Record = summon[FromProduct[P]].encode(product)
+
+    /** Converts [[scala.Tuple]] to [[Record]].
+      * Althogh product conversion works for tuples too, this tuple-optimized version is more efficient.
+      *
+      * @see [[Record.from]] for more information.
+      *
+      * @param tuple tuple to extend
+      * @tparam T concrete type of tuple with given type class providing support for conversion
+      * @return new record
+      */
+    extension [T <: Tuple: FromTuple](tuple: T) def toRecord: Record = summon[FromTuple[T]].encode(tuple)
 
   /** Given instance to easily bring ProductOps extension in scope. */
   given ProductOps: ProductOps()
@@ -585,7 +671,7 @@ object Record:
       * @tparam A value type
       * @return builder augmented with the new value
       */
-    def add[A](key: String, value: A)(implicit renderer: StringRenderer[A]): Builder =
+    def add[A](key: String, value: A)(using renderer: StringRenderer[A]): Builder =
       new Builder((key, renderer(value)) :: buf, removed)
 
     /** Reduces builder removing given value from it.

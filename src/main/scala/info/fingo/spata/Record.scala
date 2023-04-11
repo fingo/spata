@@ -616,13 +616,6 @@ object Record:
   /** Creates new record builder. */
   def builder: Builder = new Builder(List.empty[(String, String)])
 
-  /** Implicitly converts record builder to record.
-    *
-    * @param rb the record builder to be converted
-    * @return new Record with values from provided builder
-    */
-  implicit def buildRecord(rb: Builder): Record = rb.get
-
   /** Extension of [[scala.Product]] to provide convenient conversion to records. */
   trait ProductOps:
     /** Converts [[scala.Product]] (e.g. case class) to [[Record]].
@@ -704,3 +697,6 @@ object Record:
      * which really means preserving the order, because values ate prepended.
      */
     private[spata] def reversed: Record = Record.fromPairs(buf: _*)
+
+  /** Given instance to convert record builder to record. */
+  given buildRecord: Conversion[Builder, Record] = _.get

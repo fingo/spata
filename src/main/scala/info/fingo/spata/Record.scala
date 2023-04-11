@@ -674,9 +674,9 @@ object Record:
       *
       * Actual values removal is done while constructing the final record.
       * As a result, even if the call to `remove` precedes the call to `add`, the added field will be removed:
-      * {{{
+      * ```
       * val record = Record.builder.remove("field").add("field", 100) // gets empty record
-      * }}}
+      * ```
       *
       * @param key the key (field name) of removed value
       * @return builder stripped of selected value

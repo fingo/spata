@@ -35,6 +35,8 @@ object RecordPTS extends Bench.LocalTime {
     dbl2: Double
   )
 
+  type SampleT = (String, Int, LocalDate, BigDecimal, Double, String, Boolean, Int, Long, Double)
+
   private val header = makeHeader(recordSize)
   private val values = (1 to sampleSize).map(s => makeValues(s, recordSize))
   private val pairs = values.map(v => header.names.zip(v))
@@ -42,6 +44,7 @@ object RecordPTS extends Bench.LocalTime {
   private val decimal = BigDecimal(123.45)
   private val classes =
     values.map(v => Sample(v(1), v.head.toInt, date, decimal, 3.14, "another text", true, 0, 99999L, 2.72))
+  private val tuples = values.map(v => (v(1), v.head.toInt, date, decimal, 3.14, "another text", true, 0, 99999L, 2.72))
   private val records = classes.map(c => Record.from(c))
 
   private val wideHeader = makeHeader(wideRecordSize)
@@ -76,6 +79,8 @@ object RecordPTS extends Bench.LocalTime {
             .foreach(effect)
         case "from_class" =>
           (1 to amount).map(i => Record.from(classes(i % sampleSize))).foreach(effect)
+        case "from_tuple" =>
+          (1 to amount).map(i => Record.from(tuples(i % sampleSize))).foreach(effect)
         case "extend_header" =>
           val partialHeader = makeHeader(recordSize / 2)
           (1 to amount).map(i => Record(values(i % sampleSize): _*)(partialHeader)).foreach(effect)
@@ -150,6 +155,8 @@ object RecordPTS extends Bench.LocalTime {
           (1 to amount).map(i => records(i % sampleSize).get[Long]("long", format)).foreach(identity)
         case "to_class" =>
           (1 to amount).map(i => records(i % sampleSize).to[Sample]).foreach(identity)
+        case "to_tuple" =>
+          (1 to amount).map(i => records(i % sampleSize).to[SampleT]).foreach(identity)
         case "typed_wide" =>
           val key = s"header-key-${wideRecordSize / 2 + 1}"
           (1 to amount).map(i => wideRecords(i % sampleSize).get[Int](key)).foreach(identity)
@@ -169,6 +176,7 @@ object RecordPTS extends Bench.LocalTime {
     "from_pairs",
     "build",
     "from_class",
+    "from_tuple",
     "extend_header",
     "build_wide"
   )
@@ -187,6 +195,7 @@ object RecordPTS extends Bench.LocalTime {
     "typed",
     "formatted",
     "to_class",
+    "to_tuple",
     "typed_wide"
   )
 }

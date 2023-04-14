@@ -19,14 +19,18 @@ import info.fingo.spata.util.Logger
   * although some aspects of its format are configurable.
   *
   * The parser may be created with default configuration:
-  * {{{ val parser = CSVParser[IO] }}}
+  * ```
+  * val parser = CSVParser[IO]
+  * ```
   * or through [[CSVParser.config]] helper function to set custom properties:
-  * {{{ val parser = CSVParser.config.fieldDelimiter(';').parser[IO] }}}
+  * ```
+  * val parser = CSVParser.config.fieldDelimiter(';').parser[IO]
+  * ```
   *
   * Actual parsing is done through one of the 3 groups of methods:
   *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
   *    which is the recommended approach,
-  *  - [[get(stream:fs2\.Stream[F,Char])* get]] to fetch whole source data at once into a list,
+  *  - [[get]] to fetch whole source data at once into a list,
   *  - [[process]] to deal with individual records through a callback function.
   *
   * This parser is normally used with stream fetching data from some external source,
@@ -46,19 +50,19 @@ import info.fingo.spata.util.Logger
   * @tparam F the effect type, with a type class providing support for suspended execution
   * (typically [[cats.effect.IO]]) and logging (provided internally by spata)
   */
-final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
+final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
 
   /** Transforms stream of characters representing CSV data into records.
     * This function is intended to be used with [[fs2.Stream.through]].
     * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
     *
     * Processing of data sources may be achieved by combining this function with [[io.Reader]], e.g.:
-    * {{{
+    * ```
     * val stream: Stream[IO, Record] = Stream
     *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
     *   .flatMap(Reader[IO].read)
     *   .through(CSVParser[IO].parse)
-    * }}}
+    * ```
     *
     * Transformation may result in [[error.StructureException]], to be handled with [[fs2.Stream.handleErrorWith]].
     * If not handled, the exception will be thrown.
@@ -66,19 +70,18 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * @see [[https://fs2.io/ FS2]] documentation for further guidance.
     * @return a pipe to converter [[scala.Char]]s into [[Record]]s
     */
-  def parse: Pipe[F, Char, Record] = (in: Stream[F, Char]) => {
-    val cp = new CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark, config.trimSpaces)
-    val fp = new FieldParser[F](config.fieldSizeLimit)
-    val rp = new RecordParser[F]()
+  def parse: Pipe[F, Char, Record] = (in: Stream[F, Char]) =>
+    val cp = CharParser[F](config.fieldDelimiter, config.recordDelimiter, config.quoteMark, config.trimSpaces)
+    val fp = FieldParser[F](config.fieldSizeLimit)
+    val rp = RecordParser[F]()
     val stream = Logger[F].infoS(s"Parsing CSV with $config") >>
       in.through(cp.toCharResults).through(fp.toFields).through(rp.toRecords)
-    val pull = if (config.hasHeader) contentWithHeader(stream) else contentWithoutHeader(stream)
+    val pull = if config.hasHeader then contentWithHeader(stream) else contentWithoutHeader(stream)
     pull.stream.rethrow
       .flatMap(_.toRecords)
       .through(debugCount)
       .handleErrorWith(ex => Logger[F].errorS(ex.getMessage) >> Stream.raiseError(ex))
       .onFinalize(Logger[F].debug("CSV parsing finished"))
-  }
 
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
@@ -98,20 +101,18 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
    * Please note, that this information will be not available if stream processing ends prematurely -
    * in case of an error, as result of take(n) etc. */
   private def debugCount: Pipe[F, Record, Record] = in =>
-    if (Logger[F].isDebug)
+    if Logger[F].isDebug then
       in.noneTerminate
-        .mapAccumulate(0) { (s, o) =>
-          o match {
+        .mapAccumulate(0)((s, o) =>
+          o match
             case Some(r) => (r.rowNum, o)
             case None => (s, None)
-          }
-        }
-        .flatMap { case (s, o) =>
-          o match {
+        )
+        .flatMap((s, o) =>
+          o match
             case Some(r) => Stream.emit(r)
             case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
-          }
-        }
+        )
     else in
 
   /** Fetches whole source content into list of records.
@@ -160,10 +161,9 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * @throws error.CSVException in case of flawed CSV structure or field parsing errors
     */
   @throws[CSVException]("in case of flawed CSV structure or field parsing errors")
-  def process(stream: Stream[F, Char])(cb: Callback): F[Unit] = {
+  def process(stream: Stream[F, Char])(cb: Callback): F[Unit] =
     val effect = evalCallback(cb)
     stream.through(parse).through(effect).compile.drain
-  }
 
   /* Callback function wrapper to enclose it in effect F and let the stream evaluate it when run. */
   private def evalCallback(cb: Callback): Pipe[F, Record, Boolean] =
@@ -175,10 +175,9 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig) {
     * @return helper class with asynchronous method
     */
   def async(implicit F: CEAsync[F]): CSVParser.Async[F] = new CSVParser.Async(this)
-}
 
 /** [[CSVParser]] companion object with types definitions and convenience methods to create parsers. */
-object CSVParser {
+object CSVParser:
 
   /** Callback function type. */
   type Callback = Record => Boolean
@@ -200,7 +199,7 @@ object CSVParser {
     * @tparam F the effect type, with type class providing support for concurrency (typically [[cats.effect.IO]])
     * and logging (provided internally by spata)
     */
-  final class Async[F[_]: CEAsync: Logger] private[CSVParser] (parser: CSVParser[F]) {
+  final class Async[F[_]: CEAsync: Logger] private[CSVParser] (parser: CSVParser[F]):
 
     /** Processes each CSV record with provided callback functions to execute some side effects.
       * Stops processing input as soon as the callback function returns false, stream is exhausted or exception thrown.
@@ -217,18 +216,15 @@ object CSVParser {
       * it should return `true` to continue with next record or `false` to stop processing the source
       * @return unit effect, used as a handle to trigger evaluation
       */
-    def process(stream: Stream[F, Char], maxConcurrent: Int = 1)(cb: Callback): F[Unit] = {
+    def process(stream: Stream[F, Char], maxConcurrent: Int = 1)(cb: Callback): F[Unit] =
       val effect = evalCallback(maxConcurrent)(cb)
       stream.through(parser.parse).through(effect).compile.drain
-    }
 
     /* Callback function wrapper to enclose it in effect F and let the stream evaluate it asynchronously when run. */
     private def evalCallback(maxConcurrent: Int)(cb: Callback): Pipe[F, Record, Boolean] =
-      _.mapAsync(maxConcurrent) { pr =>
-        CEAsync[F].async_[Boolean] { call =>
+      _.mapAsync(maxConcurrent)(pr =>
+        CEAsync[F].async_[Boolean](call =>
           val result = Try(cb(pr)).toEither
           call(result)
-        }
-      }.takeWhile(_ == true)
-  }
-}
+        )
+      ).takeWhile(_ == true)

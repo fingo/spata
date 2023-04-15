@@ -88,7 +88,7 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   ) = {
     val rr: String = fmt match {
       case Some(f) => render(value, f)
-      case _ => render(value)(r)
+      case _ => render(value)(using r)
     }
     assert(rr == expected)
     val rrs: String = fmt match {

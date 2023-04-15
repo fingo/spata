@@ -3,23 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-package info.fingo.spata
-
-/** Package with utility classes */
-package object util {
+package info.fingo.spata.util
 
   /* Gets short class identifier. Used e.g. for error codes. */
-  private[spata] def classLabel(obj: AnyRef): String = {
-
+  private[spata] def classLabel(obj: AnyRef): String =
     def getSimpleName(cls: Class[_]): String =
-      Option(cls).map { c =>
-        if (c.getSimpleName.nonEmpty) c.getSimpleName
+      Option(cls).map( c =>
+        if c.getSimpleName.nonEmpty then c.getSimpleName
         else getSimpleName(c.getEnclosingClass)
-      }.getOrElse("?")
-
+      ).getOrElse("?")
     val name = getSimpleName(obj.getClass)
     val head = name.take(1).toLowerCase
     val tail = name.takeWhile(_ != '$').tail
     head + tail
-  }
-}

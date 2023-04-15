@@ -11,12 +11,12 @@ import org.slf4j.helpers.NOPLogger
 import org.slf4j.{Logger => JLogger}
 
 /** Logger delegating spata logging operations to provided SLF4J logger.
-  * It defaults to no-op logger and may be activated by creating an implicit instance with regular SLF4J logger.
+  * It defaults to no-op logger and may be activated by creating a given instance with regular SLF4J logger.
   *
   * @param logger the underlying SLF4J logger
   * @tparam F the effect suspending logging operations
   */
-final class Logger[F[_]: Sync](logger: JLogger) {
+final class Logger[F[_]: Sync](logger: JLogger):
 
   /* Suspend basic logger methods in Sync */
   private[spata] def error(message: => String): F[Unit] = Sync[F].delay(logger.error(message))
@@ -30,14 +30,12 @@ final class Logger[F[_]: Sync](logger: JLogger) {
 
   /* Check if debug level is active */
   private[spata] def isDebug: Boolean = logger.isDebugEnabled
-}
 
 /* Logger helper object providing default implementation and access to actual logger */
-private[spata] object Logger {
+private[spata] object Logger:
 
   /* Provides access to active logger */
-  def apply[F[_]](implicit logger: Logger[F]): Logger[F] = logger
+  def apply[F[_]](using logger: Logger[F]): Logger[F] = logger
 
   /* Gets default (no-op) logger instance */
-  implicit def logger[F[_]: Sync]: Logger[F] = new Logger[F](NOPLogger.NOP_LOGGER)
-}
+  given logger[F[_]: Sync]: Logger[F] = new Logger[F](NOPLogger.NOP_LOGGER)

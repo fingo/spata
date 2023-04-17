@@ -5,6 +5,9 @@
  */
 package info.fingo.sample.spata
 
+import java.nio.file.{Files, Paths}
+import java.time.LocalDate
+import org.slf4j.LoggerFactory
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
@@ -15,10 +18,6 @@ import info.fingo.spata.util.Logger
 import info.fingo.spata.{CSVConfig, CSVParser}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funsuite.AnyFunSuite
-import org.slf4j.LoggerFactory
-
-import java.nio.file.{Files, Paths}
-import java.time.LocalDate
 
 /* Sample which show logging configuration and usage */
 class LoggingITS extends AnyFunSuite with BeforeAndAfter {
@@ -29,6 +28,8 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
   // turn on spata logging (logging operations are suspended in IO)
   implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
+  private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
+
   before {
     Files.writeString(logFilePath, "")
   }
@@ -37,7 +38,7 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
     val parser = CSVConfig().mapHeader(Map("max_temp" -> "temp")).stripSpaces.parser[IO] // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
-      .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
+      .bracket(IO(getSource()))(source => IO(source.close()))
       .through(Reader.plain[IO].by)
       .through(parser.parse)
     // find maximum temperature
@@ -46,22 +47,22 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
       .filter(_.exists(!_.isNaN))
       .rethrow // rethrow to get rid of Either
       .fold(-273.15)(Math.max)
-      .handleErrorWith { ex =>
+      .handleErrorWith(ex =>
         logger.error(s"An error occurred while processing ${SampleTH.dataFile}: ${ex.getMessage}", ex)
         Stream.empty[IO]
-      }
+      )
     // get the IO effect with it final result
-    val io = maximum.compile.toList.map { l =>
+    val io = maximum.compile.toList.map(l =>
       val t = l.headOption.getOrElse(fail())
-      logger.debug(f"Maximum recorded temperature is $t%.1f° C")
+      logger.debug(f"Maximum recorded temperature is $t%.1f° C")  // logged while evalueting IO
       assert(t > 0)
       t
-    }
-    logger.debug("CSV parsing with logging - start")
+    )
+    logger.debug("CSV parsing with logging - start")  // side effect - logged outside of IO
     assert(!Files.readString(logFilePath).contains("spata -"))
     // evaluate effect - trigger all stream operations
     val maxTemp = io.unsafeRunSync()
-    logger.debug("CSV parsing with logging - finish")
+    logger.debug("CSV parsing with logging - finish")  // side effect - logged outside of IO
 
     val log = Files.readString(logFilePath)
     assert(log.contains("INFO spata - Parsing CSV"))
@@ -76,16 +77,16 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
-      .bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() }) // ensure resource cleanup
+      .bracket(IO(getSource()))(source => IO(source.close())) // ensure resource cleanup
       .through(Reader.plain[IO].by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
-      .map {
+      .map(
         _.bimap( // map over invalid and valid part of Validated
           invalidRecord => logger.warn(invalidRecord.toString),
           typedRecord => (typedRecord("terrestrial_date"), typedRecord("max_temp") - typedRecord("min_temp"))
         )
-      }
+      )
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error
     assert(!Files.readString(logFilePath).contains("spata -"))
     stream.compile.toList.unsafeRunSync()

@@ -15,104 +15,100 @@ import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val defaultCharset = StandardCharsets.UTF_8
 
   test("writer should properly write to OutputSteam wrapped in effect") {
-    forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, writer: Writer[IO]) =>
+    forAll(testCases)((_: String, data: String) =>
+      forAll(writers)((_: String, writer: Writer[IO]) =>
         val os = new ByteArrayOutputStream()
         val fos = IO[OutputStream](os)
         val input = source(data)
         val output = input.through(writer(fos))
         output.compile.drain.unsafeRunSync()
         assert(os.toByteArray.sameElements(data.getBytes(defaultCharset)))
-      }
-    }
+      )
+    )
   }
 
   test("writer should properly write to plain OutputSteam") {
-    forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, writer: Writer[IO]) =>
+    forAll(testCases)((_: String, data: String) =>
+      forAll(writers)((_: String, writer: Writer[IO]) =>
         val os = new ByteArrayOutputStream()
         val input = source(data)
         val output = input.through(writer(os))
         output.compile.drain.unsafeRunSync()
         assert(os.toByteArray.sameElements(data.getBytes(defaultCharset)))
-      }
-    }
+      )
+    )
   }
 
   test("writer should properly write to path") {
-    forAll(testCases) { (_: String, data: String) =>
-      forAll(writers) { (_: String, writer: Writer[IO]) =>
+    forAll(testCases)((_: String, data: String) =>
+      forAll(writers)((_: String, writer: Writer[IO]) =>
         val path = getTempPath
         val input = source(data)
         val output = input.through(writer(path))
         output.compile.drain.unsafeRunSync()
         assert(data == Files.readString(path))
         Files.delete(path) // deleteOnExit sometimes does not work
-      }
-    }
+      )
+    )
   }
 
   test("writer should properly write to OutputSteam with non-UTF encoding") {
     val charset = Charset.forName("windows-1250")
-    implicit val codec: Codec = new Codec(charset)
-    forAll(testCases) { (testCase: String, data: String) =>
-      if (testCase != "extended chars") { // not supported by encoding
-        forAll(writers) { (_: String, writer: Writer[IO]) =>
+    given codec: Codec(charset)
+    forAll(testCases)((testCase: String, data: String) =>
+      if testCase != "extended chars" then // not supported by encoding
+        forAll(writers)((_: String, writer: Writer[IO]) =>
           val os = new ByteArrayOutputStream()
           val fos = IO[OutputStream](os)
           val input = source(data)
           val output = input.through(writer(fos))
           output.compile.drain.unsafeRunSync()
           assert(os.toByteArray.sameElements(data.getBytes(charset)))
-        }
-      }
-    }
+        )
+    )
   }
 
   test("writer should properly write to path with non-UTF encoding") {
     val charset = Charset.forName("windows-1250")
     implicit val codec: Codec = new Codec(charset)
-    forAll(testCases) { (testCase: String, data: String) =>
-      if (testCase != "extended chars") { // not supported by encoding
-        forAll(writers) { (_: String, writer: Writer[IO]) =>
+    forAll(testCases)((testCase: String, data: String) =>
+      if testCase != "extended chars" then // not supported by encoding
+        forAll(writers)((_: String, writer: Writer[IO]) =>
           val path = getTempPath
           val input = source(data)
           val output = input.through(writer(path))
           output.compile.drain.unsafeRunSync()
           assert(data == Files.readString(path, charset))
           Files.delete(path) // deleteOnExit sometimes does not work
-        }
-      }
-    }
+        )
+    )
   }
 
   test("writer should allow handling exception with MonadError") {
-    val target = new OutputStream {
+    val target = new OutputStream:
       override def write(b: Int): Unit = throw new IOException("message")
-    }
-    forAll(writers) { (_: String, writer: Writer[IO]) =>
+    forAll(writers)((_: String, writer: Writer[IO]) =>
       val stream = Stream('a', 'n', 'y').lift[IO].through(writer(target)).map(_ => false)
       val eh = (ex: Throwable) => Stream.emit(ex.isInstanceOf[IOException])
       val result = stream.handleErrorWith(eh).compile.toList.unsafeRunSync()
       assert(result.length == 1)
       assert(result.head)
-    }
+    )
   }
 
   private def source(data: String): Stream[IO, Char] =
     Stream(data).map(s => Chunk.array[Char](s.toCharArray)).flatMap(Stream.chunk).covary[IO]
 
   /* Create temporary file with random name, removes it after closing. */
-  def getTempPath: Path = {
+  def getTempPath: Path =
     val temp = File.createTempFile("spata_", ".csv")
     temp.deleteOnExit()
     temp.toPath
-  }
 
   private lazy val writers = Table(
     ("name", "writer"),
@@ -128,4 +124,3 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("long", "(very long string)" * 100),
     ("empty", "")
   )
-}

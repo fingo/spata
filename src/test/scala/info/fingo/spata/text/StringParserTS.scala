@@ -9,81 +9,77 @@ import java.text.{DecimalFormat, NumberFormat}
 import java.time.format.{DateTimeFormatter, DateTimeParseException, FormatStyle}
 import java.time.{LocalDate, LocalDateTime, LocalTime}
 import java.util.Locale
-
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
-  import StringParser._
+  import StringParser.*
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
   private val empty = "empty"
 
   test("StringParser should correctly parse strings") {
-    forAll(strings) { (tc: String, str: String, string: Option[String]) =>
+    forAll(strings)((tc: String, str: String, string: Option[String]) =>
       assert(parse[Option[String]](str).contains(string))
-      if (tc != empty)
-        assert(parse[String](str).toOption == string)
-    }
+      if tc != empty then assert(parse[String](str).toOption == string)
+    )
   }
 
   test("StringParser should correctly parse ints") {
-    forAll(ints) { (tc: String, str: String, int: Option[Int]) =>
+    forAll(ints)((tc: String, str: String, int: Option[Int]) =>
       assert(parse[Option[Int]](str).contains(int))
-      if (tc != empty)
-        assert(parse[Int](str).toOption == int)
-      else
-        assert(parse[Int](str).isLeft)
-    }
+      if tc != empty then assert(parse[Int](str).toOption == int)
+      else assert(parse[Int](str).isLeft)
+    )
   }
 
   test("StringParser should correctly parse longs") {
-    forAll(longs) { (tc: String, str: String, long: Option[Long], fmt: Option[NumberFormat]) =>
+    forAll(longs)((tc: String, str: String, long: Option[Long], fmt: Option[NumberFormat]) =>
       assertParsing(str, long, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse doubles") {
-    forAll(doubles) { (tc: String, str: String, double: Option[Double], fmt: Option[DecimalFormat]) =>
+    forAll(doubles)((tc: String, str: String, double: Option[Double], fmt: Option[DecimalFormat]) =>
       assertParsing(str, double, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse big decimals") {
-    forAll(decimals) { (tc: String, str: String, decimal: Option[BigDecimal], fmt: Option[DecimalFormat]) =>
+    forAll(decimals)((tc: String, str: String, decimal: Option[BigDecimal], fmt: Option[DecimalFormat]) =>
       assertParsing(str, decimal, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse numbers") {
-    forAll(decimals) { (tc: String, str: String, number: Option[Number], fmt: Option[DecimalFormat]) =>
+    forAll(decimals)((tc: String, str: String, number: Option[Number], fmt: Option[DecimalFormat]) =>
       assertParsing(str, number, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse local dates") {
-    forAll(dates) { (tc: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
+    forAll(dates)((tc: String, str: String, date: Option[LocalDate], fmt: Option[DateTimeFormatter]) =>
       assertParsing(str, date, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse local times") {
-    forAll(times) { (tc: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
+    forAll(times)((tc: String, str: String, time: Option[LocalTime], fmt: Option[DateTimeFormatter]) =>
       assertParsing(str, time, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse local date-times") {
-    forAll(dateTimes) { (tc: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
+    forAll(dateTimes)((tc: String, str: String, dateTime: Option[LocalDateTime], fmt: Option[DateTimeFormatter]) =>
       assertParsing(str, dateTime, fmt, tc)
-    }
+    )
   }
 
   test("StringParser should correctly parse booleans") {
-    forAll(booleans) { (tc: String, str: String, boolean: Option[Boolean], fmt: Option[BooleanFormatter]) =>
+    forAll(booleans)((tc: String, str: String, boolean: Option[Boolean], fmt: Option[BooleanFormatter]) =>
       assertParsing(str, boolean, fmt, tc)
-    }
+    )
   }
 
   test("String parser should return error on incorrect input") {
@@ -104,27 +100,23 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     assert(eBool.left.exists(e => e.dataType.contains("boolean") && e.content == "yes"))
     val eInt = parse[Int]("1234567890" * 10)
     assert(eInt.left.exists(_.getMessage.endsWith(s"${ParseError.infoCutSuffix}] to requested number")))
-    implicit val csp: StringParser[Char] =
-      (s: String) => if (s.length == 1) s(0) else throw new RuntimeException("not char")
+    given csp: StringParser[Char] with
+      def apply(s: String) = if s.length == 1 then s(0) else throw new RuntimeException("not char")
     assert(parse[Char]("xx").left.exists(e => e.content.contains("xx") && e.dataType.isEmpty))
   }
 
-  private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(
-    implicit p: FormattedStringParser[A, B]
-  ) = {
-    val pro: ParseResult[Option[A]] = fmt match {
+  private def assertParsing[A, B](str: String, expected: Option[A], fmt: Option[B], tc: String)(using
+    p: FormattedStringParser[A, B]
+  ) =
+    val pro: ParseResult[Option[A]] = fmt match
       case Some(f) => parse[Option[A]](str, f)
       case _ => parse[Option[A]](str)
-    }
     assert(pro.contains(expected))
-    val pr: ParseResult[A] = fmt match {
+    val pr: ParseResult[A] = fmt match
       case Some(f) => parse[A](str, f)
       case _ => parse[A](str)
-    }
-    if (tc != empty)
-      assert(pr.toOption == expected)
+    if tc != empty then assert(pr.toOption == expected)
     assert(pr.toOption == expected)
-  }
 
   private lazy val strings = Table(
     ("testCase", "str", "string"),
@@ -234,4 +226,3 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("formatted", "y", Some(true), Some(BooleanFormatter("y", "n"))),
     (empty, "", None, None)
   )
-}

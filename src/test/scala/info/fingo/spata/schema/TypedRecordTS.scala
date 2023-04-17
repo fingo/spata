@@ -7,7 +7,7 @@ package info.fingo.spata.schema
 
 import org.scalatest.funsuite.AnyFunSuite
 
-class TypedRecordTS extends AnyFunSuite {
+class TypedRecordTS extends AnyFunSuite:
 
   test("Typed record allows type-safe access to its values") {
     val name = "Mumintrollet"
@@ -69,4 +69,3 @@ class TypedRecordTS extends AnyFunSuite {
     val r = TypedRecord(EmptyTuple, EmptyTuple, 1, 1)
     assert(r.rowNum == 1)
   }
-}

@@ -8,37 +8,36 @@ package info.fingo.spata.parser
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
+import info.fingo.spata.error.ParsingErrorCode.*
+import FieldParser.FieldResult
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import Config._
-import RawFields._
-import FieldFailures._
-import RecordResults._
-import info.fingo.spata.error.ParsingErrorCode._
-import FieldParser.FieldResult
+import Config.*
+import RawFields.*
+import FieldFailures.*
+import RecordResults.*
 
-class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val parser = new RecordParser[IO]()
 
   test("Record parser should correctly parse provided input") {
-    forAll(regularCases) { (_, input, output) =>
+    forAll(regularCases)((_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    }
+    )
   }
 
   test("Record parser should correctly report malformed input") {
-    forAll(failureCases) { (_, input, output) =>
+    forAll(failureCases)((_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    }
+    )
   }
 
-  private def parse(input: List[FieldResult]) = {
-    val stream = Stream(input: _*).through(parser.toRecords)
+  private def parse(input: List[FieldResult]) =
+    val stream = Stream(input*).through(parser.toRecords)
     stream.compile.toList.unsafeRunSync()
-  }
 
   private lazy val regularCases = Table(
     ("testCase", "input", "output"),
@@ -68,4 +67,3 @@ class RecordParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("fieldAndError", List(rf("abc", 3), ffeq(7)), List(rfl(UnescapedQuotation, 7, 1, 1, 2))),
     ("recordAndError", List(rfe("abc", 3), ffeq(3, 2)), List(rr("abc")(3), rfl(UnescapedQuotation, 3, 2, 2)))
   )
-}

@@ -8,37 +8,36 @@ package info.fingo.spata.parser
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
+import CharParser.CharResult
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import CharParser.CharResult
-import Config._
-import CharStates._
-import CharFailures._
-import RawFields._
-import FieldFailures._
+import Config.*
+import CharStates.*
+import CharFailures.*
+import RawFields.*
+import FieldFailures.*
 
-class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val parser = new FieldParser[IO](Some(limit))
 
   test("Field parser should correctly parse provided input") {
-    forAll(regularCases) { (_, input, output) =>
+    forAll(regularCases)((_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    }
+    )
   }
 
   test("Field parser should correctly report malformed input") {
-    forAll(failureCases) { (_, input, output) =>
+    forAll(failureCases)((_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    }
+    )
   }
 
-  private def parse(input: List[CharResult]) = {
-    val stream = Stream(input: _*).through(parser.toFields)
+  private def parse(input: List[CharResult]) =
+    val stream = Stream(input*).through(parser.toFields)
     stream.compile.toList.unsafeRunSync()
-  }
 
   private lazy val regularCases = Table(
     ("testCase", "input", "output"),
@@ -83,4 +82,3 @@ class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("regQtUnmatched", List(csq('a'), csff, csq, csq('b'), csq('c'), cfmq), List(rf("a", 1), ffmq(3))),
     ("fieldToLong", List.fill(limit + 1)(csr('a')) :+ csff, List(ffrtl(limit + 1)))
   )
-}

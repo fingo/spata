@@ -5,6 +5,9 @@
  */
 package info.fingo.sample.spata
 
+import java.time.{LocalDate, Month}
+import java.util.concurrent.atomic.LongAdder
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
@@ -13,31 +16,27 @@ import info.fingo.spata.io.Reader
 import info.fingo.spata.{CSVConfig, CSVParser}
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{LocalDate, Month}
-import java.util.concurrent.atomic.LongAdder
-import java.util.concurrent.{CountDownLatch, TimeUnit}
-
 /* Samples which process the data asynchronously or using blocking context */
-class ThreadITS extends AnyFunSuite {
+class ThreadITS extends AnyFunSuite:
 
   private def println(s: String): String = s // do nothing, don't pollute test output
+  private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 
   test("spata allows asynchronous source processing") {
     val sum = new LongAdder()
     val count = new LongAdder()
 
-    val cb: Callback = row => {
+    val cb: Callback = row =>
       count.increment()
       Thread.sleep(100) // prevent calculation to be to quick
-      val diff = for {
+      val diff = for
         max <- row.get[Long]("max_temp")
         min <- row.get[Long]("min_temp")
-      } yield max - min
+      yield max - min
       sum.add(diff.getOrElse(0))
       row("month").contains("Month 5")
-    }
     val cdl = new CountDownLatch(1)
-    val result: Either[Throwable, Unit] => Unit = {
+    val result: Either[Throwable, Unit] => Unit =
       case Right(_) =>
         val avg = sum.doubleValue() / count.doubleValue()
         println(s"Average temperature during Month 5 was $avg")
@@ -45,14 +44,13 @@ class ThreadITS extends AnyFunSuite {
       case _ =>
         println(s"Error occurred while processing data")
         cdl.countDown()
-    }
-    SampleTH.withResource(SampleTH.sourceFromResource(SampleTH.dataFile)) { source =>
+    SampleTH.withResource(getSource())(source =>
       val data = Reader.shifting[IO].read(source)
       CSVParser[IO].async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)
       assert(sum.intValue() > 1000)
-    }
+    )
   }
 
   test("spata source reading blocking operations may be shifted to blocking execution context") {
@@ -62,7 +60,7 @@ class ThreadITS extends AnyFunSuite {
     val parser = CSVConfig().mapHeader(mh).parser[IO] // parser with IO effect
     val records = for {
       // ensure resource allocation and  cleanup
-      source <- Stream.bracket(IO { SampleTH.sourceFromResource(SampleTH.dataFile) })(source => IO { source.close() })
+      source <- Stream.bracket(IO(getSource()))(source => IO(source.close()))
       record <- Reader.shifting[IO].read(source).through(parser.parse) // get stream of CSV records
     } yield record
     val dayTemps = records
@@ -73,9 +71,7 @@ class ThreadITS extends AnyFunSuite {
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error
     val result = dayTemps.compile.toList.unsafeRunSync()
     assert(result.length == 30)
-    assert(result.forall { dt =>
-      dt.date.isAfter(LocalDate.of(2017, 12, 31)) &&
-      dt.date.isBefore(LocalDate.of(2018, 2, 1))
-    })
+    assert(
+      result.forall(dt => dt.date.isAfter(LocalDate.of(2017, 12, 31)) && dt.date.isBefore(LocalDate.of(2018, 2, 1)))
+    )
   }
-}

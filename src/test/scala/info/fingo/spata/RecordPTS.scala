@@ -8,13 +8,12 @@ package info.fingo.spata
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.util.Locale
-
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import org.scalameter.picklers.noPickler._
+import org.scalameter.picklers.noPickler.*
 
 /* Check performance of record */
-object RecordPTS extends Bench.LocalTime {
+object RecordPTS extends Bench.LocalTime:
 
   val amount = 25_000
   val recordSize = 10
@@ -49,17 +48,17 @@ object RecordPTS extends Bench.LocalTime {
 
   private val wideHeader = makeHeader(wideRecordSize)
   private val wideValues = (1 to sampleSize).map(s => makeValues(s, wideRecordSize))
-  private val wideRecords = wideValues.map(vs => Record(vs: _*)(wideHeader))
+  private val wideRecords = wideValues.map(vs => Record(vs*)(wideHeader))
 
   performance.of("record").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("create") in {
       using(creationModes) in {
         case "with_header" =>
-          (1 to amount).map(i => Record(values(i % sampleSize): _*)(header)).foreach(effect)
+          (1 to amount).map(i => Record(values(i % sampleSize)*)(header)).foreach(effect)
         case "no_header" =>
-          (1 to amount).map(i => Record.fromValues(values(i % sampleSize): _*)).foreach(effect)
+          (1 to amount).map(i => Record.fromValues(values(i % sampleSize)*)).foreach(effect)
         case "from_pairs" =>
-          (1 to amount).map(i => Record.fromPairs(pairs(i % sampleSize): _*)).foreach(effect)
+          (1 to amount).map(i => Record.fromPairs(pairs(i % sampleSize)*)).foreach(effect)
         case "build" =>
           (1 to amount)
             .map(i =>
@@ -83,26 +82,24 @@ object RecordPTS extends Bench.LocalTime {
           (1 to amount).map(i => Record.from(tuples(i % sampleSize))).foreach(effect)
         case "extend_header" =>
           val partialHeader = makeHeader(recordSize / 2)
-          (1 to amount).map(i => Record(values(i % sampleSize): _*)(partialHeader)).foreach(effect)
+          (1 to amount).map(i => Record(values(i % sampleSize)*)(partialHeader)).foreach(effect)
         case "build_wide" =>
           (1 to amount)
             .map(i =>
               (0 to wideRecordSize)
-                .foldLeft(Record.builder) {
-                  case (builder, index) =>
-                    val hdr = s"header-key-$index"
-                    index % 10 match {
-                      case 0 => builder.add(hdr, values(i % sampleSize)(1))
-                      case 1 => builder.add(hdr, values(i % sampleSize).head.toInt)
-                      case 2 => builder.add(hdr, date)
-                      case 3 => builder.add(hdr, decimal)
-                      case 4 => builder.add(hdr, 3.14)
-                      case 5 => builder.add(hdr, "another text")
-                      case 6 => builder.add(hdr, true)
-                      case 7 => builder.add(hdr, 0)
-                      case 8 => builder.add(hdr, 99999L)
-                      case 9 => builder.add(hdr, 2.72)
-                    }
+                .foldLeft(Record.builder) { case (builder, index) =>
+                  val hdr = s"header-key-$index"
+                  index % 10 match
+                    case 0 => builder.add(hdr, values(i % sampleSize)(1))
+                    case 1 => builder.add(hdr, values(i % sampleSize).head.toInt)
+                    case 2 => builder.add(hdr, date)
+                    case 3 => builder.add(hdr, decimal)
+                    case 4 => builder.add(hdr, 3.14)
+                    case 5 => builder.add(hdr, "another text")
+                    case 6 => builder.add(hdr, true)
+                    case 7 => builder.add(hdr, 0)
+                    case 8 => builder.add(hdr, 99999L)
+                    case 9 => builder.add(hdr, 2.72)
                 }
                 .get
             )
@@ -166,9 +163,9 @@ object RecordPTS extends Bench.LocalTime {
 
   private def effect(r: Record) = r(0)
 
-  private def makeHeader(size: Int): Header = Header((1 to size).map(i => s"header-key-$i"): _*)
+  private def makeHeader(size: Int): Header = Header((1 to size).map(i => s"header-key-$i")*)
   private def makeValues(sample: Int, size: Int): Seq[String] =
-    (1 to size).map(i => if (i % 2 == 0) s"value-$sample-$i" else s"${i + sample * size}")
+    (1 to size).map(i => if i % 2 == 0 then s"value-$sample-$i" else s"${i + sample * size}")
 
   private lazy val creationModes = Gen.enumeration("creation_mode")(
     "with_header",
@@ -198,4 +195,3 @@ object RecordPTS extends Bench.LocalTime {
     "to_tuple",
     "typed_wide"
   )
-}

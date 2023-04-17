@@ -29,11 +29,11 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     *
     * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     *
-    * To parse optional values provide `Option[_]` as type parameter.
+    * To parse optional values provide `Option[?]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
-    * If wrong header key is provided this function will return `Left[error.HeaderError,_]`.
-    * If parsing fails `Left[error.DataError,_]` will be returned.
+    * If wrong header key is provided this function will return `Left[error.HeaderError,?]`.
+    * If parsing fails `Left[error.DataError,?]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     * @note When relying on default string parsers, this function assumes "standard" string formatting,
@@ -47,7 +47,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
   /** Safely gets typed record value.
     *
-    * @see [[get(key:String)* get]] for details.
+    * @see [[get]] by key for details.
     *
     * @tparam A type to parse the field to
     * @param idx index of retrieved field
@@ -66,7 +66,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * Parsers for basic types are available through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as given instances.
     *
-    * To parse optional values provide `Option[_]` as type parameter.
+    * To parse optional values provide `Option[?]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
@@ -247,12 +247,14 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @return a new record with updated value
     */
   def updatedWith(idx: Int)(f: String => String): Record =
-    this(idx).map { v =>
-      val nvs = values.updated(idx, f(v))
-      hdr match // do not access and create header if not necessary
-        case Some(h) => Record(nvs: _*)(h)
-        case None => Record.fromValues(nvs: _*)
-    }.getOrElse(this)
+    this(idx)
+      .map(v =>
+        val nvs = values.updated(idx, f(v))
+        hdr match // do not access and create header if not necessary
+          case Some(h) => Record(nvs*)(h)
+          case None => Record.fromValues(nvs*)
+      )
+      .getOrElse(this)
 
   /** Creates new record with value at given key updated by provided function.
     * The function receives existing, typed value as an argument.
@@ -273,10 +275,10 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @return a new record with updated value or an error
     */
   def altered[A: StringParser, B: StringRenderer](key: String)(f: A => B): Either[ContentError, Record] =
-    get[A](key).map { v =>
+    get[A](key).map(v =>
       val nv = StringRenderer.render[B](f(v))
       updated(key, nv)
-    }
+    )
 
   /** Creates a builder, initialized with content of this record.
     * A builder may be used to enhance or reduce record.
@@ -315,19 +317,19 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
   /* Retrieve field value by key using string parser with provided format */
   private def retrieve[A, B](key: String, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] =
-    decode(key)(v => StringParser.parse(v, fmt))
+    decode(key)(StringParser.parse(_, fmt))
 
   /* Retrieve field value by key using string parser */
   private def retrieve[A](key: String)(using parser: StringParser[A]): Decoded[A] =
-    decode(key)(v => StringParser.parse(v))
+    decode(key)(StringParser.parse)
 
   /* Retrieve field value by index using string parser with provided format */
   private def retrieve[A, B](idx: Int, fmt: B)(using parser: FormattedStringParser[A, B]): Decoded[A] =
-    decode(idx)(v => StringParser.parse(v, fmt))
+    decode(idx)(StringParser.parse(_, fmt))
 
   /* Retrieve field value by index using string parser */
   private def retrieve[A](idx: Int)(using parser: StringParser[A]): Decoded[A] =
-    decode(idx)(v => StringParser.parse(v))
+    decode(idx)(StringParser.parse)
 
   /* Decode field value using provided string parsing function. Wraps error into proper CSVException subclass. */
   private def decode[A](key: String)(parse: String => ParseResult[A]): Decoded[A] =
@@ -358,8 +360,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
     /** Safely parses string to desired type based on provided format.
       *
-      * If wrong header key is provided this function will return `Left[error.HeaderError,_]`.
-      * If parsing fails `Left[error.DataError,_]` will be returned.
+      * If wrong header key is provided this function will return `Left[error.HeaderError,?]`.
+      * If parsing fails `Left[error.DataError,?]` will be returned.
       *
       * @param key the name of retrieved field
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -371,8 +373,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
     /** Safely parses string to desired type based on provided format.
       *
-      * If wrong index is provided this function will return `Left[error.IndexError,_]`.
-      * If parsing fails `Left[error.DataError,_]` will be returned.
+      * If wrong index is provided this function will return `Left[error.IndexError,?]`.
+      * If parsing fails `Left[error.DataError,?]` will be returned.
       *
       * @param idx the index of retrieved field
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -389,7 +391,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       *
       * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
       *
-      * To parse optional values provide `Option[_]` as type parameter.
+      * To parse optional values provide `Option[?]` as type parameter.
       * Parsing empty value to simple type will throw an exception.
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
@@ -417,14 +419,14 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * are available through [[text.StringParser$ StringParser]] object.
       * Additional ones may be provided as given instances.
       *
-      * To parse optional values provide `Option[_]` as type parameter.
+      * To parse optional values provide `Option[?]` as type parameter.
       * Parsing empty value to simple type will throw an exception.
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
       * @tparam A type to parse the field to
       * @return intermediary to retrieve value according to custom format
       */
-    def get[A]: Field[A] = new Field[A]
+    def get[A]: Field[A] = Field[A]
 
     /** Gets field value.
       *
@@ -532,7 +534,7 @@ object Record:
     */
   def fromPairs(keysValues: (String, String)*): Record =
     val (k, v) = keysValues.unzip
-    new Record(v.toIndexedSeq, Position.none)(Some(Header(k: _*)))
+    new Record(v.toIndexedSeq, Position.none)(Some(Header(k*)))
 
   /** Creates a record from [[scala.Product]], e.g. case class.
     *
@@ -614,7 +616,7 @@ object Record:
   def from[T <: Tuple: FromTuple](tuple: T): Record = summon[FromTuple[T]].encode(tuple)
 
   /** Creates new record builder. */
-  def builder: Builder = new Builder(List.empty[(String, String)])
+  def builder: Builder = Builder(List.empty[(String, String)])
 
   /** Extension of [[scala.Product]] to provide convenient conversion to records. */
   trait ProductOps:
@@ -665,7 +667,7 @@ object Record:
       * @return builder augmented with the new value
       */
     def add[A](key: String, value: A)(using renderer: StringRenderer[A]): Builder =
-      new Builder((key, renderer(value)) :: buf, removed)
+      Builder((key, renderer(value)) :: buf, removed)
 
     /** Reduces builder removing given value from it.
       *
@@ -681,7 +683,7 @@ object Record:
       * @param key the key (field name) of removed value
       * @return builder stripped of selected value
       */
-    def remove(key: String): Builder = new Builder(buf, removed + key)
+    def remove(key: String): Builder = Builder(buf, removed + key)
 
     /** Gets final record from this builder.
       *
@@ -690,13 +692,13 @@ object Record:
     def get: Record =
       val result =
         if removed.isEmpty then buf
-        else buf.filterNot { case (k, _) => removed.contains(k) }
-      Record.fromPairs(result.reverse: _*)
+        else buf.filterNot((k, _) => removed.contains(k))
+      Record.fromPairs(result.reverse*)
 
     /* Gets final record from this builder with reversed order of the fields,
      * which really means preserving the order, because values ate prepended.
      */
-    private[spata] def reversed: Record = Record.fromPairs(buf: _*)
+    private[spata] def reversed: Record = Record.fromPairs(buf*)
 
   /** Given instance to convert record builder to record. */
   given buildRecord: Conversion[Builder, Record] = _.get

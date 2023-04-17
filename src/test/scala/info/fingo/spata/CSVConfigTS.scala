@@ -12,7 +12,7 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import info.fingo.spata.io.Reader
 
-class CSVConfigTS extends AnyFunSuite {
+class CSVConfigTS extends AnyFunSuite:
 
   test("Config should be build correctly") {
     val config = CSVConfig().fieldDelimiter(';').noHeader.fieldSizeLimit(100)
@@ -40,7 +40,7 @@ class CSVConfigTS extends AnyFunSuite {
     )
     val csv = s"'value 1A'|'value ''1B'$rs'value 2A'|'value ''2B'"
     val config = CSVConfig().fieldDelimiter('|').quoteMark('\'').recordDelimiter(rs).noHeader.escapeAll
-    val stream = Stream(records: _*).covaryAll[IO, Record]
+    val stream = Stream(records*).covaryAll[IO, Record]
     val renderer = config.renderer[IO]
     val result = stream.through(renderer.render).compile.toList.unsafeRunSync().mkString
     assert(result == csv)
@@ -58,4 +58,3 @@ class CSVConfigTS extends AnyFunSuite {
     val c4 = CSVConfig('\u001F', '\u001E', '|', fieldSizeLimit = Some(256), escapeMode = CSVConfig.EscapeAll)
     assert(c4.toString == """CSVConfig('␣', '␣', '|', header, no mapping, no trimming, 256, escape all)""")
   }
-}

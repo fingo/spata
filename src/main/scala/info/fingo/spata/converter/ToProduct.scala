@@ -74,14 +74,14 @@ object ToProduct:
     case _: (t *: ts) => constValue[t].toString :: getLabels[ts]
 
   /* Get tuple types as list of string parsers - used to get types of fields of case class (provided by `Mirror`). */
-  private inline def getTypes[T <: Tuple]: List[StringParser[_]] = inline erasedValue[T] match
+  private inline def getTypes[T <: Tuple]: List[StringParser[?]] = inline erasedValue[T] match
     case _: EmptyTuple => Nil
     case _: (t *: ts) => summonInline[StringParser[t]] :: getTypes[ts]
 
   /* Assemble product from record using field names and typed parsers retrieved from `Mirror`. */
   private def decodeProduct[T <: Product](
     p: Mirror.ProductOf[T],
-    elements: List[(String, StringParser[_])]
+    elements: List[(String, StringParser[?])]
   ): ToProduct[T] =
     (r: Record) =>
       val instance = for (label, parser) <- elements yield r.get(label)(parser)

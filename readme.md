@@ -890,7 +890,7 @@ import info.fingo.spata.schema.CSVSchema
 object Converter extends IOApp.Simple:
 
   val converter: Stream[IO, Unit] =
-    implicit val codec: Codec = Codec.UTF8
+    given codec: Codec = Codec.UTF8
     val schema = CSVSchema().add[LocalDate]("date").add[Double]("temp")
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
 
@@ -970,7 +970,7 @@ object Converter extends IOApp:
 
   val converter: Stream[IO, ExitCode] =
     def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
-    implicit val codec: Codec = Codec.UTF8
+    given codec: Codec = Codec.UTF8
     val src = Paths.get("testdata/fahrenheit.txt")
     val dst = Paths.get("testdata/celsius.txt")
 

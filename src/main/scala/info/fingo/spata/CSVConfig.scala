@@ -10,10 +10,14 @@ import info.fingo.spata.util.Logger
 
 /** CSV configuration used to create [[CSVParser]] or [[CSVRenderer]].
   *
-  * This config may be used as a builder to create a parser :
-  * {{{ val parser = CSVConfig().fieldSizeLimit(1000).noHeader.parser[IO] }}}
+  * This config may be used as a builder to create a parser:
+  * ```
+  * val parser = CSVConfig().fieldSizeLimit(1000).noHeader.parser[IO]
+  * ```
   * or renderer:
-  * {{{ val renderer = CSVConfig().escapeSpaces.noHeader.renderer[IO] }}}
+  * ```
+  * val renderer = CSVConfig().escapeSpaces.noHeader.renderer[IO]
+  * ```
   *
   * Field delimiter is `','` by default.
   *
@@ -32,13 +36,19 @@ import info.fingo.spata.util.Logger
   * If no header is explicitly defined, a number-based one is used, like for parsing.
   *
   * If CSV records are converted to case classes, header values are used as class fields and may require remapping.
-  * This can be achieved through [[mapHeader(* mapHeader]]:
-  * {{{config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))}}}
+  * This can be achieved through [[mapHeader]]:
+  * ```
+  * config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))
+  * ```
   * or if an implicit header is generated:
-  * {{{config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName")))}}}
+  * ```
+  * config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName"))
+  * ```
   * Header mapping may be also position-based, which is especially handy when there are duplicates in header
   * and name-based remapping does not solve it (because it remaps all occurrences):
-  * {{{config.mapHeader(Map(0 -> "firstName", 1 -> "lastName")))}}}
+  * ```
+  * config.mapHeader(Map(0 -> "firstName", 1 -> "lastName"))
+  * ```
   * Remapping may be used for renderer as well,
   * allowing customized header while converting data from case classes or tuples.
   *
@@ -74,7 +84,7 @@ final case class CSVConfig private[spata] (
   trimSpaces: Boolean = false,
   fieldSizeLimit: Option[Int] = None,
   escapeMode: CSVConfig.EscapeMode = CSVConfig.EscapeRequired
-) {
+):
 
   /** Gets new config from this one by replacing field delimiter with provided one. */
   def fieldDelimiter(fd: Char): CSVConfig = this.copy(fieldDelimiter = fd)
@@ -135,29 +145,26 @@ final case class CSVConfig private[spata] (
     *
     * @return short textual information about configuration
     */
-  override def toString: String = {
-    def printWhite(c: Char) = c match {
+  override def toString: String =
+    def printWhite(c: Char) = c match
       case '\n' => "\\n"
       case '\r' => "\\r"
       case '\t' => "\\t"
       case ' ' => " "
       case c if c.isWhitespace => '␣'
       case _ => c
-    }
     val fd = printWhite(fieldDelimiter)
     val rd = printWhite(recordDelimiter)
     val qm = printWhite(quoteMark)
-    val hdr = if (hasHeader) "header" else "no header"
-    val hm = if (headerMap == NoHeaderMap) "no mapping" else "header mapping"
-    val st = if (trimSpaces) "space trimming" else "no trimming"
+    val hdr = if hasHeader then "header" else "no header"
+    val hm = if headerMap == NoHeaderMap then "no mapping" else "header mapping"
+    val st = if trimSpaces then "space trimming" else "no trimming"
     val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
     val em = escapeMode.toString
     s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm, $st$fsl, $em)"
-  }
-}
 
 /** CSVConfig companion object with escape mode definitions. */
-object CSVConfig {
+object CSVConfig:
 
   /** Creates default CSV configuration. */
   def apply(): CSVConfig = new CSVConfig()
@@ -166,23 +173,19 @@ object CSVConfig {
   sealed trait EscapeMode
 
   /** Escape fields only when required - when they contain one of the delimiters or escape character. */
-  case object EscapeRequired extends EscapeMode {
+  case object EscapeRequired extends EscapeMode:
 
     /** Gets description of this escape mode. */
     override def toString: String = "escape required"
-  }
 
   /** Escape fields only when required or when field has leading or trailing white spaces. */
-  case object EscapeSpaces extends EscapeMode {
+  case object EscapeSpaces extends EscapeMode:
 
     /** Gets description of this escape mode. */
     override def toString: String = "escape spaces"
-  }
 
   /** Escape all fields regardless of their content. */
-  case object EscapeAll extends EscapeMode {
+  case object EscapeAll extends EscapeMode:
 
     /** Gets description of this escape mode. */
     override def toString: String = "escape all"
-  }
-}

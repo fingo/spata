@@ -14,23 +14,24 @@ import java.util.Locale
   * @param ft the term representing `false`, case insensitive
   * @param locale the locale used to handle case conversion
   */
-final class BooleanFormatter(tt: String, ft: String, locale: Locale) {
-  val trueTerm: String = tt.toLowerCase(locale)
-  val falseTerm: String = ft.toLowerCase(locale)
+final class BooleanFormatter(tt: String, ft: String, locale: Locale):
+
+  private val trueTerm: String = tt.toLowerCase(locale)
+  private val falseTerm: String = ft.toLowerCase(locale)
 
   /** Creates formatter with default locale.
     *
-    * @param trueTerm the term representing `true`, case insensitive
-    * @param falseTerm the term representing `false`, case insensitive
+    * @param tt the term representing `true`, case insensitive
+    * @param ft the term representing `false`, case insensitive
     */
-  def this(trueTerm: String, falseTerm: String) = this(trueTerm, falseTerm, Locale.getDefault())
+  def this(tt: String, ft: String) = this(tt, ft, Locale.getDefault())
 
   /** Returns string representation of boolean value.
     *
     * @param value the value to be converted to string
     * @return textual representation of value
     */
-  def format(value: Boolean): String = if (value) trueTerm else falseTerm
+  def format(value: Boolean): String = if value then trueTerm else falseTerm
 
   /** Obtains boolean value from text.
     *
@@ -39,15 +40,13 @@ final class BooleanFormatter(tt: String, ft: String, locale: Locale) {
     * @throws ParseError if text cannot be parsed to boolean
     */
   @throws[ParseError]("if text cannot be parsed to boolean")
-  def parse(string: String): Boolean = string.strip().toLowerCase(locale) match {
+  def parse(string: String): Boolean = string.strip().toLowerCase(locale) match
     case `trueTerm` => true
     case `falseTerm` => false
     case _ => throw new ParseError(string, Some("boolean"))
-  }
-}
 
 /** [[BooleanFormatter]] companion object, used for formatter creation. */
-object BooleanFormatter {
+object BooleanFormatter:
 
   /** Creates new formatter.
     *
@@ -68,4 +67,3 @@ object BooleanFormatter {
 
   /** Provides default [[BooleanFormatter]], with `true` and `false` as textual representation. */
   val default: BooleanFormatter = apply(true.toString, false.toString)
-}

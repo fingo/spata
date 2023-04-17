@@ -8,16 +8,16 @@ package info.fingo.spata.schema
 import java.time.LocalDate
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import org.scalameter.{Bench, Gen}
-import org.scalameter.Key.exec
 import info.fingo.spata.io.Reader
 import info.fingo.spata.schema.validator.RangeValidator
+import org.scalameter.{Bench, Gen}
+import org.scalameter.Key.exec
 import info.fingo.spata.PerformanceTH.{input, parser, MarsWeather, TestSource}
 
 /* Check performance of schema validation.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
-class CSVSchemaPTS extends Bench.LocalTime {
+class CSVSchemaPTS extends Bench.LocalTime:
 
   private val schemaGen = CSVSchema()
     .add[Double]("_1", RangeValidator(100.0, 200.0))
@@ -70,4 +70,3 @@ class CSVSchemaPTS extends Bench.LocalTime {
   }
 
   private lazy val amounts = Gen.exponential("amount")(1_000, 25_000, 5)
-}

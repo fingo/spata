@@ -7,15 +7,15 @@ package info.fingo.spata
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import info.fingo.spata.io.Reader
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import info.fingo.spata.io.Reader
 import info.fingo.spata.PerformanceTH.{input, parser, testSource, MarsWeather}
 
 /* Check performance of parser.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
-object CSVParserPTS extends Bench.LocalTime {
+object CSVParserPTS extends Bench.LocalTime:
 
   performance.of("parser").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("parse_gen") in {
@@ -47,4 +47,3 @@ object CSVParserPTS extends Bench.LocalTime {
   }
 
   private lazy val amounts = Gen.exponential("amount")(1_000, 25_000, 5)
-}

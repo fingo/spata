@@ -18,12 +18,11 @@ import info.fingo.spata.PerformanceTH.{input, parser}
 /* Check performance of Reader using different implementations.
  * It would be good to have regression for it but ScalaMeter somehow refused to work in this mode.
  */
-object ReaderPTS extends Bench.LocalTime {
+object ReaderPTS extends Bench.LocalTime:
 
-  case class ReadMethod(info: String, method: Path => Stream[IO, Char]) {
+  case class ReadMethod(info: String, method: Path => Stream[IO, Char]):
     def apply(path: Path): Stream[IO, Char] = method(path)
     override def toString: String = info
-  }
 
   performance.of("reader").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
     measure.method("read") in {
@@ -50,5 +49,4 @@ object ReaderPTS extends Bench.LocalTime {
   private def inputStream(path: Path) = Files.newInputStream(path, StandardOpenOption.READ)
   private def source(path: Path) = Source.fromFile(path.toFile)
   private def bracket[A <: AutoCloseable](resource: A) =
-    Stream.bracket(IO(resource))(resource => IO { resource.close() })
-}
+    Stream.bracket(IO(resource))(resource => IO(resource.close()))

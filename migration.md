@@ -129,3 +129,9 @@ Reader[IO].read(Path.of("path"))
 As a consequence, `Reader.plain` and `Writer.plain` have to be called explicitly to get the simple, blocking IO.
 This may be important when using `scala.io.Source`,
 as in this case this modified default behaviour may negatively influnce performance.
+
+### Miscellaneous
+
+*   As a consequence of replacing `implicit` with `given`/`using`,
+    if any implicit method argument is provided explicitly,
+    it has to be preceded by `using` keyword.

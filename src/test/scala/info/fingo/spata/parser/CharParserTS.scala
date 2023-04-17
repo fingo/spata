@@ -10,48 +10,47 @@ import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
-import Config._
-import CharStates._
-import CharFailures._
+import Config.*
+import CharStates.*
+import CharFailures.*
 
-class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   test("Char parser should correctly parse provided input without trimming") {
     val parser = new CharParser[IO](sep, rs, qt, false)
-    forAll(regularCases ++ spaceNoTrimCases) { (_, input, output) =>
+    forAll(regularCases ++ spaceNoTrimCases)((_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    }
+    )
   }
 
   test("Char parser should correctly parse provided input with trimming") {
     val parser = new CharParser[IO](sep, rs, qt, true)
-    forAll(regularCases ++ spaceTrimCases) { (_, input, output) =>
+    forAll(regularCases ++ spaceTrimCases)((_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    }
+    )
   }
 
   test("Char parser should return error info for malformed input while parsing without trimming") {
     val parser = new CharParser[IO](sep, rs, qt, false)
-    forAll(malformedCases ++ malformedNoTrimCases) { (_, input, output) =>
+    forAll(malformedCases ++ malformedNoTrimCases)((_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    }
+    )
   }
 
   test("Char parser should return error info for malformed input while parsing with trimming") {
     val parser = new CharParser[IO](sep, rs, qt, true)
-    forAll(malformedCases ++ malformedTrimCases) { (_, input, output) =>
+    forAll(malformedCases ++ malformedTrimCases)((_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    }
+    )
   }
 
-  private def parse(parser: CharParser[IO], input: String) = {
-    val stream = Stream(input.toIndexedSeq: _*).through(parser.toCharResults)
+  private def parse(parser: CharParser[IO], input: String) =
+    val stream = Stream(input.toIndexedSeq*).through(parser.toCharResults)
     stream.compile.toList.unsafeRunSync()
-  }
 
   private lazy val regularCases = Table(
     ("testCase", "input", "output"),
@@ -129,4 +128,3 @@ class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("testCase", "input", "output"),
     ("unescapedQuoteSp", "\"ab\" c,", List(csq, csq('a'), csq('b'), cses, cse, cfeq))
   )
-}

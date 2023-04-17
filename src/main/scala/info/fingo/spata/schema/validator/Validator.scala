@@ -51,10 +51,10 @@ trait Validator[A]:
 
   /* Main validation method, used by schema validation. Must not alter the value. */
   final private[schema] def apply(value: A): Validated[ValidationError, A] =
-    if (isValid(value)) Valid(value)
+    if isValid(value) then Valid(value)
     else Invalid(ValidationError(name, errorMessage(value)))
 
-/** [[Validator]] companion with implicit converter for optional values. */
+/** [[Validator]] companion with given converter for optional values. */
 object Validator:
 
   /** Implicit converter of regular validator into validator for optional value.
@@ -210,7 +210,7 @@ object MinValidator:
     * @return validator
     */
   def apply[A: Ordering](min: A): Validator[A] = new Validator[A] {
-    def isValid(value: A): Boolean = implicitly[Ordering[A]].lteq(min, value)
+    def isValid(value: A): Boolean = summon[Ordering[A]].lteq(min, value)
     override def errorMessage(value: A): String = s"Value [$value] is too small"
   }
 
@@ -226,7 +226,7 @@ object MaxValidator:
     * @return validator
     */
   def apply[A: Ordering](max: A): Validator[A] = new Validator[A] {
-    def isValid(value: A): Boolean = implicitly[Ordering[A]].gteq(max, value)
+    def isValid(value: A): Boolean = summon[Ordering[A]].gteq(max, value)
     override def errorMessage(value: A): String = "Value [$v] is too large"
   }
 

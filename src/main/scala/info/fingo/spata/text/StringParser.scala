@@ -12,15 +12,15 @@ import scala.util.control.NonFatal
 
 /** Parser from `String` to desired type.
   *
-  * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
+  * This parser defines behavior to be implemented by concrete, given parser instances for various types,
   * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[_]` should be provided as type parameter.
+  * To accept empty input `Option[?]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   */
-trait StringParser[+A] {
+trait StringParser[+A]:
 
   /** Parses string to desired type.
     *
@@ -37,20 +37,19 @@ trait StringParser[+A] {
     */
   @throws[RuntimeException]("if text cannot be parsed to requested type")
   def apply(str: String): A
-}
 
 /** Parser from `String` to desired type with support for different formats.
   *
-  * This parser defines behavior to be implemented by concrete, implicit parsers for various types,
+  * This parser defines behavior to be implemented by concrete, given parser instances for various types,
   * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[_]` should be provided as type parameter.
+  * To accept empty input `Option[?]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   * @tparam B type of formatter
   */
-trait FormattedStringParser[+A, B] extends StringParser[A] {
+trait FormattedStringParser[+A, B] extends StringParser[A]:
 
   /** Parses string to desired type based on provided format.
     *
@@ -64,34 +63,41 @@ trait FormattedStringParser[+A, B] extends StringParser[A] {
     */
   @throws[RuntimeException]("if text cannot be parsed to requested type")
   def apply(str: String, fmt: B): A
-}
 
 /** Parsing methods from `String` to various simple types.
   *
   * Contains parsers for common types, like numbers, dates and times.
   *
   * Additional parsers may be provided by implementing [[StringParser]] or [[FormattedStringParser]] traits
-  * and putting implicit values in scope.
+  * and putting given instances in scope.
   * `StringParser` may be implemented if there are no different formatting options for given type, e.g. for integers
   * (although one may argue if this is a good example). For all cases when different formatting options exist,
   * `FormattedStringParser` should be implemented.
   */
-object StringParser {
+object StringParser:
 
   /** Intermediary to delegate parsing to in order to infer type of formatter used by parser.
     *
     * When adding parsing function to an entity, instead of providing
-    * {{{def parse[A, B](input: String, format: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A]}}}
+    * ```
+    * def parse[A, B](input: String, format: B)(using parser: FormattedStringParser[A, B]): ParseResult[A]
+    * ```
     * which requires then to use it as
-    * {{{entity.parse[Double, NumberFormat]("123,45", numberFormat)}}}
+    * ```
+    * entity.parse[Double, NumberFormat]("123,45", numberFormat)
+    * ```
     * one can provide function to get this `Pattern`
-    * {{{def parse[A]: Pattern[A]}}}
+    * ```
+    * def parse[A]: Pattern[A]
+    * ```
     * and use it with nicer syntax
-    * {{{entity.parse[Double]("123,45", numberFormat)}}}
+    * ```
+    * entity.parse[Double]("123,45", numberFormat)
+    * ```
     *
     * @tparam A target type for parsing
     */
-  final class Pattern[A] {
+  final class Pattern[A]:
 
     /** Parses string to desired type based on provided format.
       *
@@ -101,30 +107,30 @@ object StringParser {
       * @tparam B type of formatter
       * @return either parsed value or an exception
       */
-    def apply[B](str: String, fmt: B)(implicit parser: FormattedStringParser[A, B]): ParseResult[A] =
+    def apply[B](str: String, fmt: B)(using parser: FormattedStringParser[A, B]): ParseResult[A] =
       wrapExc(str)(parser(str, fmt))
-  }
 
   /** Safely parses string to desired type.
     *
-    * @example {{{
-    * import info.fingo.spata.text.StringParser._
+    * @example
+    * ```
+    * import info.fingo.spata.text.StringParser.*
     * val x = parse[Double]("123.45").getOrElse(Double.NaN)
     * val y = parse[Option[Double]]("123.45").map(_.getOrElse(0.0)).getOrElse(Double.NaN)
-    * }}}
+    * ```
     * @param str the input string
     * @param parser the parser for specific target type
     * @tparam A target type for parsing
     * @return either parsed value or an [[ParseError]]
     */
-  def parse[A](str: String)(implicit parser: StringParser[A]): ParseResult[A] =
+  def parse[A](str: String)(using parser: StringParser[A]): ParseResult[A] =
     wrapExc(str)(parser(str))
 
   /** Parses string to desired type based on provided format.
     *
     * Delegates actual parsing to [[Pattern#apply]] method.
     *
-    * @see [[parse[A]:* parse]] for sample usage.
+    * @see [[parse]] without `Pattern` for sample usage.
     * @tparam A target type for parsing
     * @return intermediary to retrieve value according to custom format
     */
@@ -137,8 +143,8 @@ object StringParser {
     * @tparam A the simple type wrapped by [[scala.Option]]
     * @return parser which accepts empty input
     */
-  implicit def optionParser[A](implicit parser: StringParser[A]): StringParser[Option[A]] =
-    (str: String) => if (str == null || str.isBlank) None else Some(parser(str))
+  given optionParser[A](using parser: StringParser[A]): StringParser[Option[A]] with
+    def apply(str: String) = if str == null || str.isBlank then None else Some(parser(str))
 
   /** Parser for optional values with support for different formats.
     * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.
@@ -148,100 +154,78 @@ object StringParser {
     * @tparam B type of formatter
     * @return parser which support formatted input and accepts empty one
     */
-  implicit def optionParserFmt[A, B](implicit
-    parser: FormattedStringParser[A, B]
-  ): FormattedStringParser[Option[A], B] =
-    new FormattedStringParser[Option[A], B] {
-      override def apply(str: String): Option[A] = if (str == null || str.isBlank) None else Some(parser(str))
-      override def apply(str: String, fmt: B): Option[A] =
-        if (str == null || str.isBlank) None else Some(parser(str, fmt))
-    }
+  given optionParserFmt[A, B](using parser: FormattedStringParser[A, B]): FormattedStringParser[Option[A], B] with
+    def apply(str: String): Option[A] = if str == null || str.isBlank then None else Some(parser(str))
+    def apply(str: String, fmt: B): Option[A] = if str == null || str.isBlank then None else Some(parser(str, fmt))
 
   /** No-op parser for strings. */
-  implicit val stringParser: StringParser[String] = (str: String) => str
+  given stringParser: StringParser[String] with
+    def apply(str: String) = str
 
   /** Parser for integer values. */
-  implicit val intParser: StringParser[Int] = (str: String) => str.strip.toInt
+  given intParser: StringParser[Int] with
+    def apply(str: String) = str.strip.toInt
 
   /** Parser for long values with support for formats. */
-  implicit val longParserFmt: FormattedStringParser[Long, NumberFormat] =
-    new FormattedStringParser[Long, NumberFormat] {
-      override def apply(str: String): Long = str.strip.toLong
-      override def apply(str: String, fmt: NumberFormat): Long = parseNumber(str, fmt).longValue()
-    }
+  given longParserFmt: FormattedStringParser[Long, NumberFormat] with
+    def apply(str: String): Long = str.strip.toLong
+    def apply(str: String, fmt: NumberFormat): Long = parseNumber(str, fmt).longValue()
 
   /** Parser for double values with support for formats. */
-  implicit val doubleParserFmt: FormattedStringParser[Double, DecimalFormat] =
-    new FormattedStringParser[Double, DecimalFormat] {
-      override def apply(str: String): Double = str.strip.toDouble
-      override def apply(str: String, fmt: DecimalFormat): Double = parseNumber(str, fmt).doubleValue()
-    }
+  given doubleParserFmt: FormattedStringParser[Double, DecimalFormat] with
+    def apply(str: String): Double = str.strip.toDouble
+    def apply(str: String, fmt: DecimalFormat): Double = parseNumber(str, fmt).doubleValue()
 
   /** Parser for decimal values with support for formats. */
-  implicit val bigDecimalParserFmt: FormattedStringParser[BigDecimal, DecimalFormat] =
-    new FormattedStringParser[BigDecimal, DecimalFormat] {
-      override def apply(str: String): BigDecimal = BigDecimal(str.strip)
-      override def apply(str: String, fmt: DecimalFormat): BigDecimal = {
-        fmt.setParseBigDecimal(true)
-        BigDecimal(parseNumber(str, fmt).asInstanceOf[java.math.BigDecimal])
-      }
-    }
+  given bigDecimalParserFmt: FormattedStringParser[BigDecimal, DecimalFormat] with
+    def apply(str: String): BigDecimal = BigDecimal(str.strip)
+    def apply(str: String, fmt: DecimalFormat): BigDecimal =
+      fmt.setParseBigDecimal(true)
+      BigDecimal(parseNumber(str, fmt).asInstanceOf[java.math.BigDecimal])
 
   /** Parser for date values with support for formats. */
-  implicit val localDateParserFmt: FormattedStringParser[LocalDate, DateTimeFormatter] =
-    new FormattedStringParser[LocalDate, DateTimeFormatter] {
-      override def apply(str: String): LocalDate = LocalDate.parse(str.strip)
-      override def apply(str: String, fmt: DateTimeFormatter): LocalDate = LocalDate.parse(str.strip, fmt)
-    }
+  given localDateParserFmt: FormattedStringParser[LocalDate, DateTimeFormatter] with
+    def apply(str: String): LocalDate = LocalDate.parse(str.strip)
+    def apply(str: String, fmt: DateTimeFormatter): LocalDate = LocalDate.parse(str.strip, fmt)
 
   /** Parser for time values with support for formats. */
-  implicit val localTimeParserFmt: FormattedStringParser[LocalTime, DateTimeFormatter] =
-    new FormattedStringParser[LocalTime, DateTimeFormatter] {
-      override def apply(str: String): LocalTime = LocalTime.parse(str.strip)
-      override def apply(str: String, fmt: DateTimeFormatter): LocalTime = LocalTime.parse(str.strip, fmt)
-    }
+  given localTimeParserFmt: FormattedStringParser[LocalTime, DateTimeFormatter] with
+    def apply(str: String): LocalTime = LocalTime.parse(str.strip)
+    def apply(str: String, fmt: DateTimeFormatter): LocalTime = LocalTime.parse(str.strip, fmt)
 
   /** Parser for date with time values with support for formats. */
-  implicit val localDateTimeParserFmt: FormattedStringParser[LocalDateTime, DateTimeFormatter] =
-    new FormattedStringParser[LocalDateTime, DateTimeFormatter] {
-      override def apply(str: String): LocalDateTime = LocalDateTime.parse(str.strip)
-      override def apply(str: String, fmt: DateTimeFormatter): LocalDateTime = LocalDateTime.parse(str.strip, fmt)
-    }
+  given localDateTimeParserFmt: FormattedStringParser[LocalDateTime, DateTimeFormatter] with
+    def apply(str: String): LocalDateTime = LocalDateTime.parse(str.strip)
+    def apply(str: String, fmt: DateTimeFormatter): LocalDateTime = LocalDateTime.parse(str.strip, fmt)
 
   /** Parser for boolean values with support for formats. */
-  implicit val booleanParserFmt: FormattedStringParser[Boolean, BooleanFormatter] =
-    new FormattedStringParser[Boolean, BooleanFormatter] {
-      override def apply(str: String): Boolean = BooleanFormatter.default.parse(str)
-      override def apply(str: String, fmt: BooleanFormatter): Boolean = fmt.parse(str)
-    }
+  given booleanParserFmt: FormattedStringParser[Boolean, BooleanFormatter] with
+    def apply(str: String): Boolean = BooleanFormatter.default.parse(str)
+    def apply(str: String, fmt: BooleanFormatter): Boolean = fmt.parse(str)
 
   /* Parses whole string to number (since NumberFormat accepts partial input). */
-  private def parseNumber(str: String, fmt: NumberFormat): Number = {
+  private def parseNumber(str: String, fmt: NumberFormat): Number =
     val pos = new ParsePosition(0)
     val s = str.strip
     val num = fmt.parse(s, pos)
-    if (pos.getIndex != s.length)
+    if pos.getIndex != s.length then
       throw new ParseError(
         str,
         Some("number"),
         Some(new ParseException(s"Cannot parse [$str] to number", pos.getIndex))
       )
-    num
-  }
+    else num
 
   /* Wraps any parsing exception in ParseError. */
   private def wrapExc[A](content: String)(code: => A): ParseResult[A] =
     try Right(code)
-    catch {
+    catch
       case pe: ParseError => Left(pe)
       case NonFatal(ex) => Left(new ParseError(content, parseErrorTypeInfo(ex), Some(ex)))
-    }
 
   /* Gets type of parsed value based on type of exception thrown while parsing. */
-  private[spata] def parseErrorTypeInfo(ex: Throwable): Option[String] = ex match {
+  private[spata] def parseErrorTypeInfo(ex: Throwable): Option[String] = ex match
     case e: ParseError => e.dataType
     case _: NumberFormatException => Some("number")
     case _: DateTimeParseException => Some("date/time")
     case _ => None
-  }
-}

@@ -9,7 +9,7 @@ import java.time.format.DateTimeParseException
 import info.fingo.spata.Position
 import org.scalatest.funsuite.AnyFunSuite
 
-class CSVExceptionTS extends AnyFunSuite {
+class CSVExceptionTS extends AnyFunSuite:
 
   test("CSV structure exception provides useful error message") {
     val error = ParsingErrorCode.UnescapedQuotation
@@ -26,4 +26,3 @@ class CSVExceptionTS extends AnyFunSuite {
       s"Error occurred at row 9 (line 10) while parsing CSV field (name 'date', index ???) having value [this is some text...] to date/time."
     assert(ex.getMessage == expected)
   }
-}

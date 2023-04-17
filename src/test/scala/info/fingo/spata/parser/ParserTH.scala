@@ -6,12 +6,12 @@
 package info.fingo.spata.parser
 
 import CharParser.{CharFailure, CharState}
-import CharParser.CharPosition._
+import CharParser.CharPosition.*
 import FieldParser.{FieldFailure, RawField}
 import RecordParser.{RawRecord, RecordFailure}
-import info.fingo.spata.error.ParsingErrorCode._
+import info.fingo.spata.error.ParsingErrorCode.*
 
-object Config {
+object Config:
   val sep = ','
   val rs = '\n'
   val qt = '"'
@@ -20,9 +20,8 @@ object Config {
   val cr: Char = CharParser.CR
   val sp = ' '
   val end: Char = CharParser.ETX
-}
 
-object CharStates {
+object CharStates:
   import Config._
   def csr(c: Char): CharState = CharState(Right(c), Regular)
   def csr: CharState = CharState(Left(cr), Regular)
@@ -36,29 +35,24 @@ object CharStates {
   def csff: CharState = CharState(Left(sep), FinishedField)
   def csfr: CharState = CharState(Left(rs), FinishedRecord)
   def csf: CharState = CharState(Left(end), FinishedRecord)
-}
 
-object CharFailures {
+object CharFailures:
   val cfcq: CharFailure = CharFailure(UnclosedQuotation)
   val cfmq: CharFailure = CharFailure(UnmatchedQuotation)
   val cfeq: CharFailure = CharFailure(UnescapedQuotation)
-}
 
-object RawFields {
+object RawFields:
   def rf(v: String, pos: Int, ln: Int = 1): RawField = RawField(v, Location(pos, ln))
   def rfe(v: String, pos: Int, ln: Int = 1): RawField = RawField(v, Location(pos, ln), endOfRecord = true)
-}
 
-object FieldFailures {
+object FieldFailures:
   def ffcq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnclosedQuotation, Location(pos, ln))
   def ffmq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnmatchedQuotation, Location(pos, ln))
   def ffeq(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(UnescapedQuotation, Location(pos, ln))
   def ffrtl(pos: Int, ln: Int = 1): FieldFailure = FieldFailure(FieldTooLong, Location(pos, ln))
-}
 
-object RecordResults {
+object RecordResults:
   def rr(fields: String*)(pos: Int, ln: Int = 1, rnum: Int = 1): RawRecord =
-    RawRecord(Vector(fields: _*), Location(pos, ln), rnum)
+    RawRecord(Vector(fields*), Location(pos, ln), rnum)
   def rfl(code: ErrorCode, pos: Int, ln: Int = 1, rnum: Int = 1, fnum: Int = 1): RecordFailure =
     RecordFailure(code, Location(pos, ln), rnum, fnum)
-}

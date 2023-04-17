@@ -18,7 +18,7 @@ import info.fingo.spata.CSVParser
 import info.fingo.spata.schema.validator._
 import info.fingo.spata.text.StringParser
 
-class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val separator = ','
 
@@ -26,60 +26,57 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
   type TestCase = (String, String, LV[Int], LV[String], LV[String], LV[LocalDate], LV[Double])
   type TestCaseTable = TableFor7[String, String, LV[Int], LV[String], LV[String], LV[LocalDate], LV[Double]]
 
-  implicit val dateParser: StringParser[LocalDate] =
-    (str: String) => LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+  given dateParser: StringParser[LocalDate] with
+    def apply(str: String) = LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
 
   test("validation should positively verify data compliant with schema") {
     val id: "id" = "id"
-    for (testData <- validCases) yield {
+    for testData <- validCases yield
       val result = validate(testData)
       assert(result.length == 3)
-      result.foreach { validated =>
+      result.foreach(validated =>
         assert(validated.isValid)
-        validated.map { typedRecord =>
+        validated.map(typedRecord =>
           val knownFrom: LocalDate = typedRecord("appeared")
           assert(typedRecord(id) > 0)
           assert(knownFrom.getYear < 2020)
           assert(typedRecord("score") >= 0)
-        }
-      }
-    }
+        )
+      )
   }
 
   test("validation should provide errors for data not compliant with schema") {
-    for (testData <- invalidCases) yield {
+    for testData <- invalidCases yield
       val result = validate(testData)
       assert(result.length == 3)
-      result.foreach { validated =>
+      result.foreach(validated =>
         assert(validated.isInvalid)
-        validated.leftMap { invalidRecord =>
-          invalidRecord.flaws.map { fieldFlaw =>
+        validated.leftMap(invalidRecord =>
+          invalidRecord.flaws.map(fieldFlaw =>
             assert(fieldFlaw.error.message.nonEmpty)
             val ec = fieldFlaw.error.code
             assert(ec.endsWith("Validator") || ec.endsWith("Type"))
-          }
-        }
-      }
-    }
+          )
+        )
+      )
   }
 
   test("it should be possible to convert typed record to case class after validation") {
     case class FullData(id: Int, name: String, occupation: String, appeared: LocalDate, score: Double)
     case class Person(id: Int, score: Double, name: String)
     val id: "id" = "id"
-    for (testData <- validCases) yield {
+    for testData <- validCases yield
       val result = validate(testData)
-      result.foreach { validated =>
-        validated.map { typedRecord =>
+      result.foreach(validated =>
+        validated.map(typedRecord =>
           val fd = typedRecord.to[FullData]
           assert(fd.id == typedRecord(id))
           assert(fd.score >= 0)
           val person = typedRecord.to[Person]
           assert(person.id == typedRecord(id))
           assert(person.name == typedRecord("name"))
-        }
-      }
-    }
+        )
+      )
   }
 
   test("it should be possible to validate types only") {
@@ -103,47 +100,45 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val validated = recordStream("missing values").through(schema.validate)
     val result = validated.compile.toList.unsafeRunSync()
     assert(result.length == 3)
-    result.foreach { validated =>
+    result.foreach(validated =>
       assert(validated.isValid)
-      validated.map { typedRecord =>
+      validated.map(typedRecord =>
         assert(typedRecord(name).length > 0)
         assert(typedRecord("score").forall(_ >= 0))
-      }
-    }
+      )
+    )
   }
 
   test("validation against empty schema should be always correct") {
     val schema = CSVSchema()
-    for (dataSet <- dataSets) yield {
+    for dataSet <- dataSets yield
       val validated = recordStream(dataSet).through(schema.validate)
       val result = validated.compile.toList.unsafeRunSync()
       assert(result.length == 3)
-      result.foreach { validated =>
+      result.foreach(validated =>
         assert(validated.isValid)
         validated.map(typedRecord => assert(typedRecord.rowNum > 0))
-      }
-    }
+      )
   }
 
   test("validation with non-existent field should yield invalid for all records") {
     val schema = CSVSchema()
       .add[String]("name")
       .add[String]("nonexistent")
-    for (dataSet <- dataSets) yield {
+    for dataSet <- dataSets yield
       val validated = recordStream(dataSet).through(schema.validate)
       val result = validated.compile.toList.unsafeRunSync()
       assert(result.length == 3)
-      result.foreach { validated =>
+      result.foreach(validated =>
         assert(validated.isInvalid)
-        validated.leftMap { invalidRecord =>
+        validated.leftMap(invalidRecord =>
           assert(invalidRecord.record.rowNum > 0)
-          invalidRecord.flaws.map { fieldFlaw =>
+          invalidRecord.flaws.map(fieldFlaw =>
             assert(fieldFlaw.error.message.nonEmpty)
             assert(fieldFlaw.error.code.endsWith("Key"))
-          }
-        }
-      }
-    }
+          )
+        )
+      )
   }
 
   test("validation should work for large records") {
@@ -176,13 +171,13 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
     val validated = recordStream("large").through(schema.validate)
     val result = validated.compile.toList.unsafeRunSync()
     assert(result.length == 3)
-    result.foreach { validated =>
+    result.foreach(validated =>
       assert(validated.isValid)
-      validated.map { typedRecord =>
+      validated.map(typedRecord =>
         assert(typedRecord("h10") == "10")
         assert(typedRecord("h77") == 77)
-      }
-    }
+      )
+    )
   }
 
   test("schema should not accept the same column name twice") {
@@ -200,17 +195,16 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       .add[Double]("score")""")
   }
 
-  private def validate(testData: TestCase) = {
+  private def validate(testData: TestCase) =
     val (_, data, idValidators, nameValidators, occupationValidators, appearedValidators, scoreValidators) = testData
     val schema = CSVSchema()
-      .add[Int]("id", idValidators: _*)
-      .add[String]("name", nameValidators: _*)
-      .add[String]("occupation", occupationValidators: _*)
-      .add[LocalDate]("appeared", appearedValidators: _*)
-      .add[Double]("score", scoreValidators: _*)
+      .add[Int]("id", idValidators*)
+      .add[String]("name", nameValidators*)
+      .add[String]("occupation", occupationValidators*)
+      .add[LocalDate]("appeared", appearedValidators*)
+      .add[Double]("score", scoreValidators*)
     val validated = recordStream(data).through(schema.validate)
     validated.compile.toList.unsafeRunSync()
-  }
 
   private lazy val validCases: TestCaseTable = Table(
     ("testCase", "data", "idValidator", "nameValidator", "occupationValidator", "appearedValidator", "scoreValidator"),
@@ -249,21 +243,19 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private val largeRange = 1 to 100
 
-  private def recordStream(dataSet: String) = {
+  private def recordStream(dataSet: String) =
     val content = csvContent(dataSet)
     val header = csvHeader(dataSet)
     val source = Source.fromString(s"$header\n$content")
     Reader[IO].read(source).through(CSVParser[IO].parse)
-  }
 
-  private def csvHeader(dataSet: String) = dataSet match {
+  private def csvHeader(dataSet: String) = dataSet match
     case "large" => largeRange.map(i => s"h$i").mkString(separator.toString)
     case _ => s"id${separator}name${separator}occupation${separator}appeared${separator}score"
-  }
 
-  private def csvContent(dataSet: String): String = {
+  private def csvContent(dataSet: String): String =
     val s = separator
-    dataSet match {
+    dataSet match
       case "basic" =>
         s"""1${s}Funky Koval${s}detective${s}01.03.1987${s}100.00
           |2${s}Eva Solo${s}lady${s}31.12.2012${s}0
@@ -279,6 +271,3 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks {
       case "large" =>
         val row = largeRange.mkString(s.toString)
         (1 to 3).map(_ => row).mkString("\n")
-    }
-  }
-}

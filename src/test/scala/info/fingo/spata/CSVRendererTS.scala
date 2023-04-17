@@ -19,60 +19,59 @@ import info.fingo.spata.text.StringRenderer
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
+class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
+
   type StreamErrorHandler = Throwable => Stream[IO, Char]
 
   case class Data(id: Int, name: String, date: LocalDate, value: Double)
 
-  implicit val ldsr: StringRenderer[LocalDate] =
-    (value: LocalDate) => DateTimeFormatter.ofPattern("dd.MM.yyyy").format(value)
+  given ldsr: StringRenderer[LocalDate] with
+    def apply(value: LocalDate) = DateTimeFormatter.ofPattern("dd.MM.yyyy").format(value)
 
-  test("renderer should process records matching provided or implicit header") {
-    forAll(separators) { separator =>
-      forAll(headerModes) { headerMode =>
-        forAll(escapeModes) { escapeMode =>
-          forAll(testCases) { (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if (headerModes.contains(headerMode)) {
+  test("renderer should process records matching provided or given header") {
+    forAll(separators)(separator =>
+      forAll(headerModes)(headerMode =>
+        forAll(escapeModes)(escapeMode =>
+          forAll(testCases)((_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            if headerModes.contains(headerMode) then
               val hdr = header(headerCase)
               val recs = records(contentCase, separator, hdr)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs: _*).covaryAll[IO, Record]
+              val stream = Stream(recs*).covaryAll[IO, Record]
               val out = stream.through(render(renderer, hdr, headerMode))
               val res = out.compile.toList.unsafeRunSync().mkString
               val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
               assert(res == content)
-            }
-          }
-        }
-      }
-    }
+          )
+        )
+      )
+    )
   }
 
   test("renderer should process records converted from case classes") {
-    forAll(separators) { separator =>
-      forAll(headerModes) { headerMode =>
-        forAll(escapeModes) { escapeMode =>
-          forAll(testCases) { (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if (headerModes.contains(headerMode)) {
+    forAll(separators)(separator =>
+      forAll(headerModes)(headerMode =>
+        forAll(escapeModes)(escapeMode =>
+          forAll(testCases)((_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            if headerModes.contains(headerMode) then
               val hdr = header(headerCase)
               val clss = classes(contentCase, separator)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(clss: _*).covaryAll[IO, Data].map(Record.from(_))
+              val stream = Stream(clss*).covaryAll[IO, Data].map(Record.from(_))
               val out = stream.through(render(renderer, hdr, headerMode))
               val res = out.compile.toList.unsafeRunSync().mkString
               val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
               assert(res == content)
-            }
-          }
-        }
-      }
-    }
+          )
+        )
+      )
+    )
   }
 
   test("renderer should raise error if any record does not match the header") {
     val hdr = header("basic")
     val recs = Record.fromPairs("x" -> "y") :: records("basic", ',', hdr)
-    val stream = Stream(recs: _*).covaryAll[IO, Record]
+    val stream = Stream(recs*).covaryAll[IO, Record]
     val outHdr = stream.through(CSVRenderer[IO].render(hdr)).attempt
     val resHdr = outHdr.compile.toList.unsafeRunSync()
     assert(resHdr.last.isLeft)
@@ -84,63 +83,59 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
   }
 
   test("renderer should convert records to rows") {
-    forAll(separators) { separator =>
-      forAll(headerModes) { headerMode => // header mode must not influence row creation
-        forAll(escapeModes) { escapeMode =>
-          forAll(testCases) { (_: String, _: String, contentCase: String, headerModes: List[String]) =>
-            if (headerModes.contains(headerMode)) {
+    forAll(separators)(separator =>
+      forAll(headerModes)(headerMode => // header mode must not influence row creation
+        forAll(escapeModes)(escapeMode =>
+          forAll(testCases)((_: String, _: String, contentCase: String, headerModes: List[String]) =>
+            if headerModes.contains(headerMode) then
               val recs = records(contentCase, separator)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs: _*).covaryAll[IO, Record]
+              val stream = Stream(recs*).covaryAll[IO, Record]
               val out = stream.through(renderer.rows).intersperse("\n")
               val res = out.compile.toList.unsafeRunSync().mkString
               // header is never generated for parser.rows
               val content = rendered("empty", contentCase, separator, escapeMode, headerMode)
               assert(res == content)
-            }
-          }
-        }
-      }
-    }
+          )
+        )
+      )
+    )
   }
 
   test("renderer converted data should be properly encoded and handled by writer") {
     val charset = Charset.forName("ISO-8859-2")
-    implicit val codec = new Codec(charset)
-    forAll(separators) { separator =>
-      forAll(headerModes) { headerMode =>
-        forAll(escapeModes) { escapeMode =>
-          forAll(testCases) { (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if (headerModes.contains(headerMode)) {
+    given codec: Codec(charset)
+    forAll(separators)(separator =>
+      forAll(headerModes)(headerMode =>
+        forAll(escapeModes)(escapeMode =>
+          forAll(testCases)((_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            if headerModes.contains(headerMode) then
               val os = new ByteArrayOutputStream()
               val hdr = header(headerCase)
               val recs = records(contentCase, separator, hdr)
               val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs: _*).covaryAll[IO, Record]
+              val stream = Stream(recs*).covaryAll[IO, Record]
               val out =
                 stream.through(render(renderer, hdr, headerMode)).through(Writer[IO].write(IO[OutputStream](os)))
               out.compile.drain.unsafeRunSync() // run
               val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
               assert(os.toByteArray.sameElements(content.getBytes(charset)))
-            }
-          }
-        }
-      }
-    }
+          )
+        )
+      )
+    )
   }
 
-  private def config(separator: Char, escapeMode: EscapeMode, headerMode: String): CSVConfig = {
+  private def config(separator: Char, escapeMode: EscapeMode, headerMode: String): CSVConfig =
     val c = CSVConfig().fieldDelimiter(separator)
-    val cc = escapeMode match {
+    val cc = escapeMode match
       case EscapeAll => c.escapeAll
       case EscapeSpaces => c.escapeSpaces
       case EscapeRequired => c
-    }
-    if (headerMode == "none") cc.noHeader else cc
-  }
+    if headerMode == "none" then cc.noHeader else cc
 
   private def render(renderer: CSVRenderer[IO], header: Header, headerMode: String): Pipe[IO, Record, Char] =
-    if (headerMode == "explicit") renderer.render(header) else renderer.render
+    if headerMode == "explicit" then renderer.render(header) else renderer.render
 
   private lazy val separators = Table("separator", ',', ';', '\t')
 
@@ -157,12 +152,11 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     ("empty", "empty", "empty", List("implicit", "none"))
   )
 
-  private def header(testCase: String): Header = testCase match {
+  private def header(testCase: String): Header = testCase match
     case "basic" => Header("id", "name", "date", "value")
     case "empty" => Header()
-  }
 
-  private def records(testCase: String, separator: Char, header: Header): List[Record] = testCase match {
+  private def records(testCase: String, separator: Char, header: Header): List[Record] = testCase match
     case "basic" =>
       Record("1", "Funky Koval", "01.01.2001", "100.0")(header) ::
         Record("2", "Eva Solo", "31.12.2012", "123.45")(header) ::
@@ -179,9 +173,8 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
         Record("3", "  Koziołek Matołek", "09.09.1999", "999.99")(header) ::
         Nil
     case "empty" => Nil
-  }
 
-  private def records(testCase: String, separator: Char): List[Record] = testCase match {
+  private def records(testCase: String, separator: Char): List[Record] = testCase match
     case "basic" =>
       Record.fromValues("1", "Funky Koval", "01.01.2001", "100.0") ::
         Record.fromValues("2", "Eva Solo", "31.12.2012", "123.45") ::
@@ -198,9 +191,8 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
         Record.fromValues("3", "  Koziołek Matołek", "09.09.1999", "999.99") ::
         Nil
     case "empty" => Nil
-  }
 
-  private def classes(testCase: String, separator: Char): List[Data] = testCase match {
+  private def classes(testCase: String, separator: Char): List[Data] = testCase match
     case "basic" =>
       Data(1, "Funky Koval", LocalDate.of(2001, 1, 1), 100.00) ::
         Data(2, "Eva Solo", LocalDate.of(2012, 12, 31), 123.45) ::
@@ -217,7 +209,6 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
         Data(3, "  Koziołek Matołek", LocalDate.of(1999, 9, 9), 999.99) ::
         Nil
     case "empty" => Nil
-  }
 
   private def rendered(
     headerCase: String,
@@ -225,65 +216,55 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks {
     separator: Char,
     escapeMode: EscapeMode,
     headerMode: String
-  ): String = {
-    val header = if (headerMode == "none") "" else renderedHeader(headerCase, separator, escapeMode)
+  ): String =
+    val header = if headerMode == "none" then "" else renderedHeader(headerCase, separator, escapeMode)
     val content = renderedContent(contentCase, separator, escapeMode)
     List(header, content).filterNot(_.isEmpty).mkString("\n")
-  }
 
-  private def renderedHeader(testCase: String, separator: Char, escapeMode: EscapeMode): String = {
+  private def renderedHeader(testCase: String, separator: Char, escapeMode: EscapeMode): String =
     val s = separator
-    testCase match {
+    testCase match
       case "basic" =>
-        escapeMode match {
+        escapeMode match
           case EscapeAll => s""""id"$s"name"$s"date"$s"value""""
           case _ => s"""id${s}name${s}date${s}value"""
-        }
       case "empty" => ""
-    }
-  }
 
-  private def renderedContent(testCase: String, separator: Char, escapeMode: EscapeMode): String = {
+  private def renderedContent(testCase: String, separator: Char, escapeMode: EscapeMode): String =
     val s = separator
-    testCase match {
+    testCase match
       case "basic" =>
-        escapeMode match {
+        escapeMode match
           case EscapeAll =>
             s""""1"$s"Funky Koval"$s"01.01.2001"$s"100.0"
-               |"2"$s"Eva Solo"$s"31.12.2012"$s"123.45"
-               |"3"$s"Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
+              |"2"$s"Eva Solo"$s"31.12.2012"$s"123.45"
+              |"3"$s"Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case _ =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
-               |2${s}Eva Solo${s}31.12.2012${s}123.45
-               |3${s}Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
-        }
+              |2${s}Eva Solo${s}31.12.2012${s}123.45
+              |3${s}Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
       case "quotes and seps" =>
-        escapeMode match {
+        escapeMode match
           case EscapeAll =>
             s""""1"$s"Funky Koval$s"$s"01.01.2001"$s"100.0"
-               |\"2"$s"Eva\nSolo"$s"31.12.2012"$s"123.45"
-               |"3"$s"\""Koziołek"" Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
+              |\"2"$s"Eva\nSolo"$s"31.12.2012"$s"123.45"
+              |"3"$s"\""Koziołek"" Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case _ =>
             s"""1$s"Funky Koval$s"${s}01.01.2001${s}100.0
-               |2$s"Eva\nSolo"${s}31.12.2012${s}123.45
-               |3$s"\""Koziołek"" Matołek"${s}09.09.1999${s}999.99""".stripMargin
-        }
+              |2$s"Eva\nSolo"${s}31.12.2012${s}123.45
+              |3$s"\""Koziołek"" Matołek"${s}09.09.1999${s}999.99""".stripMargin
       case "spaces" =>
-        escapeMode match {
+        escapeMode match
           case EscapeAll =>
             s""""1"$s"Funky Koval"$s"01.01.2001"$s"100.0"
-               |"2"$s"Eva Solo "$s"31.12.2012"$s"123.45"
-               |"3"$s"  Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
+              |"2"$s"Eva Solo "$s"31.12.2012"$s"123.45"
+              |"3"$s"  Koziołek Matołek"$s"09.09.1999"$s"999.99"""".stripMargin
           case EscapeSpaces =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
-               |2$s"Eva Solo "${s}31.12.2012${s}123.45
-               |3$s"  Koziołek Matołek"${s}09.09.1999${s}999.99""".stripMargin
+              |2$s"Eva Solo "${s}31.12.2012${s}123.45
+              |3$s"  Koziołek Matołek"${s}09.09.1999${s}999.99""".stripMargin
           case EscapeRequired =>
             s"""1${s}Funky Koval${s}01.01.2001${s}100.0
-               |2${s}Eva Solo ${s}31.12.2012${s}123.45
-               |3$s  Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
-        }
+              |2${s}Eva Solo ${s}31.12.2012${s}123.45
+              |3$s  Koziołek Matołek${s}09.09.1999${s}999.99""".stripMargin
       case "empty" => ""
-    }
-  }
-}

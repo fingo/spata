@@ -10,19 +10,18 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalameter.Key.exec
-import org.scalameter.picklers.noPickler._
+import org.scalameter.picklers.noPickler.*
 import org.scalameter.{Bench, Gen}
 import info.fingo.spata.PerformanceTH.{output, renderer, testRecords, testSource}
 
 /* Check performance of Reader using different implementations. */
-object WriterPTS extends Bench.LocalTime {
+object WriterPTS extends Bench.LocalTime:
 
   val amount = 1_000
 
-  case class WriteMethod(info: String, method: (Path, Stream[IO, Char]) => Stream[IO, Unit]) {
+  case class WriteMethod(info: String, method: (Path, Stream[IO, Char]) => Stream[IO, Unit]):
     def apply(path: Path, source: Stream[IO, Char]): Stream[IO, Unit] = method(path, source)
     override def toString: String = info
-  }
 
   performance.of("writer").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
     measure.method("write") in {
@@ -36,21 +35,17 @@ object WriterPTS extends Bench.LocalTime {
       }
     }
   }
-//  testSource(separator, amount)
+
   private lazy val methods = Gen.enumeration("method")(
     WriteMethod(
       "outputstream",
       (path: Path, source: Stream[IO, Char]) =>
-        bracket(outputStream(path)).flatMap { os =>
-          source.through(Writer.plain[IO].write(os))
-        }
+        bracket(outputStream(path)).flatMap(os => source.through(Writer.plain[IO].write(os)))
     ),
     WriteMethod(
       "outputstream-fs2io",
       (path: Path, source: Stream[IO, Char]) =>
-        bracket(outputStream(path)).flatMap { os =>
-          source.through(Writer.shifting[IO].write(os))
-        }
+        bracket(outputStream(path)).flatMap(os => source.through(Writer.shifting[IO].write(os)))
     ),
     WriteMethod("path", (path: Path, source: Stream[IO, Char]) => source.through(Writer.plain[IO].write(path))),
     WriteMethod(
@@ -67,5 +62,4 @@ object WriterPTS extends Bench.LocalTime {
       StandardOpenOption.TRUNCATE_EXISTING
     )
   private def bracket[A <: AutoCloseable](resource: A) =
-    Stream.bracket(IO(resource))(resource => IO { resource.close() })
-}
+    Stream.bracket(IO(resource))(resource => IO(resource.close()))

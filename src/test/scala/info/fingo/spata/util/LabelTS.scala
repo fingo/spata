@@ -7,7 +7,7 @@ package info.fingo.spata.util
 
 import org.scalatest.funsuite.AnyFunSuite
 
-class PackageTS extends AnyFunSuite {
+class LabelTS extends AnyFunSuite:
 
   test("classLabel retrieves class/object name correctly") {
 
@@ -26,9 +26,7 @@ class PackageTS extends AnyFunSuite {
     assert(classLabel(new Outer.OInner()) == "oInner")
     assert(classLabel(Outer.OInner) == "oInner")
 
-    object Context {
+    object Context:
       trait Anonymous
       assert(classLabel(new Anonymous() {}) == "context")
-    }
   }
-}

@@ -8,7 +8,7 @@ package info.fingo.spata.schema
 import scala.deriving.Mirror
 import scala.compiletime.{constValue, erasedValue}
 import info.fingo.spata.converter.ToProduct
-import info.fingo.spata.schema.TypedRecord._
+import info.fingo.spata.schema.TypedRecord.*
 
 /** CSV record representation with type-safe access to its values.
   * Typed records are created as result of schema validation.
@@ -98,8 +98,8 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def get[K <: Key, KS <: Tuple, VS <: Tuple](key: K, keys: KS, values: VS): Select[K, KS, VS] =
     (keys: @unchecked) match
-      case `key` *: _: *:[K @unchecked, _] => getH(values)
-      case _ *: tk: *:[_, _] => getT(key, tk, values)
+      case `key` *: _: *:[K @unchecked, ?] => getH(values)
+      case _ *: tk: *:[?, ?] => getT(key, tk, values)
 
   /* Gets value from `values` matching the `key` from `keys`.
    * This method and `get` call each other alternately to reduce values and keys accordingly.
@@ -107,7 +107,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getT[K <: Key, KS <: Tuple, VS <: Tuple](key: K, keys: KS, values: VS): SelectT[K, KS, VS] =
     (values: @unchecked) match
-      case _ *: t: *:[_, _] => get(key, keys, t)
+      case _ *: t: *:[?, ?] => get(key, keys, t)
 
   /* Gets head value from tuple of `values`.
    * It is used to retrieve correctly typed value which key has been already matched.
@@ -115,7 +115,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getH[VS <: Tuple](values: VS): SelectH[VS] =
     (values: @unchecked) match
-      case h *: _: *:[_, _] => h
+      case h *: _: *:[?, ?] => h
 
 /** Typed record helper object. */
 object TypedRecord:
@@ -124,18 +124,18 @@ object TypedRecord:
     * This type and [[SelectT]] call each other alternately to reduce tuples of keys and values accordingly.
     */
   type Select[K <: Key, KS <: Tuple, VS <: Tuple] = KS match
-    case K *: t => SelectH[VS]
+    case K *: ? => SelectH[VS]
     case h *: t => SelectT[K, t, VS]
 
   /** Match type to reduce tuple of values to its tail.
     * This type and [[Select]] call each other alternately to reduce tuples of values and keys accordingly.
     */
   type SelectT[K <: Key, KS <: Tuple, VS <: Tuple] = VS match
-    case _ *: tv => Select[K, KS, tv]
+    case ? *: tv => Select[K, KS, tv]
 
   /** Match type to reduce tuple of values to its head. */
   type SelectH[VS <: Tuple] = VS match
-    case h *: _ => h
+    case h *: ? => h
 
   /* Constructs typed record while constraining its keys and values. */
   private[schema] def apply[KS <: Tuple, VS <: Tuple](keys: KS, values: VS, lineNum: Int, rowNum: Int)(using

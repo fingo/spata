@@ -131,7 +131,7 @@ final class CSVSchema[T <: Tuple] private (columns: T):
 
   /* Add logging information to validation pipe. */
   private def loggingPipe[F[_]: Logger]: Pipe[F, Record, Record] = in =>
-    if (Logger[F].isDebug)
+    if Logger[F].isDebug then
       // interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
       in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
@@ -167,7 +167,7 @@ final class Column[K <: Key, V: StringParser: ClassTag] private[schema] (val nam
     * @return short column description
     */
   override def toString: String =
-    val vInfo = if (validators.isEmpty) "" else validators.map(_.name).mkString(" +", "+", "")
+    val vInfo = if validators.isEmpty then "" else validators.map(_.name).mkString(" +", "+", "")
     s"'$name' -> ${classTag[V]}$vInfo"
 
   /* Validates field. Positively validated values are returned as pair (Tuple2) to encode both, key and value types

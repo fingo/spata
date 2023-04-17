@@ -16,7 +16,7 @@ import scala.util.control.NonFatal
   * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[_]` should be provided as type parameter.
+  * To accept empty input `Option[?]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   */
@@ -44,7 +44,7 @@ trait StringParser[+A]:
   * used by [[StringParser.parse[A](str:String)* parse]] function from [[StringParser$ StringParser]] object.
   *
   * Parsing fails on an empty input if a simple type is provided.
-  * To accept empty input `Option[_]` should be provided as type parameter.
+  * To accept empty input `Option[?]` should be provided as type parameter.
   *
   * @tparam A target type for parsing
   * @tparam B type of formatter

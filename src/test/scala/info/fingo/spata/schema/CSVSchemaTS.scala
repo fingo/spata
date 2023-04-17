@@ -198,11 +198,11 @@ class CSVSchemaTS extends AnyFunSuite with TableDrivenPropertyChecks:
   private def validate(testData: TestCase) =
     val (_, data, idValidators, nameValidators, occupationValidators, appearedValidators, scoreValidators) = testData
     val schema = CSVSchema()
-      .add[Int]("id", idValidators: _*)
-      .add[String]("name", nameValidators: _*)
-      .add[String]("occupation", occupationValidators: _*)
-      .add[LocalDate]("appeared", appearedValidators: _*)
-      .add[Double]("score", scoreValidators: _*)
+      .add[Int]("id", idValidators*)
+      .add[String]("name", nameValidators*)
+      .add[String]("occupation", occupationValidators*)
+      .add[LocalDate]("appeared", appearedValidators*)
+      .add[Double]("score", scoreValidators*)
     val validated = recordStream(data).through(schema.validate)
     validated.compile.toList.unsafeRunSync()
 

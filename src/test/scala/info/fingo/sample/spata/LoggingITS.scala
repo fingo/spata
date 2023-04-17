@@ -26,7 +26,7 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter {
   private val logFilePath = Paths.get(logFile)
   private val logger = LoggerFactory.getLogger(this.getClass) // regular, impure logger
   // turn on spata logging (logging operations are suspended in IO)
-  implicit private val spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
+  private given spataLogger: Logger[IO] = new Logger[IO](LoggerFactory.getLogger("spata"))
 
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 

@@ -26,7 +26,7 @@ import info.fingo.spata.error.{FieldInfo, HeaderError}
   * This renderer is normally used with stream supplying data to some external destination,
   * so its computations are wrapped for deferred evaluation into an effect `F`, e.g. [[cats.effect.IO]].
   * Basic parsing does not impose any special requirements on `F`, except its support for raising and handling errors,
-  * which requires implicit instance of [[fs2.RaiseThrowable]] which effectively means [[cats.ApplicativeError]].
+  * which requires given instance of [[fs2.RaiseThrowable]] which effectively means [[cats.ApplicativeError]].
   *
   * To trigger evaluation, one of the `unsafe` operations on `F` has to be called.
   * Their exact form depends on actual effect in use (e.g. [[cats.effect.IO.unsafeRunSync]]).

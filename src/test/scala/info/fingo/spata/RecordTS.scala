@@ -152,7 +152,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks:
     )
   }
 
-  test("converting record to case class yields Left[ContentError, _] on incorrect input") {
+  test("converting record to case class yields Left[ContentError, ?] on incorrect input") {
     case class Data(name: String, value: Double, date: LocalDate)
     val header = Header("name", "date", "value")
     forAll(incorrect)((_: String, name: String, sDate: String, sValue: String) =>
@@ -164,7 +164,7 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks:
     )
   }
 
-  test("converting record to case class yields Left[ContentError, _] for incorrect record structure") {
+  test("converting record to case class yields Left[ContentError, ?] for incorrect record structure") {
     case class Data(name: String, value: Double, date: LocalDate)
     val toSmall = Record.fromPairs(("name", "some name"))
     val tsConverted = toSmall.to[Data]

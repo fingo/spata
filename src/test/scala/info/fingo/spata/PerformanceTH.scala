@@ -64,8 +64,8 @@ object PerformanceTH:
 
   def testRecords(amount: Int): Stream[IO, Record] =
     val cols = 10
-    val header = Header((1 to cols).map(i => s"_$i"): _*)
-    val record = Record((1 to cols).map(i => s"value$i"): _*)(header)
+    val header = Header((1 to cols).map(i => s"_$i")*)
+    val record = Record((1 to cols).map(i => s"value$i")*)(header)
     val rows: LazyList[Record] = LazyList.fill(amount)(record)
     Stream(rows*).covary[IO]
 

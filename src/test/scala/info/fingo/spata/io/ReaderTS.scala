@@ -88,7 +88,7 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   test("reader should properly read files with non-UTF encoding") {
     val localChar = 'ł'
-    implicit val codec: Codec = new Codec(Charset.forName("windows-1250"))
+    given codec: Codec(Charset.forName("windows-1250"))
     val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
     forAll(readers)((_: String, reader: Reader[IO]) =>
       val stream = reader.read(path)
@@ -100,7 +100,7 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   test("reader should properly handle charset conversion errors") {
     val CAN = 0x18.toChar
-    implicit val codec: Codec = new Codec(StandardCharsets.US_ASCII)
+    given codec: Codec(StandardCharsets.US_ASCII)
     val path = Paths.get(getClass.getClassLoader.getResource("big5.csv").toURI)
     val fis = IO(Files.newInputStream(path, StandardOpenOption.READ))
     val stream = Stream.bracket(fis)(resource => IO(resource.close())).through(Reader.shifting[IO](chunkSize).by)

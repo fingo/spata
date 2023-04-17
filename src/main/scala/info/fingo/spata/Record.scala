@@ -29,11 +29,11 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     *
     * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
     *
-    * To parse optional values provide `Option[_]` as type parameter.
+    * To parse optional values provide `Option[?]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
-    * If wrong header key is provided this function will return `Left[error.HeaderError,_]`.
-    * If parsing fails `Left[error.DataError,_]` will be returned.
+    * If wrong header key is provided this function will return `Left[error.HeaderError,?]`.
+    * If parsing fails `Left[error.DataError,?]` will be returned.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
     * @note When relying on default string parsers, this function assumes "standard" string formatting,
@@ -66,7 +66,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * Parsers for basic types are available through [[text.StringParser$ StringParser]] object.
     * Additional ones may be provided as given instances.
     *
-    * To parse optional values provide `Option[_]` as type parameter.
+    * To parse optional values provide `Option[?]` as type parameter.
     * Parsing empty value to simple type will result in an error.
     *
     * @see [[text.StringParser StringParser]] for information on providing custom parsers.
@@ -360,8 +360,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
     /** Safely parses string to desired type based on provided format.
       *
-      * If wrong header key is provided this function will return `Left[error.HeaderError,_]`.
-      * If parsing fails `Left[error.DataError,_]` will be returned.
+      * If wrong header key is provided this function will return `Left[error.HeaderError,?]`.
+      * If parsing fails `Left[error.DataError,?]` will be returned.
       *
       * @param key the name of retrieved field
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -373,8 +373,8 @@ final class Record private (val values: IndexedSeq[String], val position: Option
 
     /** Safely parses string to desired type based on provided format.
       *
-      * If wrong index is provided this function will return `Left[error.IndexError,_]`.
-      * If parsing fails `Left[error.DataError,_]` will be returned.
+      * If wrong index is provided this function will return `Left[error.IndexError,?]`.
+      * If parsing fails `Left[error.DataError,?]` will be returned.
       *
       * @param idx the index of retrieved field
       * @param fmt formatter specific for particular result type, e.g. `DateTimeFormatter` for dates and times
@@ -391,7 +391,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       *
       * Parsers for basic types are provided through [[text.StringParser$ StringParser]] object.
       *
-      * To parse optional values provide `Option[_]` as type parameter.
+      * To parse optional values provide `Option[?]` as type parameter.
       * Parsing empty value to simple type will throw an exception.
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.
@@ -419,7 +419,7 @@ final class Record private (val values: IndexedSeq[String], val position: Option
       * are available through [[text.StringParser$ StringParser]] object.
       * Additional ones may be provided as given instances.
       *
-      * To parse optional values provide `Option[_]` as type parameter.
+      * To parse optional values provide `Option[?]` as type parameter.
       * Parsing empty value to simple type will throw an exception.
       *
       * @see [[text.StringParser StringParser]] for information on providing custom parsers.

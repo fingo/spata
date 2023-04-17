@@ -11,7 +11,7 @@ import java.nio.{ByteBuffer, CharBuffer}
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Async, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
 import fs2.{io, text, Chunk, Pipe, Pull, Stream}
 import info.fingo.spata.util.Logger

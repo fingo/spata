@@ -36,7 +36,7 @@ import info.fingo.spata.util.Logger
   * This parser is normally used with stream fetching data from some external source,
   * so its computations are wrapped for deferred evaluation into an effect `F`, e.g. [[cats.effect.IO]].
   * Basic parsing does not impose any special requirements on `F`, except its support for suspended execution,
-  * which requires implicit instance of [[cats.effect.Sync]].
+  * which requires given instance of [[cats.effect.Sync]].
   *
   * To trigger evaluation, one of the `unsafe` operations on `F` has to be called.
   * Their exact form depends on actual effect in use (e.g. [[cats.effect.IO.unsafeRunSync]]).
@@ -174,7 +174,7 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
     * @param F type class (monad) providing support for concurrency
     * @return helper class with asynchronous method
     */
-  def async(implicit F: CEAsync[F]): CSVParser.Async[F] = new CSVParser.Async(this)
+  def async(using F: CEAsync[F]): CSVParser.Async[F] = new CSVParser.Async(this)
 
 /** [[CSVParser]] companion object with types definitions and convenience methods to create parsers. */
 object CSVParser:

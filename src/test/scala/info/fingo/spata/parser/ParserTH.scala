@@ -53,6 +53,6 @@ object FieldFailures:
 
 object RecordResults:
   def rr(fields: String*)(pos: Int, ln: Int = 1, rnum: Int = 1): RawRecord =
-    RawRecord(Vector(fields: _*), Location(pos, ln), rnum)
+    RawRecord(Vector(fields*), Location(pos, ln), rnum)
   def rfl(code: ErrorCode, pos: Int, ln: Int = 1, rnum: Int = 1, fnum: Int = 1): RecordFailure =
     RecordFailure(code, Location(pos, ln), rnum, fnum)

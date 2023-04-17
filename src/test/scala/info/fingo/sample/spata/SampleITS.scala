@@ -22,7 +22,7 @@ class SampleITS extends AnyFunSuite:
     val celsiusCSV = SampleTH.getTempFile.toPath
 
     val converter: Stream[IO, Unit] =
-      implicit val codec: Codec = Codec.UTF8
+      given codec: Codec = Codec.UTF8
       def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
       Reader[IO]
         .read(Paths.get(fahrenheitCSV.toUri))

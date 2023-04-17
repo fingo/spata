@@ -7,7 +7,7 @@ package info.fingo.spata.util
 
 /* Gets short class identifier. Used e.g. for error codes. */
 private[spata] def classLabel(obj: AnyRef): String =
-  def getSimpleName(cls: Class[_]): String =
+  def getSimpleName(cls: Class[?]): String =
     Option(cls)
       .map(c =>
         if c.getSimpleName.nonEmpty then c.getSimpleName

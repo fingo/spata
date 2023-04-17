@@ -42,7 +42,7 @@ class ErrorITS extends AnyFunSuite with TableDrivenPropertyChecks:
     val source = (1 to 10).map(i => (i, s"text$i"))
     def result(record: (Int, String) => Record)(render: Pipe[IO, Record, Char]): List[Either[Throwable, Char]] =
       // stream with some regular records and the last one which differs
-      val records = Stream(source: _*).covary[IO].map { case (id, text) => record(id, text) } ++
+      val records = Stream(source*).covary[IO].map { case (id, text) => record(id, text) } ++
         Stream(Record.fromPairs("id" -> "0")) // add invalid record, with fewer fields
       // error handler
       val eh = (ex: Throwable) => Stream.eval(IO(Left(ex)))

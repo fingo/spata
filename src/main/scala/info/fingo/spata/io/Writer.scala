@@ -9,7 +9,7 @@ import java.io.OutputStream
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.Codec
 import cats.effect.{Async, Sync}
-import cats.syntax.all._
+import cats.syntax.all.*
 import fs2.{io, text, Chunk, Pipe, Stream}
 import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
 import info.fingo.spata.util.Logger
@@ -150,7 +150,7 @@ object Writer:
       (in: Stream[F, Char]) =>
         Stream
           .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay {
-            Files.newOutputStream(path, openOptions: _*)
+            Files.newOutputStream(path, openOptions*)
           })(os => Sync[F].delay(os.close()))
           .flatMap(os => in.through(write(os)))
 

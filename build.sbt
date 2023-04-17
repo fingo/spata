@@ -17,8 +17,8 @@ def unitFilter(name: String): Boolean = name.endsWith("TS") && !perfFilter(name)
 
 lazy val root = (project in file("."))
   .enablePlugins(AutomateHeaderPlugin)
-  .settings(basicSettings: _*)
-  .settings(publishSettings: _*)
+  .settings(basicSettings*)
+  .settings(publishSettings*)
   .configs(PerformanceTest)
   .settings(
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
@@ -65,6 +65,7 @@ lazy val scalacSettings = Seq(
   "-explain-types", // Explain type errors in more detail.
   "-feature", // Emit warning and location for usages of features that should be imported explicitly.
   "-language:existentials,higherKinds,implicitConversions", // Enable language features.
+  "-new-syntax",  // require Scala 3 syntax
   "-pagewidth:120", // Set output page width.
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Wconf:cat=deprecation:w,any:e", // Fail the compilation if there are any warnings except deprecation.

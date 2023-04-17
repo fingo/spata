@@ -156,9 +156,9 @@ final case class CSVConfig private[spata] (
     val fd = printWhite(fieldDelimiter)
     val rd = printWhite(recordDelimiter)
     val qm = printWhite(quoteMark)
-    val hdr = if (hasHeader) "header" else "no header"
-    val hm = if (headerMap == NoHeaderMap) "no mapping" else "header mapping"
-    val st = if (trimSpaces) "space trimming" else "no trimming"
+    val hdr = if hasHeader then "header" else "no header"
+    val hm = if headerMap == NoHeaderMap then "no mapping" else "header mapping"
+    val st = if trimSpaces then "space trimming" else "no trimming"
     val fsl = fieldSizeLimit.map(size => s", $size").getOrElse("")
     val em = escapeMode.toString
     s"CSVConfig('$fd', '$rd', '$qm', $hdr, $hm, $st$fsl, $em)"

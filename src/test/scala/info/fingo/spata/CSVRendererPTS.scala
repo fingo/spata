@@ -6,13 +6,13 @@
 package info.fingo.spata
 
 import cats.effect.unsafe.implicits.global
+import info.fingo.spata.Record.ProductOps
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import info.fingo.spata.Record.ProductOps
 import info.fingo.spata.PerformanceTH.{mwHeader, renderer, testMarsWeather, testRecords}
 
 /* Check performance of parser. */
-class CSVRendererPTS extends Bench.LocalTime {
+class CSVRendererPTS extends Bench.LocalTime:
 
   performance.of("renderer").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
     measure.method("render_gen") in {
@@ -33,4 +33,3 @@ class CSVRendererPTS extends Bench.LocalTime {
   }
 
   private lazy val amounts = Gen.exponential("amount")(1_000, 25_000, 5)
-}

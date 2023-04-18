@@ -44,7 +44,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     Compile / console / scalacOptions --= Seq("-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set.empty,
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.0.0"),
     semanticdbEnabled := false,
     autoAPIMappings := true
   )

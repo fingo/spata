@@ -11,10 +11,6 @@ spata
 **spata** is a functional tabular data (`CSV`) processor for Scala.
 The library is backed by [FS2 - Functional Streams for Scala](https://github.com/functional-streams-for-scala/fs2).
 
-> Work in progress.
-> 
-> **spata** is being ported to Scala 3.
-> Due to its past dependency on shapeless 2 and thus Scala 2 macros, this version introduced significant API changes.
 > **spata 3** supports Scala 3 only.
 > Scala 2 support is still available in [**spata 2**](https://github.com/fingo/spata/tree/spata2).
 

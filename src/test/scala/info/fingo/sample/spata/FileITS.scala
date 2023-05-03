@@ -17,12 +17,11 @@ import org.scalatest.funsuite.AnyFunSuite
 class FileITS extends AnyFunSuite:
 
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
-  
-  private def errorHandler(ex: Throwable, outFile: File) = Stream.eval(
-    IO(println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}"))
-  )
 
-  test("spata allows data conversion to another file") {
+  private def errorHandler(ex: Throwable, outFile: File) = Stream.eval:
+    IO(println(s"Error while converting data from ${SampleTH.dataFile} to ${outFile.getPath}: ${ex.getMessage}"))
+
+  test("spata allows data conversion to another file"):
     case class DTV(day: String, tempVar: Double) // diurnal temperature variation
 
     def dtvFromRecord(record: Record) =
@@ -48,16 +47,15 @@ class FileITS extends AnyFunSuite:
       .handleErrorWith(ex => errorHandler(ex, outFile))
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream
-      .eval(IO {
+      .eval(IO:
         assert(outFile.length > 16000)
         outFile.delete()
-      })
+      )
       .drain
     // run
     output.append(checkAndClean).compile.drain.unsafeRunSync()
-  }
 
-  test("spata allows data conversion to another file using for comprehension") {
+  test("spata allows data conversion to another file using for comprehension"):
     val outFile = SampleTH.getTempFile
     val outcome = for
       // get stream of CSV records while ensuring source cleanup
@@ -74,11 +72,10 @@ class FileITS extends AnyFunSuite:
     yield out
     // assert result and remove temp file - deleteOnExit is unreliable (doesn't work from sbt)
     val checkAndClean = Stream
-      .eval(IO {
+      .eval(IO:
         assert(outFile.length > 16000)
         outFile.delete()
-      })
+      )
       .drain
     // run
     outcome.append(checkAndClean).compile.drain.unsafeRunSync()
-  }

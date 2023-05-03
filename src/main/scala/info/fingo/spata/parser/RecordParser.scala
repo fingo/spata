@@ -35,7 +35,8 @@ final private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldR
       case (rf: RawField) :: tail if rf.endOfRecord =>
         state.buffer += rf.value
         val rr = RawRecord(state.buffer.result(), rf.counters, state.recNum)
-        if rr.isEmpty then parseChunk(tail, output, StateRP(state.recNum))
+        if rr.isEmpty
+        then parseChunk(tail, output, StateRP(state.recNum))
         else parseChunk(tail, output :+ rr, StateRP(state.recNum + 1))
       case (rf: RawField) :: tail =>
         state.buffer += rf.value

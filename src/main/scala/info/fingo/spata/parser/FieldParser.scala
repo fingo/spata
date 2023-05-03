@@ -66,8 +66,7 @@ final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
     FieldFailure(error, rc)
 
   private def recalculateCounters(counters: Location, cs: CharState): Location =
-    if cs.isNewLine then counters.nextLine
-    else counters.nextPosition
+    if cs.isNewLine then counters.nextLine else counters.nextPosition
 
   private def recalculateLocalCounts(lc: LocalCounts, cs: CharState): LocalCounts =
     cs.position match

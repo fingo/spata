@@ -248,12 +248,11 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     */
   def updatedWith(idx: Int)(f: String => String): Record =
     this(idx)
-      .map(v =>
+      .map: v =>
         val nvs = values.updated(idx, f(v))
         hdr match // do not access and create header if not necessary
           case Some(h) => Record(nvs*)(h)
           case None => Record.fromValues(nvs*)
-      )
       .getOrElse(this)
 
   /** Creates new record with value at given key updated by provided function.
@@ -275,10 +274,9 @@ final class Record private (val values: IndexedSeq[String], val position: Option
     * @return a new record with updated value or an error
     */
   def altered[A: StringParser, B: StringRenderer](key: String)(f: A => B): Either[ContentError, Record] =
-    get[A](key).map(v =>
+    get[A](key).map: v =>
       val nv = StringRenderer.render[B](f(v))
       updated(key, nv)
-    )
 
   /** Creates a builder, initialized with content of this record.
     * A builder may be used to enhance or reduce record.
@@ -490,7 +488,8 @@ object Record:
   private[spata] def create(values: IndexedSeq[String], rowNum: Int, lineNum: Int)(
     header: Header
   ): Either[StructureException, Record] =
-    if values.size == header.size then Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
+    if values.size == header.size
+    then Right(new Record(values, Position.some(rowNum, lineNum))(Some(header)))
     else Left(new StructureException(ParsingErrorCode.WrongNumberOfFields, Position.some(rowNum, lineNum)))
 
   /** Creates record.
@@ -690,9 +689,7 @@ object Record:
       * @return new record with values from this builder.
       */
     def get: Record =
-      val result =
-        if removed.isEmpty then buf
-        else buf.filterNot((k, _) => removed.contains(k))
+      val result = if removed.isEmpty then buf else buf.filterNot((k, _) => removed.contains(k))
       Record.fromPairs(result.reverse*)
 
     /* Gets final record from this builder with reversed order of the fields,

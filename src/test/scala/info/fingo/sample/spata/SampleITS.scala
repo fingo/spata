@@ -17,7 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 // Sample from readme (fahrenheit to celsius conversion), in form of test
 class SampleITS extends AnyFunSuite:
 
-  test("spata allows data conversion") {
+  test("spata allows data conversion"):
     val fahrenheitCSV = SampleTH.getTempFile.toPath
     val celsiusCSV = SampleTH.getTempFile.toPath
 
@@ -39,7 +39,6 @@ class SampleITS extends AnyFunSuite:
     Files.delete(fahrenheitCSV)
     Files.delete(celsiusCSV)
     assert(output == celsiusData)
-  }
 
   private lazy val fahrenheitData =
     """date,temp

@@ -7,3 +7,6 @@ addSbtPlugin("de.heikoseeberger" % "sbt-header" % "5.9.0")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.0")
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.7")
 addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "3.9.18")
+// temporarily for Scala 3.3 fewer braces support
+resolvers += Resolver.sonatypeRepo("snapshots")
+dependencyOverrides += "ch.epfl.scala" % "scalafix-interfaces" % "0.10.4+117-d647c59e-SNAPSHOT"

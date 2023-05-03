@@ -22,7 +22,7 @@ class ThreadITS extends AnyFunSuite:
   private def println(s: String): String = s // do nothing, don't pollute test output
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 
-  test("spata allows asynchronous source processing") {
+  test("spata allows asynchronous source processing"):
     val sum = new LongAdder()
     val count = new LongAdder()
 
@@ -44,25 +44,23 @@ class ThreadITS extends AnyFunSuite:
       case _ =>
         println(s"Error occurred while processing data")
         cdl.countDown()
-    SampleTH.withResource(getSource())(source =>
+    SampleTH.withResource(getSource()): source =>
       val data = Reader.shifting[IO].read(source)
       CSVParser[IO].async.process(data)(cb).unsafeRunAsync(result)
       assert(sum.intValue() < 1000)
       cdl.await(3, TimeUnit.SECONDS)
       assert(sum.intValue() > 1000)
-    )
-  }
 
-  test("spata source reading blocking operations may be shifted to blocking execution context") {
+  test("spata source reading blocking operations may be shifted to blocking execution context"):
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
     val parser = CSVConfig().mapHeader(mh).parser[IO] // parser with IO effect
-    val records = for {
+    val records = for
       // ensure resource allocation and  cleanup
       source <- Stream.bracket(IO(getSource()))(source => IO(source.close()))
       record <- Reader.shifting[IO].read(source).through(parser.parse) // get stream of CSV records
-    } yield record
+    yield record
     val dayTemps = records
       .map(_.to[DayTemp]) // converter records to DayTemps
       .rethrow // get data out of Either and let stream fail on error
@@ -71,7 +69,5 @@ class ThreadITS extends AnyFunSuite:
       .handleErrorWith(ex => fail(ex.getMessage)) // fail test on any stream error
     val result = dayTemps.compile.toList.unsafeRunSync()
     assert(result.length == 30)
-    assert(
+    assert:
       result.forall(dt => dt.date.isAfter(LocalDate.of(2017, 12, 31)) && dt.date.isBefore(LocalDate.of(2018, 2, 1)))
-    )
-  }

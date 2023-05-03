@@ -58,7 +58,7 @@ import info.fingo.spata.io.Reader
 case class Data(item: String, value: Double)
 val records = Stream
   // get stream of CSV records while ensuring source cleanup
-  .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+  .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
   .through(Reader.plain[IO].by) // produce stream of chars from source
   .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Record and Stream API
@@ -373,8 +373,8 @@ The caller to a `read` or a `write` method which takes a resource as a parameter
 is responsible for its cleanup. This may be achieved through FS2 `Stream.bracket`:
 ```scala
 val stream: Stream[IO, Unit] = for
-  source <- Stream.bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
-  destination <- Stream.bracket(IO { new FileOutputStream("data.csv") })(fos => IO { fos.close() })
+  source <- Stream.bracket(IO(Source.fromFile("data.csv")))(source => IO(source.close()))
+  destination <- Stream.bracket(IO(new FileOutputStream("data.csv")))(fos => IO(fos.close()))
   out <- Reader.shifting[IO].read(source)
     // do some processing
     .through(Writer[IO].write(destination))
@@ -392,7 +392,7 @@ There is a `by` method in `Reader`, which returns a `Pipe` too.
 It converts a single-element stream containing data source into a stream of characters:
 ```scala
 val stream: Stream[IO, Char] = Stream
-  .bracket(IO { Source.fromFile("data.csv") })(source => IO { source.close() })
+  .bracket(IO(Source.fromFile("data.csv")))(source => IO(source.close()))
   .through(Reader.shifting[IO].by)
 ```
 
@@ -781,13 +781,11 @@ but more suitable for validation scenarios. Please reach for Cats documentation 
 The compile-time nature of this process makes future record handling fully type-safe:
 ```scala
 val validatedStream = ???
-validatedStream.map { validated =>
-  validated.map { typedRecord =>
+validatedStream.map: validated =>
+  validated.map: typedRecord =>
     val symbol: String = typedRecord("symbol")
     val price: BigDecimal = typedRecord("price")
     // ...
-  }
-}
 ```
 Please notice, that in contrast to the regular record, where the result is wrapped in `Decoded[T]`,
 we always get the straight type out of typed record.
@@ -832,15 +830,13 @@ Please note, that this still requires the field (column) to be present, only per
 While processing a validated stream, we have access to invalid data as well: 
 ```scala
 val validatedStream = ???
-validatedStream.map { validated =>
-  validated.map { typedRecord =>
+validatedStream.map: validated =>
+  validated.map: typedRecord =>
     val price: BigDecimal = typedRecord("price")
     // ...
-  }.leftMap { invalid =>
+  .leftMap: invalid =>
     val price: Option[String] = invalid.record("price")
     // ...
-  }
-}
 ```
 (the above `map`/`leftMap` combination may be simplified to `bimap`).
 
@@ -894,17 +890,15 @@ object Converter extends IOApp.Simple:
       .read(Paths.get("testdata/fahrenheit.txt"))
       .through(CSVParser[IO].parse)
       .through(schema.validate)
-      .map {
-        _.leftMap(_.toString).map { tr =>
+      .map:
+        _.leftMap(_.toString).map: tr =>
           val date = tr("date")
           val temp = fahrenheitToCelsius(tr("temp"))
           Record.builder.add("date", date).add("temp", temp).get
-        }
-      }
-      .evalMap { _ match
-        case Invalid(s) => IO.println(s) >> IO.none
-        case Valid(r) => IO(Some(r))
-      }
+      .evalMap:
+        _ match
+          case Invalid(s) => IO.println(s) >> IO.none
+          case Valid(r) => IO(Some(r))
       .unNone
       .through(CSVRenderer[IO].render)
       .through(Writer[IO].write(Paths.get("testdata/celsius.txt")))
@@ -974,21 +968,19 @@ object Converter extends IOApp:
       .read(src)
       .through(CSVParser[IO].parse)
       .filter(r => r("temp").exists(!_.isBlank))
-      .map { r =>
+      .map: r =>
         for
           date <- r.get[String]("date")
           fTemp <- r.get[Double]("temp")
           cTemp = fahrenheitToCelsius(fTemp)
         yield Record.builder.add("date", date).add("temp", cTemp).get
-      }
       .rethrow
       .through(CSVRenderer[IO].render)
       .through(Writer[IO].write(dst))
       .fold(ExitCode.Success)((z, _) => z)
-      .handleErrorWith { ex =>
+      .handleErrorWith: ex =>
         Try(dst.toFile.delete())
         Stream.eval(IO(println(ex)) *> IO(ExitCode.Error))
-      }
 
   def run(args: List[String]): IO[ExitCode] = converter.compile.lastOrError
 ```

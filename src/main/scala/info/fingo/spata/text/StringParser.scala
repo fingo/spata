@@ -208,7 +208,8 @@ object StringParser:
     val pos = new ParsePosition(0)
     val s = str.strip
     val num = fmt.parse(s, pos)
-    if pos.getIndex != s.length then
+    if pos.getIndex != s.length
+    then
       throw new ParseError(
         str,
         Some("number"),

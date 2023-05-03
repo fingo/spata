@@ -6,4 +6,4 @@
 package info.fingo.spata.schema
 
 /** Type alias for typed record field name. */
-type Key = String with Singleton
+type Key = String & Singleton

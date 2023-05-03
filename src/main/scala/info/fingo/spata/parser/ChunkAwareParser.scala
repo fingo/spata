@@ -18,15 +18,12 @@ private[spata] trait ChunkAwareParser[F[_], I, O, S <: State]:
   /* Template method which handles chunk processing. */
   def parse(state: S): Pipe[F, I, O] =
     def loop(is: Stream[F, I], state: S): Pull[F, O, Unit] =
-      is.pull.uncons.flatMap {
+      is.pull.uncons.flatMap:
         case Some((h, t)) =>
           val (nextState, resultChunk) = parseChunk(h.toList, Vector.empty[O], state)
           Pull.output(resultChunk) >> next(t, nextState)
         case None => Pull.done
-      }
-    def next(fields: Stream[F, I], state: S) =
-      if state.done then Pull.done
-      else loop(fields, state)
+    def next(fields: Stream[F, I], state: S) = if state.done then Pull.done else loop(fields, state)
     is => loop(is, state).stream
 
   /* Abstract method responsible for specific chunk data parsing, used recursively.

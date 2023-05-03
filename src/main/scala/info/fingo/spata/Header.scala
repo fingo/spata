@@ -87,16 +87,16 @@ object Header:
   /* Check if there are duplicates and return header or error */
   private def checkDuplicates(header: IndexedSeq[String]): Either[StructureException, Header] =
     val doubles = duplicates(header)
-    if doubles.isEmpty then Right(new Header(header))
+    if doubles.isEmpty
+    then Right(new Header(header))
     else
-      Left(
+      Left:
         new StructureException(
           ParsingErrorCode.DuplicatedHeader,
           Position.some(0, 1),
           None,
           new FieldInfo(doubles.headOption)
         )
-      )
 
 /** Trait representing header remapping methods.
   * It is not used directly but through conversion of [S2S] or [I2S] partial function to one its implementation classes.

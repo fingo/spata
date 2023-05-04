@@ -16,37 +16,29 @@ import CharFailures.*
 
 class CharParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
-  test("Char parser should correctly parse provided input without trimming") {
+  test("Char parser should correctly parse provided input without trimming"):
     val parser = new CharParser[IO](sep, rs, qt, false)
-    forAll(regularCases ++ spaceNoTrimCases)((_, input, output) =>
+    forAll(regularCases ++ spaceNoTrimCases): (_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    )
-  }
 
-  test("Char parser should correctly parse provided input with trimming") {
+  test("Char parser should correctly parse provided input with trimming"):
     val parser = new CharParser[IO](sep, rs, qt, true)
-    forAll(regularCases ++ spaceTrimCases)((_, input, output) =>
+    forAll(regularCases ++ spaceTrimCases): (_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    )
-  }
 
-  test("Char parser should return error info for malformed input while parsing without trimming") {
+  test("Char parser should return error info for malformed input while parsing without trimming"):
     val parser = new CharParser[IO](sep, rs, qt, false)
-    forAll(malformedCases ++ malformedNoTrimCases)((_, input, output) =>
+    forAll(malformedCases ++ malformedNoTrimCases): (_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    )
-  }
 
-  test("Char parser should return error info for malformed input while parsing with trimming") {
+  test("Char parser should return error info for malformed input while parsing with trimming"):
     val parser = new CharParser[IO](sep, rs, qt, true)
-    forAll(malformedCases ++ malformedTrimCases)((_, input, output) =>
+    forAll(malformedCases ++ malformedTrimCases): (_, input, output) =>
       val result = parse(parser, input)
       assert(result == output)
-    )
-  }
 
   private def parse(parser: CharParser[IO], input: String) =
     val stream = Stream(input.toIndexedSeq*).through(parser.toCharResults)

@@ -52,14 +52,14 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter:
     // get the IO effect with it final result
     val io = maximum.compile.toList.map: l =>
       val t = l.headOption.getOrElse(fail())
-      logger.debug(f"Maximum recorded temperature is $t%.1f° C")  // logged while evalueting IO
+      logger.debug(f"Maximum recorded temperature is $t%.1f° C") // logged while evalueting IO
       assert(t > 0)
       t
-    logger.debug("CSV parsing with logging - start")  // side effect - logged outside of IO
+    logger.debug("CSV parsing with logging - start") // side effect - logged outside of IO
     assert(!Files.readString(logFilePath).contains("spata -"))
     // evaluate effect - trigger all stream operations
     val maxTemp = io.unsafeRunSync()
-    logger.debug("CSV parsing with logging - finish")  // side effect - logged outside of IO
+    logger.debug("CSV parsing with logging - finish") // side effect - logged outside of IO
 
     val log = Files.readString(logFilePath)
     assert(log.contains("INFO spata - Parsing CSV"))

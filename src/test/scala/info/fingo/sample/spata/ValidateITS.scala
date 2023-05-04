@@ -32,7 +32,7 @@ class ValidateITS extends AnyFunSuite:
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
-      .bracket(IO (getSource() ))(source => IO (source.close() )) // ensure resource cleanup
+      .bracket(IO(getSource()))(source => IO(source.close())) // ensure resource cleanup
       .through(Reader.plain[IO].by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated

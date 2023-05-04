@@ -18,66 +18,49 @@ class StringRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
   private val locale = new Locale("pl", "PL")
   private val nbsp = '\u00A0'
 
-  test("StringRenderer should correctly render strings") {
-    forAll(strings)((_: String, string: String, str: String) =>
+  test("StringRenderer should correctly render strings"):
+    forAll(strings): (_: String, string: String, str: String) =>
       assert(render(string) == str)
       assert(render(Some(string)) == str)
-    )
     assert(render(none[String]) == "")
     assert(render(None.orNull[String]) == "")
-  }
 
-  test("StringRenderer should correctly render ints") {
-    forAll(ints)((_: String, int: Int, str: String) =>
+  test("StringRenderer should correctly render ints"):
+    forAll(ints): (_: String, int: Int, str: String) =>
       assert(render[Int](int) == str)
       assert(render(Some(int)) == str)
-    )
     assert(render(none[Int]) == "")
-  }
 
-  test("StringRenderer should correctly render longs") {
+  test("StringRenderer should correctly render longs"):
     forAll(longs)((_: String, long: Long, fmt: Option[NumberFormat], str: String) => assertRendering(long, fmt, str))
-  }
 
-  test("StringRenderer should correctly render doubles") {
-    forAll(doubles)((_: String, double: Double, fmt: Option[DecimalFormat], str: String) =>
+  test("StringRenderer should correctly render doubles"):
+    forAll(doubles): (_: String, double: Double, fmt: Option[DecimalFormat], str: String) =>
       assertRendering(double, fmt, str)
-    )
-  }
 
-  test("StringRenderer should correctly render big decimals") {
-    forAll(decimals)((_: String, decimal: BigDecimal, fmt: Option[DecimalFormat], str: String) =>
+  test("StringRenderer should correctly render big decimals"):
+    forAll(decimals): (_: String, decimal: BigDecimal, fmt: Option[DecimalFormat], str: String) =>
       assertRendering(decimal, fmt, str)
-    )
     assert(render(None.orNull[BigDecimal]) == "")
-  }
 
-  test("StringRenderer should correctly render local dates") {
-    forAll(dates)((_: String, date: LocalDate, fmt: Option[DateTimeFormatter], str: String) =>
+  test("StringRenderer should correctly render local dates"):
+    forAll(dates): (_: String, date: LocalDate, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(date, fmt, str)
-    )
     assert(render(None.orNull[LocalDate]) == "")
-  }
 
-  test("StringRenderer should correctly render local times") {
-    forAll(times)((_: String, time: LocalTime, fmt: Option[DateTimeFormatter], str: String) =>
+  test("StringRenderer should correctly render local times"):
+    forAll(times): (_: String, time: LocalTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(time, fmt, str)
-    )
     assert(render(None.orNull[LocalTime]) == "")
-  }
 
-  test("StringRenderer should correctly render local date-times") {
-    forAll(dateTimes)((_: String, dateTime: LocalDateTime, fmt: Option[DateTimeFormatter], str: String) =>
+  test("StringRenderer should correctly render local date-times"):
+    forAll(dateTimes): (_: String, dateTime: LocalDateTime, fmt: Option[DateTimeFormatter], str: String) =>
       assertRendering(dateTime, fmt, str)
-    )
     assert(render(None.orNull[LocalDateTime]) == "")
-  }
 
-  test("StringRenderer should correctly render booleans") {
-    forAll(booleans)((_: String, boolean: Boolean, fmt: Option[BooleanFormatter], str: String) =>
+  test("StringRenderer should correctly render booleans"):
+    forAll(booleans): (_: String, boolean: Boolean, fmt: Option[BooleanFormatter], str: String) =>
       assertRendering(boolean, fmt, str)
-    )
-  }
 
   private def none[A]: Option[A] = Option.empty[A]
 

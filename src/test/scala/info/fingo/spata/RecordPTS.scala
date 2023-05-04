@@ -50,116 +50,114 @@ object RecordPTS extends Bench.LocalTime:
   private val wideValues = (1 to sampleSize).map(s => makeValues(s, wideRecordSize))
   private val wideRecords = wideValues.map(vs => Record(vs*)(wideHeader))
 
-  performance.of("record").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
-    measure.method("create") in {
-      using(creationModes) in {
-        case "with_header" =>
-          (1 to amount).map(i => Record(values(i % sampleSize)*)(header)).foreach(effect)
-        case "no_header" =>
-          (1 to amount).map(i => Record.fromValues(values(i % sampleSize)*)).foreach(effect)
-        case "from_pairs" =>
-          (1 to amount).map(i => Record.fromPairs(pairs(i % sampleSize)*)).foreach(effect)
-        case "build" =>
-          (1 to amount)
-            .map(i =>
-              Record.builder
-                .add("header-key-1", values(i % sampleSize)(1))
-                .add("header-key-2", values(i % sampleSize).head.toInt)
-                .add("header-key-3", date)
-                .add("header-key-4", decimal)
-                .add("header-key-5", 3.14)
-                .add("header-key-6", "another text")
-                .add("header-key-7", true)
-                .add("header-key-8", 0)
-                .add("header-key-9", 99999L)
-                .add("header-key-10", 2.72)
-                .get
-            )
-            .foreach(effect)
-        case "from_class" =>
-          (1 to amount).map(i => Record.from(classes(i % sampleSize))).foreach(effect)
-        case "from_tuple" =>
-          (1 to amount).map(i => Record.from(tuples(i % sampleSize))).foreach(effect)
-        case "extend_header" =>
-          val partialHeader = makeHeader(recordSize / 2)
-          (1 to amount).map(i => Record(values(i % sampleSize)*)(partialHeader)).foreach(effect)
-        case "build_wide" =>
-          (1 to amount)
-            .map(i =>
-              (0 to wideRecordSize)
-                .foldLeft(Record.builder) { case (builder, index) =>
-                  val hdr = s"header-key-$index"
-                  index % 10 match
-                    case 0 => builder.add(hdr, values(i % sampleSize)(1))
-                    case 1 => builder.add(hdr, values(i % sampleSize).head.toInt)
-                    case 2 => builder.add(hdr, date)
-                    case 3 => builder.add(hdr, decimal)
-                    case 4 => builder.add(hdr, 3.14)
-                    case 5 => builder.add(hdr, "another text")
-                    case 6 => builder.add(hdr, true)
-                    case 7 => builder.add(hdr, 0)
-                    case 8 => builder.add(hdr, 99999L)
-                    case 9 => builder.add(hdr, 2.72)
-                }
-                .get
-            )
-            .foreach(effect)
-      }
-    }
-    measure.method("update") in {
-      using(updateModes) in {
-        case "by_key" =>
-          (1 to amount).map(i => records(i % sampleSize).updated("text2", "new value")).foreach(effect)
-        case "by_index" =>
-          (1 to amount).map(i => records(i % sampleSize).updated(6, "new value")).foreach(effect)
-        case "function" =>
-          def fun: String => String = identity
-          (1 to amount).map(i => records(i % sampleSize).updatedWith("text2")(fun)).foreach(effect)
-        case "altered" =>
-          def fun: Int => Int = x => 2 * x
-          (1 to amount).map(i => records(i % sampleSize).altered("int1")(fun)).foreach {
-            case Right(r) => effect(r)
-            case Left(_) => throw new RuntimeException("Exception in altered")
-          }
-        case "patch" =>
-          (1 to amount)
-            .map(i => records(i % sampleSize).patch.add("text3", "new value").remove("dbl2").get)
-            .foreach(effect)
-        case "altered_wide" =>
-          def fun: Int => Int = x => 2 * x
-          val key = s"header-key-${wideRecordSize / 2 + 1}"
-          (1 to amount).map(i => wideRecords(i % sampleSize).altered(key)(fun)).foreach {
-            case Right(r) => effect(r)
-            case Left(_) => throw new RuntimeException("Exception in altered")
-          }
-        case "patch_wide" =>
-          val key = s"header-key-${wideRecordSize / 2}"
-          (1 to amount)
-            .map(i => wideRecords(i % sampleSize).patch.add("header-key-new", "new value").remove(key).get)
-            .foreach(effect)
-      }
-    }
-    measure.method("get") in {
-      using(getModes) in {
-        case "by_index" =>
-          (1 to amount).map(i => records(i % sampleSize)(recordSize / 2)).foreach(identity)
-        case "by_key" =>
-          (1 to amount).map(i => records(i % sampleSize)("text2")).foreach(identity)
-        case "typed" =>
-          (1 to amount).map(i => records(i % sampleSize).get[Long]("long")).foreach(identity)
-        case "formatted" =>
-          val format = NumberFormat.getInstance(locale)
-          (1 to amount).map(i => records(i % sampleSize).get[Long]("long", format)).foreach(identity)
-        case "to_class" =>
-          (1 to amount).map(i => records(i % sampleSize).to[Sample]).foreach(identity)
-        case "to_tuple" =>
-          (1 to amount).map(i => records(i % sampleSize).to[SampleT]).foreach(identity)
-        case "typed_wide" =>
-          val key = s"header-key-${wideRecordSize / 2 + 1}"
-          (1 to amount).map(i => wideRecords(i % sampleSize).get[Int](key)).foreach(identity)
-      }
-    }
-  }
+  performance
+    .of("record")
+    .config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in:
+      measure
+        .method("create") in:
+          using(creationModes) in:
+            case "with_header" =>
+              (1 to amount).map(i => Record(values(i % sampleSize)*)(header)).foreach(effect)
+            case "no_header" =>
+              (1 to amount).map(i => Record.fromValues(values(i % sampleSize)*)).foreach(effect)
+            case "from_pairs" =>
+              (1 to amount).map(i => Record.fromPairs(pairs(i % sampleSize)*)).foreach(effect)
+            case "build" =>
+              (1 to amount)
+                .map: i =>
+                  Record.builder
+                    .add("header-key-1", values(i % sampleSize)(1))
+                    .add("header-key-2", values(i % sampleSize).head.toInt)
+                    .add("header-key-3", date)
+                    .add("header-key-4", decimal)
+                    .add("header-key-5", 3.14)
+                    .add("header-key-6", "another text")
+                    .add("header-key-7", true)
+                    .add("header-key-8", 0)
+                    .add("header-key-9", 99999L)
+                    .add("header-key-10", 2.72)
+                    .get
+                .foreach(effect)
+            case "from_class" =>
+              (1 to amount).map(i => Record.from(classes(i % sampleSize))).foreach(effect)
+            case "from_tuple" =>
+              (1 to amount).map(i => Record.from(tuples(i % sampleSize))).foreach(effect)
+            case "extend_header" =>
+              val partialHeader = makeHeader(recordSize / 2)
+              (1 to amount).map(i => Record(values(i % sampleSize)*)(partialHeader)).foreach(effect)
+            case "build_wide" =>
+              (1 to amount)
+                .map: i =>
+                  (0 to wideRecordSize)
+                    .foldLeft(Record.builder):
+                      case (builder, index) =>
+                        val hdr = s"header-key-$index"
+                        index % 10 match
+                          case 0 => builder.add(hdr, values(i % sampleSize)(1))
+                          case 1 => builder.add(hdr, values(i % sampleSize).head.toInt)
+                          case 2 => builder.add(hdr, date)
+                          case 3 => builder.add(hdr, decimal)
+                          case 4 => builder.add(hdr, 3.14)
+                          case 5 => builder.add(hdr, "another text")
+                          case 6 => builder.add(hdr, true)
+                          case 7 => builder.add(hdr, 0)
+                          case 8 => builder.add(hdr, 99999L)
+                          case 9 => builder.add(hdr, 2.72)
+                    .get
+                .foreach(effect)
+      measure
+        .method("update") in:
+          using(updateModes) in:
+            case "by_key" =>
+              (1 to amount).map(i => records(i % sampleSize).updated("text2", "new value")).foreach(effect)
+            case "by_index" =>
+              (1 to amount).map(i => records(i % sampleSize).updated(6, "new value")).foreach(effect)
+            case "function" =>
+              def fun: String => String = identity
+              (1 to amount).map(i => records(i % sampleSize).updatedWith("text2")(fun)).foreach(effect)
+            case "altered" =>
+              def fun: Int => Int = x => 2 * x
+              (1 to amount)
+                .map(i => records(i % sampleSize).altered("int1")(fun))
+                .foreach:
+                  case Right(r) => effect(r)
+                  case Left(_) => throw new RuntimeException("Exception in altered")
+            case "patch" =>
+              (1 to amount)
+                .map(i => records(i % sampleSize).patch.add("text3", "new value").remove("dbl2").get)
+                .foreach(effect)
+            case "altered_wide" =>
+              def fun: Int => Int = x => 2 * x
+              val key = s"header-key-${wideRecordSize / 2 + 1}"
+              (1 to amount)
+                .map(i => wideRecords(i % sampleSize).altered(key)(fun))
+                .foreach:
+                  case Right(r) => effect(r)
+                  case Left(_) => throw new RuntimeException("Exception in altered")
+            case "patch_wide" =>
+              val key = s"header-key-${wideRecordSize / 2}"
+              (1 to amount)
+                .map(i => wideRecords(i % sampleSize).patch.add("header-key-new", "new value").remove(key).get)
+                .foreach(effect)
+      measure
+        .method("get") in:
+          using(getModes) in:
+            case "by_index" =>
+              (1 to amount).map(i => records(i % sampleSize)(recordSize / 2)).foreach(identity)
+            case "by_key" =>
+              (1 to amount).map(i => records(i % sampleSize)("text2")).foreach(identity)
+            case "typed" =>
+              (1 to amount).map(i => records(i % sampleSize).get[Long]("long")).foreach(identity)
+            case "formatted" =>
+              val format = NumberFormat.getInstance(locale)
+              (1 to amount).map(i => records(i % sampleSize).get[Long]("long", format)).foreach(identity)
+            case "to_class" =>
+              (1 to amount).map(i => records(i % sampleSize).to[Sample]).foreach(identity)
+            case "to_tuple" =>
+              (1 to amount).map(i => records(i % sampleSize).to[SampleT]).foreach(identity)
+            case "typed_wide" =>
+              val key = s"header-key-${wideRecordSize / 2 + 1}"
+              (1 to amount).map(i => wideRecords(i % sampleSize).get[Int](key)).foreach(identity)
 
   private def effect(r: Record) = r(0)
 

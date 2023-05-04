@@ -38,21 +38,18 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   // wrap basic test structure into a method to reduce code duplication
   private def basicTestWrapper(hasHeader: Boolean)(testCode: (BasicTestInfo, CSVParser[IO]) => Assertion): Assertion =
-    forAll(trimmingWs)((trim: Boolean, ws: String) =>
-      forAll(basicCases(ws))(
+    forAll(trimmingWs): (trim: Boolean, ws: String) =>
+      forAll(basicCases(ws)):
         (testCase: String, firstName: String, firstValue: String, lastName: String, lastValue: String) =>
-          forAll(separators)(separator =>
+          forAll(separators): separator =>
             val testInfo = new BasicTestInfo((testCase, firstName, firstValue, lastName, lastValue), separator)
             val basicConfig = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
             val config = if hasHeader then basicConfig else basicConfig.noHeader
             val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
             testCode(testInfo, parser)
-          )
-      )
-    )
 
-  test("parser should process basic csv data") {
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+  test("parser should process basic csv data"):
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val content = basicContent(testInfo.testCase, testInfo.separator)
       val header = basicHeader(testInfo.separator)
       val csv = s"$header\n$content"
@@ -68,7 +65,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
       assert(head.rowNum == 1)
       assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
       assert(last.rowNum == list.size)
-
       case class Data(NAME: String, DATE: LocalDate)
       given ldsp: StringParser[LocalDate] with
         def apply(str: String) = LocalDate.parse(str.strip, DateTimeFormatter.ofPattern("dd.MM.yyyy"))
@@ -78,11 +74,9 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
       val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall(_.NAME == testInfo.lastName))
-    )
-  }
 
-  test("parser should process basic csv data without header") {
-    basicTestWrapper(hasHeader = false)((testInfo, parser) =>
+  test("parser should process basic csv data without header"):
+    basicTestWrapper(hasHeader = false): (testInfo, parser) =>
       val csv = basicContent(testInfo.testCase, testInfo.separator)
       val stream = csvStream(csv).through(parser.parse)
       val list = stream.compile.toList.unsafeRunSync()
@@ -98,7 +92,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
       assert(head.rowNum == 1)
       assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
       assert(last.rowNum == list.size)
-
       type Data = (Int, String)
       val hmd = head.to[Data]
       assert(hmd.isRight)
@@ -106,24 +99,19 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
       val lmd = last.to[Data]
       assert(lmd.isRight)
       assert(lmd.forall((_, name) => name == testInfo.lastName))
-    )
-  }
 
-  test("parser should process empty csv data without header record") {
-    forAll(emptyContentWs)((trim: Boolean, ws: String) =>
-      forAll(emptyCases(ws))((_: String, content: String) =>
+  test("parser should process empty csv data without header record"):
+    forAll(emptyContentWs): (trim: Boolean, ws: String) =>
+      forAll(emptyCases(ws)): (_: String, content: String) =>
         val config = CSVParser.config.noHeader
         val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
         val stream = csvStream(content).through(parser.parse)
         val list = stream.compile.toList.unsafeRunSync()
         assert(list.isEmpty)
-      )
-    )
-  }
 
-  test("parser should clearly report errors in source data while handling them") {
-    forAll(trimmings)(trim =>
-      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases))(
+  test("parser should clearly report errors in source data while handling them"):
+    forAll(trimmings): trim =>
+      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases)):
         (
           testCase: String,
           errorCode: String,
@@ -132,7 +120,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           col: Option[Int],
           field: FieldInfo
         ) =>
-          forAll(separators)(separator =>
+          forAll(separators): separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
             val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
             val input = Reader[IO](chunkSize).read(generateErroneousCSV(testCase, separator))
@@ -140,14 +128,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
             val eh: StreamErrorHandler =
               ex => assertError(ex, errorCode, line, col, row, field)(Stream.emit(()))
             stream.handleErrorWith(eh).compile.drain.unsafeRunSync()
-          )
-      )
-    )
-  }
 
-  test("parser errors should manifest themselves as exceptions when there is no error handler provided") {
-    forAll(trimmings)(trim =>
-      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases))(
+  test("parser errors should manifest themselves as exceptions when there is no error handler provided"):
+    forAll(trimmings): trim =>
+      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases)):
         (
           testCase: String,
           errorCode: String,
@@ -156,48 +140,37 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           col: Option[Int],
           field: FieldInfo
         ) =>
-          forAll(separators)(separator =>
+          forAll(separators): separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
             val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
             val input = Reader[IO](chunkSize).read(generateErroneousCSV(testCase, separator))
             val stream = input.through(parser.parse)
-            val ex = intercept[Exception](
-              stream.compile.drain.unsafeRunSync()
-            )
+            val ex = intercept[Exception](stream.compile.drain.unsafeRunSync())
             assertError(ex, errorCode, line, col, row, field)(())
-          )
-      )
-    )
-  }
 
-  test("parser should allow fetching records as list") {
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+  test("parser should allow fetching records as list"):
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val input = csvStream(basicCSV(testInfo.testCase, testInfo.separator))
       val list = parser.get(input).unsafeRunSync()
       assert(list.size == 3)
       assertListFirst(list, testInfo.firstName, testInfo.firstValue)
       assertListLast(list, testInfo.lastName, testInfo.lastValue)
-
       case class Data(ID: Int, NAME: String)
       val data = list.map(_.to[Data]).collect { case Right(v) => v }
       assert(data.length == 3)
       assert(data.head.NAME == testInfo.firstName)
-    )
-  }
 
-  test("parser should allow fetching limited number of records as list") {
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+  test("parser should allow fetching limited number of records as list"):
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val source = Source.fromString(basicCSV(testInfo.testCase, testInfo.separator))
       val input = Reader[IO](chunkSize).read(source)
       val list = parser.get(input, 2).unsafeRunSync()
       assert(list.size == 2)
       assertListFirst(list, testInfo.firstName, testInfo.firstValue)
       assert(source.hasNext)
-    )
-  }
 
-  test("parser should provide access to csv data through callback function") {
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+  test("parser should provide access to csv data through callback function"):
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val input = csvStream(basicCSV(testInfo.testCase, testInfo.separator))
       val rowNums = mutable.Stack[Int]()
       val cb: Callback = row =>
@@ -214,12 +187,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           case _ => true
       parser.process(input)(cb).unsafeRunSync()
       assert(rowNums == mutable.Stack[Int](3, 2, 1))
-    )
-  }
 
-  test("parser errors may be handled by IO error handler") {
-    forAll(trimmings)(trim =>
-      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases))(
+  test("parser errors may be handled by IO error handler"):
+    forAll(trimmings): trim =>
+      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases)):
         (
           testCase: String,
           errorCode: String,
@@ -228,30 +199,24 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           col: Option[Int],
           field: FieldInfo
         ) =>
-          forAll(separators)(separator =>
+          forAll(separators): separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
             val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
             val source = generateErroneousCSV(testCase, separator)
             val input = Reader[IO](chunkSize).read(source)
             val eh: IOErrorHandler = ex => assertError(ex, errorCode, line, col, row, field)(IO.unit)
             parser.process(input)(_ => true).handleErrorWith(eh).unsafeRunSync()
-          )
-      )
-    )
-  }
 
-  test("parser should consume only required part of stream depending on callback return value") {
+  test("parser should consume only required part of stream depending on callback return value"):
     val cb: Callback = row => row(0).exists(_.startsWith("2"))
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val source = Source.fromString(basicCSV(testInfo.testCase, testInfo.separator))
       val input = Reader[IO](chunkSize).read(source)
       parser.process(input)(cb).unsafeRunSync()
       assert(source.hasNext)
-    )
-  }
 
-  test("parser should provide access to csv data through async callback function") {
-    basicTestWrapper(hasHeader = true)((testInfo, parser) =>
+  test("parser should provide access to csv data through async callback function"):
+    basicTestWrapper(hasHeader = true): (testInfo, parser) =>
       val input = csvStream(basicCSV(testInfo.testCase, testInfo.separator))
       val count = new LongAdder()
       val cb: Callback = row =>
@@ -268,12 +233,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           case _ => true
       parser.async.process(input, 2)(cb).unsafeRunSync()
       assert(count.intValue() == 3)
-    )
-  }
 
-  test("parser errors may be examined by callback passed to final impure method") {
-    forAll(trimmings)(trim =>
-      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases))(
+  test("parser errors may be examined by callback passed to final impure method"):
+    forAll(trimmings): trim =>
+      forAll(errorCases ++ (if trim then trimErrorCases else noTrimErrorCases)):
         (
           testCase: String,
           errorCode: String,
@@ -282,7 +245,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           col: Option[Int],
           field: FieldInfo
         ) =>
-          forAll(separators)(separator =>
+          forAll(separators): separator =>
             val config = CSVConfig().fieldDelimiter(separator).fieldSizeLimit(maxFieldSize)
             val parser = if trim then config.stripSpaces.parser[IO] else config.parser[IO]
             val source = generateErroneousCSV(testCase, separator)
@@ -299,15 +262,11 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
             parser.async.process(input)(_ => true).unsafeRunAsync(rcb)
             cdl.await(100, TimeUnit.MILLISECONDS)
             assert(cdl.getCount == 0)
-          )
-      )
-    )
-  }
 
-  test("it should be possible to set duplicated header names to get unique ones") {
-    forAll(trimmings)(trim =>
-      forAll(separators)(separator =>
-        forAll(duplicateCases(separator))((header, position, replacement) =>
+  test("it should be possible to set duplicated header names to get unique ones"):
+    forAll(trimmings): trim =>
+      forAll(separators): separator =>
+        forAll(duplicateCases(separator)): (header, position, replacement) =>
           val content = basicContent("basic", separator)
           val csv = s"$header\n$content"
           val headerMap = Map(position -> replacement)
@@ -317,10 +276,6 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
           val list = stream.compile.toList.unsafeRunSync()
           assert(list.nonEmpty)
           assert(list.head(replacement).isDefined)
-        )
-      )
-    )
-  }
 
   private def csvStream(csvString: String) = Reader[IO](chunkSize).read(Source.fromString(csvString))
 

@@ -20,9 +20,9 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks:
   // use smaller chunk size than the default one is some tests to avoid having all data in single chunk
   private val chunkSize = 16
 
-  test("reader should properly load characters from source") {
-    forAll(testCases)((_: String, data: String) =>
-      forAll(readers)((_: String, reader: Reader[IO]) =>
+  test("reader should properly load characters from source"):
+    forAll(testCases): (_: String, data: String) =>
+      forAll(readers): (_: String, reader: Reader[IO]) =>
         def stream = reader(Source.fromString(data))
         stream
           .zip(Reader.plain[IO].read(Source.fromString(data)))
@@ -31,74 +31,57 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks:
           .drain
           .unsafeRunSync()
         assert(stream.compile.toList.unsafeRunSync() == data.toList)
-      )
-    )
-  }
 
-  test("reader should allow handling exception with MonadError") {
+  test("reader should allow handling exception with MonadError"):
     val source = new BufferedSource(() => throw new IOException("message"))
-    forAll(readers)((_: String, reader: Reader[IO]) =>
+    forAll(readers): (_: String, reader: Reader[IO]) =>
       val stream = reader.read(source)
       val eh = (ex: Throwable) => Stream.emit(ex.isInstanceOf[IOException])
       val result = stream.map(_ => false).handleErrorWith(eh).compile.toList.unsafeRunSync()
       assert(result.length == 1)
       assert(result.head)
-    )
-  }
 
-  test("reader should properly read from InputSteam wrapped in effect") {
-    forAll(testCases)((_: String, data: String) =>
-      forAll(readers)((_: String, reader: Reader[IO]) =>
+  test("reader should properly read from InputSteam wrapped in effect"):
+    forAll(testCases): (_: String, data: String) =>
+      forAll(readers): (_: String, reader: Reader[IO]) =>
         val input = IO(new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8)))
         val stream = reader(input)
         assert(stream.compile.toList.unsafeRunSync() == data.toList)
-      )
-    )
-  }
 
-  test("reader should properly read from plain InputSteam") {
-    forAll(testCases)((_: String, data: String) =>
-      forAll(readers)((_: String, reader: Reader[IO]) =>
+  test("reader should properly read from plain InputSteam"):
+    forAll(testCases): (_: String, data: String) =>
+      forAll(readers): (_: String, reader: Reader[IO]) =>
         val input = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8))
         val stream = reader(input)
         assert(stream.compile.toList.unsafeRunSync() == data.toList)
-      )
-    )
-  }
 
-  test("reader should properly read from path") {
+  test("reader should properly read from path"):
     val path = Paths.get(getClass.getClassLoader.getResource("sample.csv").toURI)
-    forAll(readers)((_: String, reader: Reader[IO]) =>
+    forAll(readers): (_: String, reader: Reader[IO]) =>
       val stream = reader(path)
       val content = stream.compile.toList.unsafeRunSync()
       assert(content.mkString == Files.readString(path))
-    )
-  }
 
-  test("reader should properly read UTF-8 files with BOM") {
+  test("reader should properly read UTF-8 files with BOM"):
     val localChar = 'ł'
     val path = Paths.get(getClass.getClassLoader.getResource("bom.csv").toURI)
-    forAll(readers)((_: String, reader: Reader[IO]) =>
+    forAll(readers): (_: String, reader: Reader[IO]) =>
       val stream = reader(path)
       val content = stream.compile.toList.unsafeRunSync()
       assert(content.startsWith("author"))
       assert(content.contains(localChar))
-    )
-  }
 
-  test("reader should properly read files with non-UTF encoding") {
+  test("reader should properly read files with non-UTF encoding"):
     val localChar = 'ł'
     given codec: Codec(Charset.forName("windows-1250"))
     val path = Paths.get(getClass.getClassLoader.getResource("windows1250.csv").toURI)
-    forAll(readers)((_: String, reader: Reader[IO]) =>
+    forAll(readers): (_: String, reader: Reader[IO]) =>
       val stream = reader.read(path)
       val content = stream.compile.toList.unsafeRunSync()
       assert(content.startsWith("author"))
       assert(content.contains(localChar))
-    )
-  }
 
-  test("reader should properly handle charset conversion errors") {
+  test("reader should properly handle charset conversion errors"):
     val CAN = 0x18.toChar
     given codec: Codec(StandardCharsets.US_ASCII)
     val path = Paths.get(getClass.getClassLoader.getResource("big5.csv").toURI)
@@ -106,7 +89,6 @@ class ReaderTS extends AnyFunSuite with TableDrivenPropertyChecks:
     val stream = Stream.bracket(fis)(resource => IO(resource.close())).through(Reader.shifting[IO](chunkSize).by)
     val content = stream.handleErrorWith(_ => Stream.emit(CAN)).compile.toList.unsafeRunSync()
     assert(content == List(CAN))
-  }
 
   private lazy val readers = Table(
     ("name", "reader"),

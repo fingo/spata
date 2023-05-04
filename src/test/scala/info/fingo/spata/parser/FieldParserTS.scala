@@ -21,19 +21,15 @@ class FieldParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val parser = new FieldParser[IO](Some(limit))
 
-  test("Field parser should correctly parse provided input") {
-    forAll(regularCases)((_, input, output) =>
+  test("Field parser should correctly parse provided input"):
+    forAll(regularCases): (_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    )
-  }
 
-  test("Field parser should correctly report malformed input") {
-    forAll(failureCases)((_, input, output) =>
+  test("Field parser should correctly report malformed input"):
+    forAll(failureCases): (_, input, output) =>
       val result = parse(input)
       assert(result == output)
-    )
-  }
 
   private def parse(input: List[CharResult]) =
     val stream = Stream(input*).through(parser.toFields)

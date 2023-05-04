@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class LabelTS extends AnyFunSuite:
 
-  test("classLabel retrieves class/object name correctly") {
+  test("classLabel retrieves class/object name correctly"):
 
     class Regular
     assert(classLabel(new Regular()) == "regular")
@@ -29,4 +29,3 @@ class LabelTS extends AnyFunSuite:
     object Context:
       trait Anonymous
       assert(classLabel(new Anonymous() {}) == "context")
-  }

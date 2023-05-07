@@ -6,7 +6,7 @@
 package info.fingo.spata.converter
 
 import info.fingo.spata.text.StringRenderer
-import info.fingo.spata.{Decoded, Header, Record}
+import info.fingo.spata.{Header, Record}
 import scala.deriving.Mirror
 
 /** Converter from a tuple to a record.

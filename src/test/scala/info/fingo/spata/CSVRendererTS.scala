@@ -32,31 +32,31 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          forAll(testCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if headerModes.contains(headerMode) then
-              val hdr = header(headerCase)
-              val recs = records(contentCase, separator, hdr)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs*).covaryAll[IO, Record]
-              val out = stream.through(render(renderer, hdr, headerMode))
-              val res = out.compile.toList.unsafeRunSync().mkString
-              val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
-              assert(res == content)
+          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            val hdr = header(headerCase)
+            val recs = records(contentCase, separator, hdr)
+            val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+            val stream = Stream(recs*).covaryAll[IO, Record]
+            val out = stream.through(render(renderer, hdr, headerMode))
+            val res = out.compile.toList.unsafeRunSync().mkString
+            val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
+            assert(res == content)
 
   test("renderer should process records converted from case classes"):
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          forAll(testCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if headerModes.contains(headerMode) then
-              val hdr = header(headerCase)
-              val clss = classes(contentCase, separator)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(clss*).covaryAll[IO, Data].map(Record.from(_))
-              val out = stream.through(render(renderer, hdr, headerMode))
-              val res = out.compile.toList.unsafeRunSync().mkString
-              val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
-              assert(res == content)
+          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            val hdr = header(headerCase)
+            val clss = classes(contentCase, separator)
+            val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+            val stream = Stream(clss*).covaryAll[IO, Data].map(Record.from(_))
+            val out = stream.through(render(renderer, hdr, headerMode))
+            val res = out.compile.toList.unsafeRunSync().mkString
+            val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
+            assert(res == content)
 
   test("renderer should raise error if any record does not match the header"):
     val hdr = header("basic")
@@ -75,16 +75,16 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode => // header mode must not influence row creation
         forAll(escapeModes): escapeMode =>
-          forAll(testCases): (_: String, _: String, contentCase: String, headerModes: List[String]) =>
-            if headerModes.contains(headerMode) then
-              val recs = records(contentCase, separator)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs*).covaryAll[IO, Record]
-              val out = stream.through(renderer.rows).intersperse("\n")
-              val res = out.compile.toList.unsafeRunSync().mkString
-              // header is never generated for parser.rows
-              val content = rendered("empty", contentCase, separator, escapeMode, headerMode)
-              assert(res == content)
+          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          forAll(relevantCases): (_: String, _: String, contentCase: String, headerModes: List[String]) =>
+            val recs = records(contentCase, separator)
+            val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+            val stream = Stream(recs*).covaryAll[IO, Record]
+            val out = stream.through(renderer.rows).intersperse("\n")
+            val res = out.compile.toList.unsafeRunSync().mkString
+            // header is never generated for parser.rows
+            val content = rendered("empty", contentCase, separator, escapeMode, headerMode)
+            assert(res == content)
 
   test("renderer converted data should be properly encoded and handled by writer"):
     val charset = Charset.forName("ISO-8859-2")
@@ -92,18 +92,17 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          forAll(testCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
-            if headerModes.contains(headerMode) then
-              val os = new ByteArrayOutputStream()
-              val hdr = header(headerCase)
-              val recs = records(contentCase, separator, hdr)
-              val renderer = config(separator, escapeMode, headerMode).renderer[IO]
-              val stream = Stream(recs*).covaryAll[IO, Record]
-              val out =
-                stream.through(render(renderer, hdr, headerMode)).through(Writer[IO].write(IO[OutputStream](os)))
-              out.compile.drain.unsafeRunSync() // run
-              val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
-              assert(os.toByteArray.sameElements(content.getBytes(charset)))
+          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            val os = new ByteArrayOutputStream()
+            val hdr = header(headerCase)
+            val recs = records(contentCase, separator, hdr)
+            val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+            val stream = Stream(recs*).covaryAll[IO, Record]
+            val out = stream.through(render(renderer, hdr, headerMode)).through(Writer[IO].write(IO[OutputStream](os)))
+            out.compile.drain.unsafeRunSync() // run
+            val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
+            assert(os.toByteArray.sameElements(content.getBytes(charset)))
 
   private def config(separator: Char, escapeMode: EscapeMode, headerMode: String): CSVConfig =
     val c = CSVConfig().fieldDelimiter(separator)

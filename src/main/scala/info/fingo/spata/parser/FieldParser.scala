@@ -9,7 +9,6 @@ import scala.annotation.tailrec
 import fs2.{Chunk, Pipe}
 import info.fingo.spata.error.ParsingErrorCode.*
 import FieldParser.*
-import CharParser.CharResult
 
 /* Carrier for counters, partial field content and information about finished parsing. */
 final private[spata] case class StateFP(
@@ -24,7 +23,7 @@ final private[spata] case class StateFP(
  * This class tracks source position while consuming symbols to report it precisely, especially in case of failure.
  */
 final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
-  extends ChunkAwareParser[F, CharResult, FieldResult, StateFP]:
+  extends ChunkAwareParser[F, CharParser.CharResult, FieldResult, StateFP]:
 
   import CharParser.*
   import CharParser.CharPosition.*

@@ -51,16 +51,15 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks:
   test("writer should properly write to OutputSteam with non-UTF encoding"):
     val charset = Charset.forName("windows-1250")
     given codec: Codec(charset)
-    forAll(testCases): (testCase: String, data: String) =>
-      if testCase != "extended chars"
-      then // not supported by encoding
-        forAll(writers): (_: String, writer: Writer[IO]) =>
-          val os = new ByteArrayOutputStream()
-          val fos = IO[OutputStream](os)
-          val input = source(data)
-          val output = input.through(writer(fos))
-          output.compile.drain.unsafeRunSync()
-          assert(os.toByteArray.sameElements(data.getBytes(charset)))
+    val relevantCases = testCases.filter(_(0) != "extended chars")  // not supported by encoding
+    forAll(relevantCases): (testCase: String, data: String) =>
+      forAll(writers): (_: String, writer: Writer[IO]) =>
+        val os = new ByteArrayOutputStream()
+        val fos = IO[OutputStream](os)
+        val input = source(data)
+        val output = input.through(writer(fos))
+        output.compile.drain.unsafeRunSync()
+        assert(os.toByteArray.sameElements(data.getBytes(charset)))
 
   test("writer should properly write to path with non-UTF encoding"):
     val charset = Charset.forName("windows-1250")

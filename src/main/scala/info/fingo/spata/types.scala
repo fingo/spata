@@ -5,7 +5,7 @@
  */
 package info.fingo.spata
 
-import info.fingo.spata.error.{ContentError, HeaderError, StructureException}
+import info.fingo.spata.error.ContentError
 
 /** Convenience type representing result of decoding record data. */
 type Decoded[A] = Either[ContentError, A]

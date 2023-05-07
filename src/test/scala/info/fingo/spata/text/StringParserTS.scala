@@ -22,7 +22,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
   test("StringParser should correctly parse strings"):
     forAll(strings): (tc: String, str: String, string: Option[String]) =>
       assert(parse[Option[String]](str).contains(string))
-      if tc != empty then assert(parse[String](str).toOption == string)
+      assert(tc == empty || parse[String](str).toOption == string)
 
   test("StringParser should correctly parse ints"):
     forAll(ints): (tc: String, str: String, int: Option[Int]) =>
@@ -93,7 +93,7 @@ class StringParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
     val pr: ParseResult[A] = fmt match
       case Some(f) => parse[A](str, f)
       case _ => parse[A](str)
-    if tc != empty then assert(pr.toOption == expected)
+    assert(tc == empty || pr.toOption == expected)
     assert(pr.toOption == expected)
 
   private lazy val strings = Table(

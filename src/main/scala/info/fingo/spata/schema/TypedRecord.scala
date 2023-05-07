@@ -6,6 +6,7 @@
 package info.fingo.spata.schema
 
 import scala.deriving.Mirror
+import scala.annotation.unused
 import scala.compiletime.{constValue, erasedValue}
 import info.fingo.spata.converter.ToProduct
 import info.fingo.spata.schema.TypedRecord.*
@@ -38,7 +39,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
   private[schema] val values: VS,
   val lineNum: Int,
   val rowNum: Int
-)(using ev1: Tuple.Size[KS] =:= Tuple.Size[VS], ev2: Tuple.Union[KS] <:< Key):
+)(using @unused ev1: Tuple.Size[KS] =:= Tuple.Size[VS], @unused ev2: Tuple.Union[KS] <:< Key):
 
   /** Gets record value in type-safe manner.
     *

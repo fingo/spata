@@ -5,6 +5,7 @@
  */
 package info.fingo.spata.schema
 
+import scala.annotation.unused
 import org.scalatest.funsuite.AnyFunSuite
 
 class TypedRecordTS extends AnyFunSuite:
@@ -22,7 +23,7 @@ class TypedRecordTS extends AnyFunSuite:
     assert(r3("name") == name)
 
   test("Typed record prevent wrongly-typed access to its values"):
-    val r = TypedRecord(("title", "year"): ("title", "year"), ("Dark Side of the Moon", 1973), 1, 1)
+    @unused val r = TypedRecord(("title", "year"): ("title", "year"), ("Dark Side of the Moon", 1973), 1, 1)
     assertCompiles("""val year: Int = r("year")""")
     assertDoesNotCompile("""val year: String = r("year")""")
     assertDoesNotCompile("""val year: Int = r("day")""")
@@ -44,10 +45,10 @@ class TypedRecordTS extends AnyFunSuite:
     assert(pd.name == r("name"))
 
   test("Typed record prevents convertion to incompatible case classes"):
-    case class Correct(id: Int, code: String, name: String)
-    case class WrongType(id: Int, code: Int, name: String)
-    case class WrongKey(id: Int, cod: String, name: String)
-    val r = TypedRecord(("id", "code", "name"): ("id", "code", "name"), (1, "MX1", "Mask X1"), 1, 1)
+    @unused case class Correct(id: Int, code: String, name: String)
+    @unused case class WrongType(id: Int, code: Int, name: String)
+    @unused case class WrongKey(id: Int, cod: String, name: String)
+    @unused val r = TypedRecord(("id", "code", "name"): ("id", "code", "name"), (1, "MX1", "Mask X1"), 1, 1)
     assertCompiles("r.to[Correct]")
     assertDoesNotCompile("r.to[WrongType]")
     assertDoesNotCompile("r.to[WrongKey]")

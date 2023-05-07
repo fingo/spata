@@ -249,7 +249,6 @@ class RecordTS extends AnyFunSuite with TableDrivenPropertyChecks:
         assert(record("value").contains(sValue.strip()))
 
   test("records may be created from tuples"):
-    type Data = (String, LocalDate, BigDecimal)
     forAll(formatted):
       (
         _: String,

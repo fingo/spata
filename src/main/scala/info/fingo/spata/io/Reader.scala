@@ -6,14 +6,13 @@
 package info.fingo.spata.io
 
 import java.io.InputStream
-import java.nio.charset.CharacterCodingException
-import java.nio.{ByteBuffer, CharBuffer}
+import java.nio.CharBuffer
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Async, Sync}
 import cats.syntax.all.*
 import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
-import fs2.{io, text, Chunk, Pipe, Pull, Stream}
+import fs2.{io, text, Chunk, Pipe, Stream}
 import info.fingo.spata.util.Logger
 import fs2.RaiseThrowable
 

@@ -25,9 +25,9 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.4.8",
-      "co.fs2" %% "fs2-core" % "3.6.1",
-      "co.fs2" %% "fs2-io" % "3.6.1",
+      "org.typelevel" %% "cats-effect" % "3.5.0",
+      "co.fs2" %% "fs2-core" % "3.7.0",
+      "co.fs2" %% "fs2-io" % "3.7.0",
       "org.slf4j" % "slf4j-api" % "2.0.7",
       "org.scalatest" %% "scalatest" % "3.2.15" % Test,
       ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
@@ -65,7 +65,7 @@ lazy val scalacSettings = Seq(
   "-explain-types", // Explain type errors in more detail.
   "-feature", // Emit warning and location for usages of features that should be imported explicitly.
   "-language:existentials,higherKinds,implicitConversions", // Enable language features.
-  "-new-syntax",  // require Scala 3 syntax
+  "-new-syntax",  // Require Scala 3 syntax
   "-pagewidth:120", // Set output page width.
   "-unchecked", // Enable additional warnings where generated code depends on assumptions.
   "-Wvalue-discard", // Warn about unused expression results.

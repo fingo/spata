@@ -300,7 +300,8 @@ object Reader:
     def read(path: Path)(using codec: Codec): Stream[F, Char] =
       for
         _ <- Logger[F].debugS(s"Reading data from path $path with thread shifting")
-        char <- FFiles[F]
+        char <- FFiles
+          .forAsync[F]
           .readAll(FPath.fromNioPath(path), chunkSize, Flags.Read)
           .through(byte2char)
       yield char

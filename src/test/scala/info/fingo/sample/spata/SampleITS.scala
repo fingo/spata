@@ -5,7 +5,7 @@
  */
 package info.fingo.sample.spata
 
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 import scala.io.Codec
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -25,13 +25,13 @@ class SampleITS extends AnyFunSuite:
       given codec: Codec = Codec.UTF8
       def fahrenheitToCelsius(f: Double): Double = (f - 32.0) * (5.0 / 9.0)
       Reader[IO]
-        .read(Paths.get(fahrenheitCSV.toUri))
+        .read(fahrenheitCSV)
         .through(CSVParser[IO].parse)
         .filter(r => r("temp").exists(!_.isBlank))
         .map(_.altered("temp")(fahrenheitToCelsius))
         .rethrow
         .through(CSVRenderer[IO].render)
-        .through(Writer[IO].write(Paths.get(celsiusCSV.toUri)))
+        .through(Writer[IO].write(celsiusCSV))
 
     Files.writeString(fahrenheitCSV, fahrenheitData)
     converter.compile.drain.unsafeRunSync()

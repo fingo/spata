@@ -12,7 +12,7 @@ import cats.effect.unsafe.implicits.global
 import fs2.Stream
 import org.scalameter.{Bench, Gen}
 import org.scalameter.Key.exec
-import org.scalameter.picklers.noPickler._
+import org.scalameter.picklers.noPickler.*
 import info.fingo.spata.PerformanceTH.{input, parser}
 
 /* Check performance of Reader using different implementations.
@@ -24,18 +24,13 @@ object ReaderPTS extends Bench.LocalTime:
     def apply(path: Path): Stream[IO, Char] = method(path)
     override def toString: String = info
 
-  performance.of("reader").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
-    measure.method("read") in {
-      using(methods) in { method =>
+  performance.of("reader").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in:
+    measure.method("read") in:
+      using(methods) in: method =>
         method(input).compile.drain.unsafeRunSync()
-      }
-    }
-    measure.method("read_and_parse") in {
-      using(methods) in { method =>
+    measure.method("read_and_parse") in:
+      using(methods) in: method =>
         method(input).through(parser.parse).compile.drain.unsafeRunSync()
-      }
-    }
-  }
 
   private lazy val methods = Gen.enumeration("method")(
     ReadMethod("source", (path: Path) => bracket(source(path)).through(Reader.plain[IO].by)),

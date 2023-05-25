@@ -6,6 +6,7 @@
 package info.fingo.spata.schema
 
 import scala.deriving.Mirror
+import scala.annotation.unused
 import scala.compiletime.{constValue, erasedValue}
 import info.fingo.spata.converter.ToProduct
 import info.fingo.spata.schema.TypedRecord.*
@@ -38,7 +39,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
   private[schema] val values: VS,
   val lineNum: Int,
   val rowNum: Int
-)(using ev1: Tuple.Size[KS] =:= Tuple.Size[VS], ev2: Tuple.Union[KS] <:< Key):
+)(using @unused ev1: Tuple.Size[KS] =:= Tuple.Size[VS], @unused ev2: Tuple.Union[KS] <:< Key):
 
   /** Gets record value in type-safe manner.
     *
@@ -97,9 +98,10 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    * This is a dependently typed method corresponding to `Select` match type.
    */
   private def get[K <: Key, KS <: Tuple, VS <: Tuple](key: K, keys: KS, values: VS): Select[K, KS, VS] =
-    (keys: @unchecked) match
-      case `key` *: _: *:[K @unchecked, ?] => getH(values)
-      case _ *: tk: *:[?, ?] => getT(key, tk, values)
+    val selected = (keys: @unchecked) match
+      case `key` *: _ => getH(values)
+      case _ *: tk => getT(key, tk, values)
+    selected.asInstanceOf[Select[K, KS, VS]]
 
   /* Gets value from `values` matching the `key` from `keys`.
    * This method and `get` call each other alternately to reduce values and keys accordingly.
@@ -107,7 +109,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getT[K <: Key, KS <: Tuple, VS <: Tuple](key: K, keys: KS, values: VS): SelectT[K, KS, VS] =
     (values: @unchecked) match
-      case _ *: t: *:[?, ?] => get(key, keys, t)
+      case vs: (? *: ?) => get(key, keys, vs.tail)
 
   /* Gets head value from tuple of `values`.
    * It is used to retrieve correctly typed value which key has been already matched.
@@ -115,7 +117,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getH[VS <: Tuple](values: VS): SelectH[VS] =
     (values: @unchecked) match
-      case h *: _: *:[?, ?] => h
+      case vs: *:[?, ?] => vs.head
 
 /** Typed record helper object. */
 object TypedRecord:

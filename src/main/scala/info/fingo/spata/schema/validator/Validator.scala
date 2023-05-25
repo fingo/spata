@@ -51,8 +51,7 @@ trait Validator[A]:
 
   /* Main validation method, used by schema validation. Must not alter the value. */
   final private[schema] def apply(value: A): Validated[ValidationError, A] =
-    if isValid(value) then Valid(value)
-    else Invalid(ValidationError(name, errorMessage(value)))
+    if isValid(value) then Valid(value) else Invalid(ValidationError(name, errorMessage(value)))
 
 /** [[Validator]] companion with given converter for optional values. */
 object Validator:
@@ -75,10 +74,9 @@ object Validator:
     * @return validator for `Option[A]`
     */
   given optional[A]: Conversion[Validator[A], Validator[Option[A]]] = validator =>
-    new Validator[Option[A]] {
+    new Validator[Option[A]]:
       def isValid(value: Option[A]): Boolean = value.forall(validator.isValid)
       override val name: String = validator.name
-    }
 
 /** Validator verifying if value is equal to expected one. */
 object ExactValidator:
@@ -88,10 +86,9 @@ object ExactValidator:
     * @param required expected value
     * @return validator
     */
-  def apply[A](required: A): Validator[A] = new Validator[A] {
+  def apply[A](required: A): Validator[A] = new Validator[A]:
     override def isValid(value: A): Boolean = value == required
     override def errorMessage(value: A): String = s"Value [$value] does not match required one"
-  }
 
 /** Validator verifying if value is equal to one of expected. */
 object OneOfValidator:
@@ -101,10 +98,9 @@ object OneOfValidator:
     * @param allowed allowed values
     * @return validator
     */
-  def apply[A](allowed: A*): Validator[A] = new Validator[A] {
+  def apply[A](allowed: A*): Validator[A] = new Validator[A]:
     override def isValid(value: A): Boolean = allowed.contains(value)
     override def errorMessage(value: A): String = s"Value [$value] does not match any of allowed"
-  }
 
 /** Validator verifying if string matches one of expected. The comparison is case insensitive.
   * This validator does not take locale into account and uses `String.equalsIgnoreCase`.
@@ -117,10 +113,9 @@ object StringsValidator:
     * @param allowed allowed values
     * @return validator
     */
-  def apply(allowed: String*): Validator[String] = new Validator[String] {
+  def apply(allowed: String*): Validator[String] = new Validator[String]:
     override def isValid(value: String): Boolean = allowed.exists(_.equalsIgnoreCase(value.strip))
     override def errorMessage(value: String): String = s"String [$value] does not match any of allowed"
-  }
 
 /** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
@@ -132,10 +127,9 @@ object MinLenValidator:
     * @param min minimum length
     * @return validator
     */
-  def apply(min: Int): Validator[String] = new Validator[String] {
+  def apply(min: Int): Validator[String] = new Validator[String]:
     override def isValid(value: String): Boolean = value.strip.length >= min
     override def errorMessage(value: String): String = s"String [$value] is too short"
-  }
 
 /** Validator verifying string maximum length. Takes the length of string after trimming it off white characters.
   * Treats strings with maximum length as valid.
@@ -147,10 +141,9 @@ object MaxLenValidator:
     * @param max maximum length
     * @return validator
     */
-  def apply(max: Int): Validator[String] = new Validator[String] {
+  def apply(max: Int): Validator[String] = new Validator[String]:
     override def isValid(value: String): Boolean = value.strip.length <= max
     override def errorMessage(value: String): String = s"String [$value] is too long"
-  }
 
 /** Validator verifying string length. Takes the length of string after trimming it off white characters.
   * Treats strings with length at boundary as valid.
@@ -163,23 +156,20 @@ object LengthValidator:
     * @param max maximum length
     * @return validator
     */
-  def apply(min: Int, max: Int): Validator[String] = new Validator[String] {
-    override def isValid(value: String): Boolean = {
+  def apply(min: Int, max: Int): Validator[String] = new Validator[String]:
+    override def isValid(value: String): Boolean =
       val len = value.strip.length
       len >= min && len <= max
-    }
     override def errorMessage(value: String): String = s"String [$value] length is out of range"
-  }
 
   /** Creates string length validator.
     *
     * @param length required length
     * @return validator
     */
-  def apply(length: Int): Validator[String] = new Validator[String] {
+  def apply(length: Int): Validator[String] = new Validator[String]:
     override def isValid(value: String): Boolean = value.strip.length == length
     override def errorMessage(value: String): String = s"String [$value] length is incorrect"
-  }
 
 /** Regular expression validator for strings. */
 object RegexValidator:
@@ -209,10 +199,9 @@ object MinValidator:
     * @tparam A value type
     * @return validator
     */
-  def apply[A: Ordering](min: A): Validator[A] = new Validator[A] {
+  def apply[A: Ordering](min: A): Validator[A] = new Validator[A]:
     def isValid(value: A): Boolean = summon[Ordering[A]].lteq(min, value)
     override def errorMessage(value: A): String = s"Value [$value] is too small"
-  }
 
 /** Maximum value validator for any types with [[scala.Ordering]].
   * Treats values equal to maximum as valid.
@@ -225,10 +214,9 @@ object MaxValidator:
     * @tparam A value type
     * @return validator
     */
-  def apply[A: Ordering](max: A): Validator[A] = new Validator[A] {
+  def apply[A: Ordering](max: A): Validator[A] = new Validator[A]:
     def isValid(value: A): Boolean = summon[Ordering[A]].gteq(max, value)
     override def errorMessage(value: A): String = "Value [$v] is too large"
-  }
 
 /** Range validator for any types with [[scala.Ordering]].
   * Treats values equal to minimum or maximum as valid.
@@ -242,11 +230,10 @@ object RangeValidator:
     * @tparam A value type
     * @return validator
     */
-  def apply[A: Ordering](min: A, max: A): Validator[A] = (value: A) => {
+  def apply[A: Ordering](min: A, max: A): Validator[A] = (value: A) =>
     val minV = MinValidator[A](min)
     val maxV = MaxValidator[A](max)
     minV.isValid(value) && maxV.isValid(value)
-  }
 
 /** Validator verifying if double value is finite. */
 object FiniteValidator:
@@ -255,7 +242,6 @@ object FiniteValidator:
     *
     * @return validator
     */
-  def apply(): Validator[Double] = new Validator[Double] {
+  def apply(): Validator[Double] = new Validator[Double]:
     def isValid(value: Double): Boolean = value.isFinite
     override def errorMessage(value: Double) = s"Number [$value] is not finite"
-  }

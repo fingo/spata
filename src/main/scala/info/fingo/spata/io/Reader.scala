@@ -6,14 +6,13 @@
 package info.fingo.spata.io
 
 import java.io.InputStream
-import java.nio.charset.CharacterCodingException
-import java.nio.{ByteBuffer, CharBuffer}
+import java.nio.CharBuffer
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Async, Sync}
 import cats.syntax.all.*
 import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
-import fs2.{io, text, Chunk, Pipe, Pull, Stream}
+import fs2.{io, text, Chunk, Pipe, Stream}
 import info.fingo.spata.util.Logger
 import fs2.RaiseThrowable
 
@@ -43,7 +42,7 @@ sealed trait Reader[F[_]]:
     * @example
     * ```
     * val stream = Stream
-    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
     *   .flatMap(Reader[IO].read)
     * ```
     *
@@ -118,8 +117,8 @@ sealed trait Reader[F[_]]:
     * @example
     * ```
     * val stream = Stream
-    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
-    *   .through(Reader[IO]().by)
+    *   .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
+    *   .through(Reader[IO].by)
     * ```
     *
     * @param codec codec used to convert bytes to characters, with default JVM charset as fallback
@@ -218,8 +217,8 @@ object Reader:
   /* Skip BOM from UTF encoded streams */
   private def skipBom[F[_]: Logger](using codec: Codec): Pipe[F, Char, Char] =
     stream =>
-      if codec.charSet.name.startsWith(UTFCharsetPrefix) then
-        Logger[F].debugS("UTF charset provided - skipping BOM if present") >> stream.dropWhile(_ == bom)
+      if codec.charSet.name.startsWith(UTFCharsetPrefix)
+      then Logger[F].debugS("UTF charset provided - skipping BOM if present") >> stream.dropWhile(_ == bom)
       else stream
 
   /** Reader which executes I/O operations on current thread, without context (thread) shifting.
@@ -244,9 +243,9 @@ object Reader:
     /** @inheritdoc */
     def read(path: Path)(using codec: Codec): Stream[F, Char] =
       Stream
-        .bracket(Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay {
+        .bracket(Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay:
           Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
-        })(source => Sync[F].delay(source.close()))
+        )(source => Sync[F].delay(source.close()))
         .flatMap(read)
 
   /** Reader which shifts I/O operations to a thread pool provided for blocking operations.
@@ -265,7 +264,7 @@ object Reader:
       * @example
       * ```
       * val stream = Stream
-      *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+      *   .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
       *   .flatMap(Reader.shifting[IO].read)
       * ```
       *
@@ -301,7 +300,8 @@ object Reader:
     def read(path: Path)(using codec: Codec): Stream[F, Char] =
       for
         _ <- Logger[F].debugS(s"Reading data from path $path with thread shifting")
-        char <- FFiles[F]
+        char <- FFiles
+          .forAsync[F]
           .readAll(FPath.fromNioPath(path), chunkSize, Flags.Read)
           .through(byte2char)
       yield char

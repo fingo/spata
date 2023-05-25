@@ -87,17 +87,15 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
     */
   def render: Pipe[F, Record, Char] = (in: Stream[F, Record]) =>
     def loop(in: Stream[F, Record], header: Header): Pull[F, Either[HeaderError, String], Unit] =
-      in.pull.uncons.flatMap {
+      in.pull.uncons.flatMap:
         case Some((rc, t)) => Pull.output(rc.map(renderRow(_, header))) >> loop(t, header)
         case None => Pull.done
-      }
-    val pull = in.pull.uncons1.flatMap {
+    val pull = in.pull.uncons1.flatMap:
       case Some((r, t)) =>
         val headerRow = if config.hasHeader then Pull.output1(renderHeader(r.header)) else Pull.pure(())
         val firstRow = Pull.output1(renderRow(r, r.header))
         headerRow >> firstRow >> loop(t, r.header)
       case None => Pull.done
-    }
     pull.stream.through(toChars)
 
   /** Transforms stream of records into stream of CSV rows.
@@ -107,11 +105,11 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
     * With records of different size the resulting output may not form proper CSV content.
     *
     * Records delimiters are to be added to the output. To get full CSV content, `Stream.intersperse` should be called:
-    * {{{
+    * ```
     *   val renderer: CSVRenderer[IO] = CSVRenderer[IO]
     *   val in: Stream[IO, Record] = ???
     *   val out: Stream[IO, String] = in.through(renderer.rows).intersperse("\n")
-    * }}}
+    * ```
     * Nevertheless record delimiter is escaped in content, so it has to be set accordingly in config.
     *
     * This method does not put header in output stream, regardless of `CSVConfig.hasHeader` setting.
@@ -123,12 +121,11 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
   /* Converts stream of strings (or errors) into stream of characters.
    * The resulting stream may "throw" an error, which has to be handled with `handleErrorWith`.
    */
-  private def toChars: Pipe[F, EHE[String], Char] =
-    (in: Stream[F, EHE[String]]) =>
-      in.rethrow
-        .intersperse(srd)
-        .map(s => Chunk.array[Char](s.toCharArray))
-        .flatMap(Stream.chunk)
+  private def toChars: Pipe[F, EHE[String], Char] = (in: Stream[F, EHE[String]]) =>
+    in.rethrow
+      .intersperse(srd)
+      .map(s => Chunk.array[Char](s.toCharArray))
+      .flatMap(Stream.chunk)
 
   /* Renders single record into CSV string. */
   private def renderRow(record: Record, header: Header): EHE[String] =

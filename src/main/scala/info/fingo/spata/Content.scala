@@ -27,14 +27,13 @@ final private[spata] class Content[F[_]: Sync: Logger] private (
     case RawRecord(fields, location, recordNum) =>
       Record.create(fields, recordNum - dataOffset, location.line)(header)
     case RecordFailure(code, location, recordNum, fieldNum) =>
-      Left(
+      Left:
         new StructureException(
           code,
           Position.some(recordNum - dataOffset, location.line),
           Some(location.position),
           FieldInfo(fieldNum - 1, header)
         )
-      )
 
   /* First data record should be always at row 1, so record num has to be adjusted if header record is present. */
   private def dataOffset: Int = if hasHeaderRecord then 1 else 0

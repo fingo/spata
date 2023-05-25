@@ -149,9 +149,9 @@ object Writer:
     def write(path: Path)(using codec: Codec): Pipe[F, Char, Unit] =
       (in: Stream[F, Char]) =>
         Stream
-          .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay {
+          .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay:
             Files.newOutputStream(path, openOptions*)
-          })(os => Sync[F].delay(os.close()))
+          )(os => Sync[F].delay(os.close()))
           .flatMap(os => in.through(write(os)))
 
     protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =
@@ -193,7 +193,7 @@ object Writer:
           _ <- Logger[F].debugS(s"Writing data to path $path with thread shifting")
           _ <- in
             .through(char2byte)
-            .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
+            .through(FFiles.forAsync[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
             .unitary
         yield ()
 

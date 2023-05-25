@@ -20,9 +20,9 @@ private object ParseError:
   val maxInfoLength = 60
   val infoCutSuffix = "..."
   private def message(content: String, dataType: Option[String]): String =
-    if content.length > maxInfoLength + 3 then
-      s"""Cannot parse string starting with [${content.substring(
-          0,
-          maxInfoLength
-        ) + infoCutSuffix}] to requested ${dataType.getOrElse("type")}"""
-    else s"""Cannot parse [$content] to requested ${dataType.getOrElse("type")}"""
+    val typeInfo = dataType.getOrElse("type")
+    if content.length > maxInfoLength + 3
+    then
+      val init = content.substring(0, maxInfoLength) + infoCutSuffix
+      s"Cannot parse string starting with [$init] to requested $typeInfo"
+    else s"Cannot parse [$content] to requested $typeInfo"

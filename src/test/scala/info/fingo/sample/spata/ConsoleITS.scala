@@ -22,7 +22,7 @@ class ConsoleITS extends AnyFunSuite:
 
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 
-  test("spata allows manipulate data using stream functionality") {
+  test("spata allows manipulate data using stream functionality"):
     case class YT(year: Int, temp: Double) // class to converter data to
 
     def ytFromRecord(record: Record) =
@@ -42,59 +42,51 @@ class ConsoleITS extends AnyFunSuite:
       .filter(_.exists(yt => yt.year > 2012 && yt.year < 2018)) // filter only correct (Right) values in certain range
       .rethrow // rethrow to get rid of Either, which is safe because of above filter
       .groupAdjacentBy(_.year) // we assume here that data is sorted by date
-      .map((_, chunk) =>
+      .map: (_, chunk) =>
         val year = chunk(0).year
         val temp = chunk.map(_.temp).foldLeft(0.0)(_ + _) / chunk.size
         YT(year, temp)
-      )
-      .handleErrorWith(ex =>
+      .handleErrorWith: ex =>
         println(s"An error has been detected while processing ${SampleTH.dataFile}: ${ex.getMessage}")
         Stream.empty[IO]
-      )
     // get the IO effect with it final action
-    val io = aggregates.compile.toList.map(l =>
+    val io = aggregates.compile.toList.map: l =>
       l.foreach(yt => println(f"${yt.year}: ${yt.temp}%5.1f"))
       assert(l.size == 5)
       assert(l.head.year == 2017)
-    )
     // evaluate effect - trigger all stream operations
     io.unsafeRunSync()
-  }
 
-  test("spata allows executing simple side effects through callbacks") {
-    Try(
-      SampleTH.withResource(getSource())(source =>
+  test("spata allows executing simple side effects through callbacks"):
+    Try:
+      SampleTH.withResource(getSource()): source =>
         CSVParser[IO] // parser with default configuration and IO effect
-          .process(Reader.plain[IO].read(source))(record =>
-            if record.get[Double]("max_temp").exists(_ > 0) then
+          .process(Reader.plain[IO].read(source)): record =>
+            if record.get[Double]("max_temp").exists(_ > 0)
+            then
               println(s"Maximum daily temperature over 0 degree found on ${record("terrestrial_date")}")
               false
             else
               assert(record.rowNum < 500)
               true
-          )
           .unsafeRunSync()
-      )
-    ) match
+    match
       case Success(_) => // do nothing
       case Failure(ex) =>
         println(ex.getMessage)
         fail()
-  }
 
-  test("spata allow processing csv data as list") {
-    Try(
-      SampleTH.withResource(getSource())(source =>
+  test("spata allow processing csv data as list"):
+    Try:
+      SampleTH.withResource(getSource()): source =>
         // get 500 first records
         val records = CSVParser[IO].get(Reader.plain[IO].read(source), 500).unsafeRunSync()
         val over0 = records.find(_.get[Double]("max_temp").exists(_ > 0))
         assert(over0.isDefined)
         val info = over0.map(r => s"Over 0 temperature found on ${r("terrestrial_date")}")
         info.getOrElse("Over 0 temperature not found")
-      )
-    ) match
+    match
       case Success(info) => println(info)
       case Failure(ex) =>
         println(ex.getMessage)
         fail()
-  }

@@ -203,7 +203,8 @@ private object DataError:
 
   def message(value: String, position: Option[Position], field: FieldInfo, cause: Throwable): String =
     val v =
-      if value.length > maxValueLength then value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
+      if value.length > maxValueLength
+      then value.substring(0, maxValueLength - valueCutSuffix.length) + valueCutSuffix
       else value
     val typeInfo = StringParser.parseErrorTypeInfo(cause).getOrElse("requested type")
     val positionInfo = CSVException.positionInfo(position)

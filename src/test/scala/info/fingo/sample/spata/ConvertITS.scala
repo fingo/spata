@@ -18,7 +18,7 @@ class ConvertITS extends AnyFunSuite:
 
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 
-  test("spata allows manipulate data and converter it to case classes using stream functionality") {
+  test("spata allows manipulate data and converter it to case classes using stream functionality"):
     // class to converter data to - class fields have to match CSV header fields
     case class DayTemp(date: LocalDate, minTemp: Double, maxTemp: Double)
     val mh = Map("terrestrial_date" -> "date", "min_temp" -> "minTemp", "max_temp" -> "maxTemp")
@@ -34,4 +34,3 @@ class ConvertITS extends AnyFunSuite:
     val result = stream.compile.toList.unsafeRunSync()
     assert(result.length > 300 && result.length < 400)
     assert(result.forall(_.date.getYear == 2016))
-  }

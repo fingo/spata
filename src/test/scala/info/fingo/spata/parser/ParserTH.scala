@@ -22,7 +22,7 @@ object Config:
   val end: Char = CharParser.ETX
 
 object CharStates:
-  import Config._
+  import Config.*
   def csr(c: Char): CharState = CharState(Right(c), Regular)
   def csr: CharState = CharState(Left(cr), Regular)
   def cst(c: Char): CharState = CharState(Right(c), Trailing)

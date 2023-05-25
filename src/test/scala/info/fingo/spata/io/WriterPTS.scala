@@ -23,18 +23,13 @@ object WriterPTS extends Bench.LocalTime:
     def apply(path: Path, source: Stream[IO, Char]): Stream[IO, Unit] = method(path, source)
     override def toString: String = info
 
-  performance.of("writer").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in {
-    measure.method("write") in {
-      using(methods) in { method =>
+  performance.of("writer").config(exec.maxWarmupRuns := 3, exec.benchRuns := 3) in:
+    measure.method("write") in:
+      using(methods) in: method =>
         method(output, testSource(amount)).compile.drain.unsafeRunSync()
-      }
-    }
-    measure.method("render_and_write") in {
-      using(methods) in { method =>
+    measure.method("render_and_write") in:
+      using(methods) in: method =>
         testRecords(amount).through(renderer.render).through(src => method(output, src)).compile.drain.unsafeRunSync()
-      }
-    }
-  }
 
   private lazy val methods = Gen.enumeration("method")(
     WriteMethod(

@@ -23,7 +23,7 @@ class ValidateITS extends AnyFunSuite:
 
   private def getSource() = SampleTH.sourceFromResource(SampleTH.dataFile)
 
-  test("spata allows data validation and conversion to case classes in type-safe manner") {
+  test("spata allows data validation and conversion to case classes in type-safe manner"):
     case class DayTempVar(date: LocalDate, tempVar: Double)
     val mh = Map("terrestrial_date" -> "date")
     val parser = CSVConfig().mapHeader(mh).stripSpaces.parser[IO] // parser with IO effect
@@ -32,16 +32,15 @@ class ValidateITS extends AnyFunSuite:
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted
       .add[Double]("max_temp", FiniteValidator())
     val stream = Stream
-      .bracket(IO (getSource() ))(source => IO (source.close() )) // ensure resource cleanup
+      .bracket(IO(getSource()))(source => IO(source.close())) // ensure resource cleanup
       .through(Reader.plain[IO].by)
       .through(parser.parse) // get stream of CSV records
       .through(schema.validate) // validate against schema, get stream of Validated
-      .map(
+      .map:
         _.bimap( // map over invalid and valid part of Validated
           invalidRecord => logger.warn(invalidRecord.toString),
           typedRecord => DayTempVar(typedRecord("date"), typedRecord("max_temp") - typedRecord("min_temp"))
         )
-      )
       .map(_.toOption) // get only valid DayTempVar out of Validated (this and next line)
       .unNone
       .filter(_.date.getYear == 2016) // filter data for specific year
@@ -49,4 +48,3 @@ class ValidateITS extends AnyFunSuite:
     val result = stream.compile.toList.unsafeRunSync()
     assert(result.length > 300 && result.length < 400)
     assert(result.forall(_.date.getYear == 2016))
-  }

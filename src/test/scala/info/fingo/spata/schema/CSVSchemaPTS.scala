@@ -43,9 +43,9 @@ class CSVSchemaPTS extends Bench.LocalTime:
     .add[Double]("wind_speed")
     .add[String]("atmo_opacity")
 
-  performance.of("schema").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in {
-    measure.method("validate_gen") in {
-      using(amounts) in { amount =>
+  performance.of("schema").config(exec.maxWarmupRuns := 1, exec.benchRuns := 3) in:
+    measure.method("validate_gen") in:
+      using(amounts) in: amount =>
         Reader[IO]
           .read(new TestSource(amount))
           .through(parser.parse)
@@ -53,10 +53,8 @@ class CSVSchemaPTS extends Bench.LocalTime:
           .compile
           .drain
           .unsafeRunSync()
-      }
-    }
-    measure.method("validate_and_convert_file") in {
-      using(Gen.unit("file")) in { _ =>
+    measure.method("validate_and_convert_file") in:
+      using(Gen.unit("file")) in: _ =>
         Reader[IO]
           .read(input)
           .through(parser.parse)
@@ -65,8 +63,5 @@ class CSVSchemaPTS extends Bench.LocalTime:
           .compile
           .drain
           .unsafeRunSync()
-      }
-    }
-  }
 
   private lazy val amounts = Gen.exponential("amount")(1_000, 25_000, 5)

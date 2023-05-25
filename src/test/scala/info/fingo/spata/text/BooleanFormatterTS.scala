@@ -13,25 +13,20 @@ class BooleanFormatterTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private val locale = new Locale("pl", "PL")
 
-  test("Boolean formatter correctly formats boolean values") {
-    forAll(formatters)((_: String, tt: String, ft: String, formatter: BooleanFormatter) =>
+  test("Boolean formatter correctly formats boolean values"):
+    forAll(formatters): (_: String, tt: String, ft: String, formatter: BooleanFormatter) =>
       assert(formatter.format(true) == tt.toLowerCase(locale))
       assert(formatter.format(false) == ft.toLowerCase(locale))
-    )
-  }
 
-  test("Boolean formatter correctly parses boolean values") {
-    forAll(formatters)((_: String, tt: String, ft: String, formatter: BooleanFormatter) =>
+  test("Boolean formatter correctly parses boolean values"):
+    forAll(formatters): (_: String, tt: String, ft: String, formatter: BooleanFormatter) =>
       assert(formatter.parse(tt))
       assert(!formatter.parse(ft))
-    )
-  }
-  test("Boolean formatter should throw ParseError when parsing incorrect input") {
-    forAll(formatters)((_: String, _: String, _: String, formatter: BooleanFormatter) =>
+
+  test("Boolean formatter should throw ParseError when parsing incorrect input"):
+    forAll(formatters): (_: String, _: String, _: String, formatter: BooleanFormatter) =>
       assertThrows[ParseError](formatter.parse("wrong"))
       assertThrows[ParseError](formatter.parse("y"))
-    )
-  }
 
   private lazy val formatters = Table(
     ("testCase", "true", "false", "formatter"),

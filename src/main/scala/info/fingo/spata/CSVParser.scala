@@ -59,7 +59,7 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
     * Processing of data sources may be achieved by combining this function with [[io.Reader]], e.g.:
     * ```
     * val stream: Stream[IO, Record] = Stream
-    *   .bracket(IO { Source.fromFile("input.csv") })(source => IO { source.close() })
+    *   .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
     *   .flatMap(Reader[IO].read)
     *   .through(CSVParser[IO].parse)
     * ```
@@ -85,34 +85,31 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
 
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[F, RecordResult]) =
-    stream.pull.uncons1.flatMap {
+    stream.pull.uncons1.flatMap:
       case Some((h, t)) => Pull.output1(Content(h, t, config.headerMap))
       case None => Pull.raiseError[F](new StructureException(ParsingErrorCode.MissingHeader, Position.some(0, 1)))
-    }
 
   /* Adds numeric header to source data - provides record size to construct it. */
   private def contentWithoutHeader(stream: Stream[F, RecordResult]) =
-    stream.pull.peek1.flatMap {
+    stream.pull.peek1.flatMap:
       case Some((h, s)) => Pull.output1(Content(h.fieldNum, s, config.headerMap))
       case None => Pull.output1(Content(0, Stream.empty[F], config.headerMap))
-    }
 
   /* Provided info about number of parsed records. This introduces additional overhead and is done in debug mode only.
    * Please note, that this information will be not available if stream processing ends prematurely -
    * in case of an error, as result of take(n) etc. */
   private def debugCount: Pipe[F, Record, Record] = in =>
-    if Logger[F].isDebug then
+    if Logger[F].isDebug
+    then
       in.noneTerminate
-        .mapAccumulate(0)((s, o) =>
+        .mapAccumulate(0): (s, o) =>
           o match
             case Some(r) => (r.rowNum, o)
             case None => (s, None)
-        )
-        .flatMap((s, o) =>
+        .flatMap: (s, o) =>
           o match
             case Some(r) => Stream.emit(r)
             case None => Logger[F].debugS(s"CSV fully parsed, $s rows processed") >> Stream.empty
-        )
     else in
 
   /** Fetches whole source content into list of records.
@@ -142,14 +139,12 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
     get(stream, Some(limit))
 
   /* Loads all or provided number of records into a list. */
-  private def get(stream: Stream[F, Char], limit: Option[Long]): F[List[Record]] = {
+  private def get(stream: Stream[F, Char], limit: Option[Long]): F[List[Record]] =
     val s = stream.through(parse)
-    val limited = limit match {
+    val limited = limit match
       case Some(l) => s.take(l)
       case _ => s
-    }
     limited.compile.toList
-  }
 
   /** Processes each CSV record with provided callback functions to execute some side effects.
     * Stops processing input as soon as the callback function returns false or stream is exhausted.

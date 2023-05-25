@@ -22,24 +22,22 @@ final private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimite
   /* Parse characters and covert them to CharResults based on previous state. Stop on first failure. */
   private def toCharResults(state: CharState): Pipe[F, Char, CharResult] =
     def loop(chars: Stream[F, Char], state: CharState): Pull[F, CharResult, Unit] =
-      chars.pull.uncons.flatMap {
+      chars.pull.uncons.flatMap:
         case Some((h, t)) =>
           val (nextState, resultChunk) = parseChunk(h, state)
           nextState match
             case cs: CharState => Pull.output(resultChunk) >> loop(t, cs)
             case cf: CharFailure => Pull.output(dropFailures(resultChunk)) >> Pull.output1(cf) >> Pull.done
         case None => Pull.output1(endOfStream(state)) >> Pull.done
-      }
     chars => loop(chars, state).stream
 
   /* Parse chunk of characters into chunk of CharResults. */
   private def parseChunk(chunk: Chunk[Char], state: CharState) =
-    chunk.mapAccumulate(state: CharResult)((s, c) =>
+    chunk.mapAccumulate(state: CharResult): (s, c) =>
       val nextState = s match
         case cs: CharState => parseChar(c, cs)
         case cf: CharFailure => cf
       (nextState, nextState)
-    )
 
   private def endOfStream(state: CharState): CharResult =
     state.position match
@@ -47,10 +45,9 @@ final private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimite
       case _ => CharState(Left(ETX), FinishedRecord)
 
   /* Keep only successful parsing results to output failure state once only. */
-  private def dropFailures(chunk: Chunk[CharResult]) = chunk.filter {
+  private def dropFailures(chunk: Chunk[CharResult]) = chunk.filter:
     case _: CharState => true
     case _ => false
-  }
 
   private inline def isDelimiter(c: Char): Boolean = c == fieldDelimiter || c == recordDelimiter
 

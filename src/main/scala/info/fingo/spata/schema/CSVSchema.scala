@@ -131,9 +131,9 @@ final class CSVSchema[T <: Tuple] private (columns: T):
 
   /* Add logging information to validation pipe. */
   private def loggingPipe[F[_]: Logger]: Pipe[F, Record, Record] = in =>
-    if Logger[F].isDebug then
+    if Logger[F].isDebug
       // interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
-      in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
+    then in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
 
 /** [[CSVSchema]] companion with convenience method to create empty schema. */
@@ -177,11 +177,10 @@ final class Column[K <: Key, V: StringParser: ClassTag] private[schema] (val nam
     val typeValidated =
       Validated.fromEither(record.get(name)).leftMap(e => FieldFlaw(name, TypeError(e)))
     // call each validator, convert error to FieldFlaw and chain results, short-circuiting on error
-    val fullyValidated = typeValidated.andThen(v =>
+    val fullyValidated = typeValidated.andThen: v =>
       validators
         .map(validator => validator(v).leftMap(FieldFlaw(name, _)))
         .foldLeft(typeValidated)((prev, curr) => prev.andThen(_ => curr))
-    )
     // convert value to tuple
     fullyValidated.map((name, _))
 
@@ -255,9 +254,8 @@ object SchemaEnforcer:
 
   /* Initial validation result for empty column tuple - empty typed record. */
   private def empty(record: Record) =
-    Validated.valid[InvalidRecord, TypedRecord[EmptyTuple, EmptyTuple]](
+    Validated.valid[InvalidRecord, TypedRecord[EmptyTuple, EmptyTuple]]:
       TypedRecord(Tuple(), Tuple(), record.lineNum, record.rowNum)
-    )
 
 /** Proof of column name uniqueness in schema.
   *

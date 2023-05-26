@@ -351,6 +351,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
     ("mixed", "Funky Koval", "100.00", "Solo, Han", "999.99"),
     ("spaces", " Funky Koval ", " ", s"$ws${ws}Han Solo$ws$ws", " 999.99 "),
     ("empty values", "", "", "", ""),
+    ("crlf", "Funky Koval", "", "", ""),
     ("double quotes", "\"Funky\" Koval", "\"100.00\"", "Solo, \"Han\"", "999\".\"99"),
     ("line breaks", "Funky\nKoval", "100.00", "\nHan Solo", "999.99\n"),
     ("empty lines", "Funky Koval", "100.00", "Han Solo", "999.99")
@@ -387,6 +388,10 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
       case "empty values" =>
         s""""1"$s${s}01.01.2001$s
           |"2"${s}Eva Solo${s}31.12.2012${s}123.45
+          |"3"$s""${s}09.09.1999$s""""".stripMargin
+      case "crlf" =>
+        s""""1"${s}Funky Koval${s}01.01.2001$s\r
+          |"2"${s}Eva Solo${s}31.12.2012${s}"123.45"\r
           |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "double quotes" =>
         s""""1"$s"^Funky^ Koval"$s"01.01.2001"$s"^100.00^"

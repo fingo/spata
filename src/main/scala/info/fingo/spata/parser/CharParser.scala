@@ -61,6 +61,7 @@ final private[spata] class CharParser[F[_]](fieldDelimiter: Char, recordDelimite
       case `quote` if state.position == Quoted => CharState(Left(char), Escape)
       case `quote` if state.position == Escape => CharState(Right(quote), Quoted)
       case `quote` => CharFailure(UnclosedQuotation)
+      case CR if recordDelimiter == LF && state.finished => CharState(Left(char), Start)
       case CR if recordDelimiter == LF && state.position != Quoted => CharState(Left(char), state.position)
       case c if isDelimiter(c) && state.position == Quoted => CharState(Right(c), Quoted)
       case `fieldDelimiter` => CharState(Left(char), FinishedField)

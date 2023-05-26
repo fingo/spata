@@ -195,7 +195,7 @@ object Writer {
           _ <- Logger[F].debugS(s"Writing data to path $path with context shift")
           _ <- in
             .through(char2byte)
-            .through(FFiles[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
+            .through(FFiles.forAsync[F].writeAll(FPath.fromNioPath(path), Flags.fromOpenOptions(openOptions)))
             .unitary
         } yield ()
 

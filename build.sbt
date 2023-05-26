@@ -21,7 +21,7 @@ lazy val root = (project in file("."))
   .settings(publishSettings: _*)
   .configs(PerformanceTest)
   .settings(
-    licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+    licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
@@ -29,10 +29,10 @@ lazy val root = (project in file("."))
       "co.fs2" %% "fs2-core" % "2.5.11",
       "co.fs2" %% "fs2-io" % "2.5.11",
       "com.chuusai" %% "shapeless" % "2.3.10",
-      "org.slf4j" % "slf4j-api" % "2.0.6",
-      "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+      "org.slf4j" % "slf4j-api" % "2.0.7",
+      "org.scalatest" %% "scalatest" % "3.2.16" % Test,
       "com.storm-enroute" %% "scalameter" % "0.21" % Test,
-      "org.slf4j" % "slf4j-simple" % "2.0.6" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.7" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

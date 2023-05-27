@@ -25,8 +25,7 @@ class ValidateITS extends AnyFunSuite:
 
   test("spata allows data validation and conversion to case classes in type-safe manner"):
     case class DayTempVar(date: LocalDate, tempVar: Double)
-    val mh = Map("terrestrial_date" -> "date")
-    val parser = CSVConfig().mapHeader(mh).stripSpaces.parser[IO] // parser with IO effect
+    val parser = CSVConfig().mapHeader("terrestrial_date" -> "date").stripSpaces.parser[IO] // parser with IO effect
     val schema = CSVSchema()
       .add[LocalDate]("date")
       .add[Double]("min_temp", FiniteValidator()) // NaN is not accepted

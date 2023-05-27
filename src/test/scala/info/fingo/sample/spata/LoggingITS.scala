@@ -34,7 +34,7 @@ class LoggingITS extends AnyFunSuite with BeforeAndAfter:
     Files.writeString(logFilePath, "")
 
   test("spata allows logging basic operations"):
-    val parser = CSVConfig().mapHeader(Map("max_temp" -> "temp")).stripSpaces.parser[IO] // parser with IO effect
+    val parser = CSVConfig().mapHeader("max_temp" -> "temp").stripSpaces.parser[IO] // parser with IO effect
     // get stream of CSV records while ensuring source cleanup
     val records = Stream
       .bracket(IO(getSource()))(source => IO(source.close()))

@@ -38,14 +38,21 @@ import info.fingo.spata.util.Logger
   * If CSV records are converted to case classes, header values are used as class fields and may require remapping.
   * This can be achieved through [[mapHeader]]:
   * ```
-  * config.mapHeader(Map("first name" -> "firstName", "last name" -> "lastName")))
+  * config.mapHeader("first name" -> "firstName", "last name" -> "lastName")
   * ```
   * or if an implicit header is generated:
   * ```
-  * config.mapHeader(Map("_1" -> "firstName", "_2" -> "lastName"))
+  * config.mapHeader("_1" -> "firstName", "_2" -> "lastName")
   * ```
+  * A `Map` instance may be provided instead of sequence of pairs:
+  * ```
+  * val hm = Map("first name" -> "firstName", "last name" -> "lastName")
+  * config.mapHeader(hm)
+  * ```
+  *
   * Header mapping may be also position-based, which is especially handy when there are duplicates in header
-  * and name-based remapping does not solve it (because it remaps all occurrences):
+  * and name-based remapping does not solve it (because it remaps all occurrences).
+  * A `Map` instance has to be provided in this case:
   * ```
   * config.mapHeader(Map(0 -> "firstName", 1 -> "lastName"))
   * ```
@@ -98,8 +105,11 @@ final case class CSVConfig private[spata] (
   /** Gets new config from this one by switching off header presence. */
   def noHeader: CSVConfig = this.copy(hasHeader = false)
 
-  /** Remap selected fields names. */
+  /** Remap selected fields names by providing a `Map` with orginal and new names or indexes and new names. */
   def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
+
+  /** Remap selected fields names by providing pairs of old and new names. */
+  def mapHeader(s2s: (String, String)*): CSVConfig = this.copy(headerMap = s2s.toMap)
 
   /** Gets new config from this one by switching on stripping of unquoted, leading and trailing whitespaces.
     *

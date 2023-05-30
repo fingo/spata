@@ -7,6 +7,7 @@ package info.fingo.spata
 
 import cats.effect.Sync
 import info.fingo.spata.util.Logger
+import scala.annotation.targetName
 
 /** CSV configuration used to create [[CSVParser]] or [[CSVRenderer]].
   *
@@ -49,13 +50,22 @@ import info.fingo.spata.util.Logger
   * val hm = Map("first name" -> "firstName", "last name" -> "lastName")
   * config.mapHeader(hm)
   * ```
+  * Remapping may be provided for any subset of header names. Not matching names are ommited.
   *
   * Header mapping may be also position-based, which is especially handy when there are duplicates in header
-  * and name-based remapping does not solve it (because it remaps all occurrences).
-  * A `Map` instance has to be provided in this case:
+  * and name-based remapping does not solve it (because it remaps all occurrences):
   * ```
-  * config.mapHeader(Map(0 -> "firstName", 1 -> "lastName"))
+  * config.mapHeader("firstName", "lastName")
   * ```
+  * New names are set for subsequent fields, starting from first one (0-index).
+  * If the list is shorter than header, old names are retained.
+  * If the list is longer than header, superfluous names are ommited.
+  * Again, a `Map` instance may be provided in this case, which allows selective remapping:
+  * ```
+  * val hm = Map(0 -> "firstName", 1 -> "lastName", 5 -> "birth date")
+  * config.mapHeader(hm)
+  * ```
+  *
   * Remapping may be used for renderer as well,
   * allowing customized header while converting data from case classes or tuples.
   *
@@ -109,7 +119,12 @@ final case class CSVConfig private[spata] (
   def mapHeader(hm: HeaderMap): CSVConfig = this.copy(headerMap = hm)
 
   /** Remap selected fields names by providing pairs of old and new names. */
+  @targetName("mapHeaderByKey")
   def mapHeader(s2s: (String, String)*): CSVConfig = this.copy(headerMap = s2s.toMap)
+
+  /** Remap fields names by providing list of new names, which are assigned to consecutive fields. */
+  @targetName("mapHeaderByIdx")
+  def mapHeader(names: String*): CSVConfig = this.copy(headerMap = names.zipWithIndex.map((s, i) => (i, s)).toMap)
 
   /** Gets new config from this one by switching on stripping of unquoted, leading and trailing whitespaces.
     *

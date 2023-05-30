@@ -32,7 +32,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          val relevantCases = testCases.filter(_(3).contains(headerMode))
           forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
             val hdr = header(headerCase)
             val recs = records(contentCase, separator, hdr)
@@ -47,7 +47,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          val relevantCases = testCases.filter(_(3).contains(headerMode))
           forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
             val hdr = header(headerCase)
             val clss = classes(contentCase, separator)
@@ -75,7 +75,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode => // header mode must not influence row creation
         forAll(escapeModes): escapeMode =>
-          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          val relevantCases = testCases.filter(_(3).contains(headerMode))
           forAll(relevantCases): (_: String, _: String, contentCase: String, headerModes: List[String]) =>
             val recs = records(contentCase, separator)
             val renderer = config(separator, escapeMode, headerMode).renderer[IO]
@@ -92,7 +92,7 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
         forAll(escapeModes): escapeMode =>
-          val relevantCases = testCases.filter(_(2).contains(headerMode))
+          val relevantCases = testCases.filter(_(3).contains(headerMode))
           forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
             val os = new ByteArrayOutputStream()
             val hdr = header(headerCase)
@@ -104,13 +104,34 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
             val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
             assert(os.toByteArray.sameElements(content.getBytes(charset)))
 
-  private def config(separator: Char, escapeMode: EscapeMode, headerMode: String): CSVConfig =
+  test("it should be possible to re-map header names to new ones"):
+    forAll(separators): separator =>
+      forAll(headerModes): headerMode =>
+        forAll(escapeModes): escapeMode =>
+          forAll(headerMappings): mappedConfig =>
+            val relevantCases = testCases.filter(_(3).contains(headerMode))
+            forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+              val hdr = header(headerCase)
+              val recs = records(contentCase, separator, hdr)
+              val renderer = config(separator, escapeMode, headerMode, mappedConfig.headerMap).renderer[IO]
+              val stream = Stream(recs*).covaryAll[IO, Record]
+              val out = stream.through(render(renderer, hdr, headerMode))
+              val res = out.compile.toList.unsafeRunSync().mkString
+              val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode, true)
+              assert(res == content)
+
+  private def config(
+    separator: Char,
+    escapeMode: EscapeMode,
+    headerMode: String,
+    headerMap: HeaderMap = NoHeaderMap
+  ): CSVConfig =
     val c = CSVConfig().fieldDelimiter(separator)
     val cc = escapeMode match
       case EscapeAll => c.escapeAll
       case EscapeSpaces => c.escapeSpaces
       case EscapeRequired => c
-    if headerMode == "none" then cc.noHeader else cc
+    if headerMode == "none" then cc.noHeader else cc.mapHeader(headerMap)
 
   private def render(renderer: CSVRenderer[IO], header: Header, headerMode: String): Pipe[IO, Record, Char] =
     if headerMode == "explicit" then renderer.render(header) else renderer.render
@@ -120,6 +141,14 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
   private lazy val headerModes = Table("mode", "implicit", "explicit", "none")
 
   private lazy val escapeModes = Table("mode", EscapeRequired, EscapeSpaces, EscapeAll)
+
+  private lazy val headerMappings = Table(
+    "headerMapping",
+    CSVConfig().mapHeader(Map("id" -> "ident", "value" -> "val")),
+    CSVConfig().mapHeader("id" -> "ident", "value" -> "val", "bad" -> "ommited"),
+    CSVConfig().mapHeader(Map(0 -> "ident", 3 -> "val")),
+    CSVConfig().mapHeader("ident", "name", "date", "val", "ommited")
+  )
 
   private lazy val testCases = Table(
     ("testCase", "header", "content", "headerMode"),
@@ -193,19 +222,26 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
     contentCase: String,
     separator: Char,
     escapeMode: EscapeMode,
-    headerMode: String
+    headerMode: String,
+    mapped: Boolean = false
   ): String =
-    val header = if headerMode == "none" then "" else renderedHeader(headerCase, separator, escapeMode)
+    val header = if headerMode == "none" then "" else renderedHeader(headerCase, separator, escapeMode, mapped)
     val content = renderedContent(contentCase, separator, escapeMode)
     List(header, content).filterNot(_.isEmpty).mkString("\n")
 
-  private def renderedHeader(testCase: String, separator: Char, escapeMode: EscapeMode): String =
+  private def renderedHeader(testCase: String, separator: Char, escapeMode: EscapeMode, mapped: Boolean): String =
     val s = separator
     testCase match
       case "basic" =>
-        escapeMode match
-          case EscapeAll => s""""id"$s"name"$s"date"$s"value""""
-          case _ => s"""id${s}name${s}date${s}value"""
+        if mapped
+        then
+          escapeMode match
+            case EscapeAll => s""""ident"$s"name"$s"date"$s"val""""
+            case _ => s"""ident${s}name${s}date${s}val"""
+        else
+          escapeMode match
+            case EscapeAll => s""""id"$s"name"$s"date"$s"value""""
+            case _ => s"""id${s}name${s}date${s}value"""
       case "empty" => ""
 
   private def renderedContent(testCase: String, separator: Char, escapeMode: EscapeMode): String =

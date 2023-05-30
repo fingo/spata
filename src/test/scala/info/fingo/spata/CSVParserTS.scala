@@ -312,6 +312,30 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
     }
   }
 
+  test("it should be possible to re-map header names to new ones") {
+    forAll(basicCases()) { (testCase: String, firstName: String, firstValue: String, _: String, _: String) =>
+      forAll(separators) { separator =>
+        forAll(headerMappings) { mappedConfig =>
+          val header = basicHeader(separator)
+          val content = basicContent(testCase, separator)
+          val csv = s"$header\n$content"
+          val config = mappedConfig.fieldDelimiter(separator)
+          val parser = config.parser[IO]
+          val stream = csvStream(csv).through(parser.parse)
+          val list = stream.compile.toList.unsafeRunSync()
+          val head = list.head
+          assert(list.nonEmpty)
+          assert(head("ID").isEmpty)
+          assert(head("IDENT").isDefined)
+          assert(head("NAME").contains(firstName))
+          assert(head("VAL").contains(firstValue))
+          assert(head("VALUE").isEmpty)
+          assert(head("OMMITED").isEmpty)
+        }
+      }
+    }
+  }
+
   test("it should be possible to set duplicated header names to get unique ones") {
     forAll(trimmings) { trim =>
       forAll(separators) { separator =>
@@ -404,7 +428,13 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
 
   private lazy val separators = Table("separator", ',', ';', '\t')
 
-  private def basicCases(ws: String) = Table(
+  private lazy val headerMappings = Table(
+    "headerMapping",
+    CSVConfig().mapHeader(Map("ID" -> "IDENT", "VALUE" -> "VAL")),
+    CSVConfig().mapHeader(Map(0 -> "IDENT", 3 -> "VAL"))
+  )
+
+  private def basicCases(ws: String = "") = Table(
     ("testCase", "firstName", "firstValue", "lastName", "lastValue"),
     ("basic", "Funky Koval", "100.00", "Han Solo", "999.99"),
     ("basic quoted", "Koval, Funky", "100.00", "Solo, Han", "999.99"),

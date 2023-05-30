@@ -134,7 +134,10 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig) {
       .map(_.mkString(sfd))
 
   /* Renders header into CSV string. */
-  private def renderHeader(header: Header): Either[Nothing, String] = Right(header.names.map(escape).mkString(sfd))
+  private def renderHeader(header: Header): Either[Nothing, String] = {
+    val remapped = config.headerMap.remap(header.names)
+    Right(remapped.map(escape).mkString(sfd))
+  }
 
   /* Escapes record field with delimiters or quote characters. */
   private def escape(s: String): String = {

@@ -22,6 +22,7 @@ lazy val root = (project in file("."))
   .configs(PerformanceTest)
   .settings(
     licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
+    versionScheme := Some("semver-spec"),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(

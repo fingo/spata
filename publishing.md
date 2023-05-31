@@ -38,14 +38,14 @@ Preparations
 
 *   Install [Travis client](https://github.com/travis-ci/travis.rb#installation) if required.
 
-*   Set the repository name: `REPO=fingo/spata`.
+*   Set the repository name in environment: `REPO=fingo/spata`.
 
 *   [Create GitHub OAuth token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token)
     for Travis CI (with `repo`, `user:email` and `read:org` scopes).
 
-*   Log in to Travis CI: `travis login --github-token <token>`.
+*   Log in to Travis CI: `travis login --github-token <token> --com`.
 
-*   Export public key for CI: `gpg -a --export <key-id> ci/public-key.asc`.
+*   Export public key for CI: `gpg -a --export <key-id> > ci/public-key.asc`.
 
 *   Export private key: `gpg --export-secret-keys --armor <key-id> > target/secret-key.asc`.
 
@@ -69,7 +69,7 @@ Preparations
     *   Execute `travis encrypt SONATYPE_PASSWORD=<user_token_pass>`
         and replace secure environment variable for `PGP_PASSPHRASE` in `.travis.yml` with returned value.
 
-*   Logout from Travis: `travis logout`.
+*   Logout from Travis: `travis logout --com`.
 
 Cutting a release
 -----------------

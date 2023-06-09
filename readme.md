@@ -1021,10 +1021,17 @@ Alternatives
 
 For those who need a different characteristic of a `CSV` library, there are a few alternatives available for Scala:
 *   [Itto-CSV](https://github.com/gekomad/itto-csv) - `CSV` handling library based on FS2 and Cats with support for case class conversion. Supports Scala 2 and 3.
-*   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including `CSV`. Supports Scala 2 and 3.
+*   [fs2 data](https://github.com/satabin/fs2-data) - collection of FS2 based parsers, including `CSV`. Part of [typelevel-toolkit](https://typelevel.org/toolkit/). Supports Scala 2 and 3.
 *   [kantan.csv](https://github.com/nrinaudo/kantan.csv) - well documented `CSV` parser/serializer with support for different parsing engines. Available for Scala 2.
 *   [scala-csv](https://github.com/tototoshi/scala-csv) - easy to use `CSV` reader/writer. Available for Scala 2 and 3.
 *   [cormorant](https://github.com/davenverse/cormorant) - functional `CSV` processor with support for FS2, http4s and case class conversion. Available for Scala 2.
+*   [scala-csv-parser](https://github.com/zamblauskas/scala-csv-parser) - `CSV` parser with support for conversion into case classes. Available for Scala 2.
+*   [TableParser](https://github.com/rchillyard/tableparser) - parser and renderer of tabular data in different formats, including `CSV`.
+*   [CVSSide](https://github.com/underscoreio/csvside) - functional `CVS` parser with case class conversion. Available for Scala 2.
+*   [csv3s](https://index.scala-lang.org/johnspade/csv3s) - `CSV` parser and renderer with case class conversion. Based on [ZIO Parser](https://github.com/zio/zio-parser). Supports Scala 3.
+*   [PureCSV](https://github.com/kontainers/purecsv) and [previously](https://github.com/sentenza/PureCSV) - easy to use `CSV` parser and renderer with case class conversion. Available for Scala 2.
+*   [ceesvee](https://github.com/guymers/ceesvee) - `CSV` parser with case class conversion, designed for use with streams (FS2, ZStream). Support Scala 2 and 3.
+*   [Frugal Mechanic Flat File Reader](https://github.com/frugalmechanic/fm-flatfile) - flat file (including `CSV`) reader/writer. Support Scala 2 and 3.
 
 Credits
 -------

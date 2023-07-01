@@ -5,7 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  scalaVersion := "3.3.0"
+  scalaVersion := "3.3.1-RC2"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -30,7 +30,7 @@ lazy val root = (project in file("."))
       "co.fs2" %% "fs2-core" % "3.7.0",
       "co.fs2" %% "fs2-io" % "3.7.0",
       "org.slf4j" % "slf4j-api" % "2.0.7",
-      "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+      "org.scalatest" %% "scalatest" % "3.2.16" % Test,
       ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
         exclude("org.scala-lang.modules", "scala-xml_2.13"),
       "org.slf4j" % "slf4j-simple" % "2.0.7" % Test
@@ -45,7 +45,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     Compile / console / scalacOptions --= Seq("-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.0.0"),
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.1.0"),
     semanticdbEnabled := false,
     autoAPIMappings := true
   )

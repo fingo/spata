@@ -6,13 +6,12 @@
 package info.fingo.spata.io
 
 import java.io.InputStream
-import java.nio.CharBuffer
 import java.nio.file.{Files, Path, StandardOpenOption}
 import scala.io.{BufferedSource, Codec, Source}
 import cats.effect.{Async, Sync}
 import cats.syntax.all.*
 import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
-import fs2.{io, text, Chunk, Pipe, Stream}
+import fs2.{io, text, Pipe, Stream}
 import info.fingo.spata.util.Logger
 import fs2.RaiseThrowable
 
@@ -308,13 +307,9 @@ object Reader:
 
     /* Converts stream of bytes to stream of characters using provided codec. */
     private def byte2char(using codec: Codec): Pipe[F, Byte, Char] =
-      _.through(text.decodeWithCharset[F](codec.charSet)).chunks
-        .map(_.flatMap(s2cc))
-        .flatMap(Stream.chunk)
+      _.through(text.decodeWithCharset[F](codec.charSet))
+        .through(text.string2char)
         .through(skipBom)
-
-    /* Converts string to chunk of characters. */
-    private def s2cc(s: String): Chunk[Char] = Chunk.charBuffer(CharBuffer.wrap(s))
 
   /** Representation of CSV data source, used to witness that certain sources may be used by read operations.
     * @see [[CSV$ CSV]] object.

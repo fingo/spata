@@ -197,7 +197,7 @@ If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode`)
 we may convert it to a stream of characters:
 ```scala
 val ss: Stream[IO, String] = ???
-val sc: Stream[IO, Char] = ss.map(s => Chunk.charBuffer(CharBuffer.wrap(s))).flatMap(Stream.chunk)
+val sc: Stream[IO, Char] = ss.through(text.string2char)
 ```
 
 See [Reading and writing data](#reading-and-writing-data) for helper methods

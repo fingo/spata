@@ -43,9 +43,9 @@ final private[spata] class RecordParser[F[_]] extends ChunkAwareParser[F, FieldR
         parseChunk(tail, output, StateRP(state.recNum, state.buffer))
       case (ff: FieldFailure) :: _ =>
         val fieldNum = state.buffer.result().size + 1
-        val chunk = Chunk.vector(output :+ RecordFailure(ff.code, ff.counters, state.recNum, fieldNum))
+        val chunk = Chunk.from(output :+ RecordFailure(ff.code, ff.counters, state.recNum, fieldNum))
         (state.finish, chunk)
-      case _ => (state, Chunk.vector(output))
+      case _ => (state, Chunk.from(output))
 
 private[spata] object RecordParser:
 

@@ -155,7 +155,7 @@ object Writer:
           .flatMap(os => in.through(write(os)))
 
     protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =
-      (in: Stream[F, Char]) => in.chunks.map(_.mkString_("")).through(text.encodeC(codec.charSet))
+      (in: Stream[F, Char]) => in.through(text.char2string).through(text.encodeC(codec.charSet))
 
   /** Writer which shifts I/O operations to a thread pool provided for blocking operations.
     * Uses the built-in internal blocking thread pool.
@@ -198,7 +198,7 @@ object Writer:
         yield ()
 
     protected def char2byte(using codec: Codec): Pipe[F, Char, Byte] =
-      _.chunks.map(_.mkString_("")).through(text.encode(codec.charSet))
+      _.through(text.char2string).through(text.encode(codec.charSet))
 
   /** Representation of CSV data destination, used to witness that certain sources may be used by write operations.
     * @see [[CSV$ CSV]] object.

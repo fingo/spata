@@ -9,7 +9,7 @@ import java.io.{ByteArrayOutputStream, File, IOException, OutputStream}
 import java.nio.charset.{Charset, StandardCharsets}
 import java.nio.file.{Files, Path}
 import scala.io.Codec
-import fs2.{Chunk, Stream}
+import fs2.{Stream, text}
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import org.scalatest.funsuite.AnyFunSuite
@@ -86,7 +86,7 @@ class WriterTS extends AnyFunSuite with TableDrivenPropertyChecks:
       assert(result.head)
 
   private def source(data: String): Stream[IO, Char] =
-    Stream(data).map(s => Chunk.array[Char](s.toCharArray)).flatMap(Stream.chunk).covary[IO]
+    Stream(data).through(text.string2char).covary[IO]
 
   /* Create temporary file with random name, removes it after closing. */
   def getTempPath: Path =

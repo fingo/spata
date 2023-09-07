@@ -11,10 +11,8 @@ jobs:
       script: sbt check
     - stage: test
       name: "Unit tests"
-      script: sbt clean test
-# TODO: turned off because of https://github.com/lampepfl/dotty/issues/17042
-#      script: sbt clean coverage test coverageReport
-#      after_success: bash <(curl -s https://codecov.io/bash)
+      script: sbt clean coverage test coverageReport
+      after_success: bash <(curl -s https://codecov.io/bash)
     - stage: compatibility
       name: "Binary compatibility"
       script: sbt mima

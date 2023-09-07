@@ -5,7 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  scalaVersion := "3.3.0"
+  scalaVersion := "3.3.1"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
@@ -26,14 +26,16 @@ lazy val root = (project in file("."))
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.0",
-      "co.fs2" %% "fs2-core" % "3.7.0",
-      "co.fs2" %% "fs2-io" % "3.7.0",
-      "org.slf4j" % "slf4j-api" % "2.0.7",
-      "org.scalatest" %% "scalatest" % "3.2.15" % Test,
+      "org.typelevel" %% "cats-effect" % "3.5.1",
+      "co.fs2" %% "fs2-core" % "3.9.1",
+      "co.fs2" %% "fs2-io" % "3.9.1",
+      // required by FS2 due to https://github.com/lampepfl/dotty/issues/18487
+      "org.typelevel" %% "scalac-compat-annotation" % "0.1.2",
+      "org.slf4j" % "slf4j-api" % "2.0.9",
+      "org.scalatest" %% "scalatest" % "3.2.16" % Test,
       ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
         exclude("org.scala-lang.modules", "scala-xml_2.13"),
-      "org.slf4j" % "slf4j-simple" % "2.0.7" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.9" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),
@@ -45,7 +47,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     Compile / console / scalacOptions --= Seq("-Xfatal-warnings"),
-    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.0.0"),
+    mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.1.0"),
     semanticdbEnabled := false,
     autoAPIMappings := true
   )

@@ -109,7 +109,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getT[K <: Key, KS <: Tuple, VS <: Tuple](key: K, keys: KS, values: VS): SelectT[K, KS, VS] =
     (values: @unchecked) match
-      case vs: (? *: ?) => get(key, keys, vs.tail)
+      case vs: (h *: t) => get(key, keys, vs.tail[h *: t])
 
   /* Gets head value from tuple of `values`.
    * It is used to retrieve correctly typed value which key has been already matched.
@@ -117,7 +117,7 @@ final class TypedRecord[KS <: Tuple, VS <: Tuple] private (
    */
   private def getH[VS <: Tuple](values: VS): SelectH[VS] =
     (values: @unchecked) match
-      case vs: *:[?, ?] => vs.head
+      case vs: *:[h, t] => vs.head[h *: t]
 
 /** Typed record helper object. */
 object TypedRecord:

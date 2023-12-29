@@ -46,7 +46,7 @@ final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
   ): (StateFP, Chunk[FieldResult]) =
     input match {
       case _ if fieldTooLong(state.lc) =>
-        val chunk = Chunk.vector(output :+ fail(FieldTooLong, state.counters, state.lc))
+        val chunk = Chunk.from(output :+ fail(FieldTooLong, state.counters, state.lc))
         (state.finish, chunk)
       case (cs: CharState) :: tail if cs.finished =>
         val content = state.buffer.toString().dropRight(state.lc.toTrim)
@@ -59,9 +59,9 @@ final private[spata] class FieldParser[F[_]](fieldSizeLimit: Option[Int])
         val newLC = recalculateLocalCounts(state.lc, cs)
         parseChunk(tail, output, StateFP(newCounters, newLC, state.buffer))
       case (cf: CharFailure) :: _ =>
-        val chunk = Chunk.vector(output :+ fail(cf.code, state.counters, state.lc))
+        val chunk = Chunk.from(output :+ fail(cf.code, state.counters, state.lc))
         (state.finish, chunk)
-      case _ => (state, Chunk.vector(output))
+      case _ => (state, Chunk.from(output))
     }
 
   private def fail(error: ErrorCode, counters: Location, lc: LocalCounts): FieldFailure = {

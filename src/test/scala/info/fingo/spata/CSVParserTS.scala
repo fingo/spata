@@ -5,7 +5,8 @@
  */
 package info.fingo.spata
 
-import java.io.IOException
+import java.io.{ByteArrayInputStream, InputStream, IOException}
+import java.nio.charset.Charset
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.{CountDownLatch, TimeUnit}
@@ -14,7 +15,7 @@ import scala.io.{BufferedSource, Source}
 import scala.collection.mutable
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import fs2.Stream
+import fs2.{io, Stream, text}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 import info.fingo.spata.CSVParser.Callback
@@ -108,6 +109,26 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks:
         val stream = csvStream(content).through(parser.parse)
         val list = stream.compile.toList.unsafeRunSync()
         assert(list.isEmpty)
+
+  test("parser should allow integration with fs2 io"):
+    basicTestWrapper(hasHeader = false): (testInfo, parser) =>
+      val charset = Charset.forName("UTF-8")
+      val csv = basicContent(testInfo.testCase, testInfo.separator)
+      val is = new ByteArrayInputStream(csv.getBytes(charset))
+      val stream = io.readInputStream(IO[InputStream](is), 16).through(text.utf8.decode).through(parser.parseS)
+      val list = stream.compile.toList.unsafeRunSync()
+      assert(list.size == 3)
+      val head = list.head
+      val last = list.last
+      assert(head("_2").contains(testInfo.firstName))
+      assert(head("_4").contains(testInfo.firstValue))
+      assert(last("_2").contains(testInfo.lastName))
+      assert(last("_4").contains(testInfo.lastValue))
+      assert(head.size == last.size)
+      assert(head.lineNum == 1 + csv.takeWhile(_ != '.').count(_ == '\n')) // line breaks are placed before first dot
+      assert(head.rowNum == 1)
+      assert(last.lineNum == 1 + csv.stripTrailing().count(_ == '\n'))
+      assert(last.rowNum == list.size)
 
   test("parser should clearly report errors in source data while handling them"):
     forAll(trimmings): trim =>

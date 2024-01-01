@@ -7,7 +7,7 @@ package info.fingo.spata
 
 import scala.util.Try
 import cats.effect.{Async => CEAsync, Sync}
-import fs2.{Pipe, Pull, Stream}
+import fs2.{text, Pipe, Pull, Stream}
 import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
 import info.fingo.spata.parser.RecordParser.RecordResult
 import info.fingo.spata.CSVParser.Callback
@@ -28,8 +28,8 @@ import info.fingo.spata.util.Logger
   * ```
   *
   * Actual parsing is done through one of the 3 groups of methods:
-  *  - [[parse]] to transform a stream of characters into records and process data in a functional way,
-  *    which is the recommended approach,
+  *  - [[parse]] to transform a stream of characters (or stream of strings in case of [[parseS]]) into records
+  *     and process data in a functional way, which is the recommended approach,
   *  - [[get]] to fetch whole source data at once into a list,
   *  - [[process]] to deal with individual records through a callback function.
   *
@@ -82,6 +82,27 @@ final class CSVParser[F[_]: Sync: Logger](config: CSVConfig):
       .through(debugCount)
       .handleErrorWith(ex => Logger[F].errorS(ex.getMessage) >> Stream.raiseError(ex))
       .onFinalize(Logger[F].debug("CSV parsing finished"))
+
+  /** Transforms stream of strings representing CSV data into records.
+    * This function is intended to be used with [[fs2.Stream.through]].
+    * The transformed [[fs2.Stream]] allows further input processing in a very flexible, purely functional manner.
+    *
+    * If you would like to work with spata's [[io.Reader]], use the [[parse]] methods,
+    * which consumes a stream of characters rather than a stream of strings.
+    * This method is better suited to work with methods from [[fs2.io.file.Files]],
+    * which operates on strings (or bytes to be converted by [[fs2.text.decodeWithCharset]]).
+    *
+    * @example
+    * ```
+    * val stream: Stream[IO, Record] = Files[IO]
+    *   .readUtf8(Path("input.csv"))
+    *   .through(CSVParser[IO].parseS)
+    * ```
+    *
+    * @see [[parse]] for more details
+    * @return a pipe to converter [[String]]s into [[Record]]s
+    */
+  def parseS: Pipe[F, String, Record] = text.string2char.andThen(parse)
 
   /* Splits source data into header and actual content. */
   private def contentWithHeader(stream: Stream[F, RecordResult]) =

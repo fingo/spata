@@ -10,6 +10,7 @@ lazy val basicSettings = Seq(
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
 addCommandAlias("mima", "; mimaReportBinaryIssues")
+addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mima; doc; Perf/test")
 
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")

@@ -12,7 +12,7 @@ import java.time.format.DateTimeFormatter
 import scala.io.Codec
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import fs2.{Pipe, Stream}
+import fs2.{io, Pipe, Stream, text}
 import info.fingo.spata.CSVConfig.{EscapeAll, EscapeMode, EscapeRequired, EscapeSpaces}
 import info.fingo.spata.io.Writer
 import info.fingo.spata.text.StringRenderer
@@ -104,6 +104,26 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
             val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
             assert(os.toByteArray.sameElements(content.getBytes(charset)))
 
+  test("renderer converted data should allow integration with fs2 io"):
+    val charset = Charset.forName("ISO-8859-2")
+    given codec: Codec(charset)
+    forAll(separators): separator =>
+      forAll(headerModes): headerMode =>
+        forAll(escapeModes): escapeMode =>
+          val relevantCases = testCases.filter(_(3).contains(headerMode))
+          forAll(relevantCases): (_: String, headerCase: String, contentCase: String, headerModes: List[String]) =>
+            val os = new ByteArrayOutputStream()
+            val hdr = header(headerCase)
+            val recs = records(contentCase, separator, hdr)
+            val renderer = config(separator, escapeMode, headerMode).renderer[IO]
+            val stream = Stream(recs*).covaryAll[IO, Record]
+            val out = stream.through(renderS(renderer, hdr, headerMode))
+              .through(text.encode(charset))
+              .through(io.writeOutputStream(IO[OutputStream](os)))
+            out.compile.drain.unsafeRunSync() // run
+            val content = rendered(headerCase, contentCase, separator, escapeMode, headerMode)
+            assert(os.toByteArray.sameElements(content.getBytes(charset)))
+
   test("it should be possible to re-map header names to new ones"):
     forAll(separators): separator =>
       forAll(headerModes): headerMode =>
@@ -135,6 +155,9 @@ class CSVRendererTS extends AnyFunSuite with TableDrivenPropertyChecks:
 
   private def render(renderer: CSVRenderer[IO], header: Header, headerMode: String): Pipe[IO, Record, Char] =
     if headerMode == "explicit" then renderer.render(header) else renderer.render
+
+  private def renderS(renderer: CSVRenderer[IO], header: Header, headerMode: String): Pipe[IO, Record, String] =
+    if headerMode == "explicit" then renderer.renderS(header) else renderer.renderS
 
   private lazy val separators = Table("separator", ',', ';', '\t')
 

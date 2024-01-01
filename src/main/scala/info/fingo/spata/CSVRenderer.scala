@@ -20,7 +20,8 @@ import info.fingo.spata.error.{FieldInfo, HeaderError}
   * ```
   *
   * Actual rendering is done through one of the 2 groups of methods:
-  *  - [[render]] to transform a stream of records into stream of character, which represent full CSV content.
+  *  - [[render]] to transform a stream of records into stream of characters (or strings in case of [[renderS]]),
+  *     which represent full CSV content.
   *  - [[rows]] to convert records to strings representing individual CSV rows.
   *
   * This renderer is normally used with stream supplying data to some external destination,
@@ -69,11 +70,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
     * @param header header to be potentially written into target stream and used to select required data from records
     * @return a pipe to converter [[Record]]s into [[scala.Char]]s
     */
-  def render(header: Header): Pipe[F, Record, Char] = (in: Stream[F, Record]) =>
-    val hs = if config.hasHeader then Stream.emit(renderHeader(header)) else Stream.empty
-    val cs = in.map(renderRow(_, header))
-    val stream = hs ++ cs
-    stream.through(toChars)
+  def render(header: Header): Pipe[F, Record, Char] = renderS(header).andThen(text.string2char)
 
   /** Transforms stream of records into stream of characters representing CSV data.
     * Determines header from first record in stream.
@@ -85,7 +82,42 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
     * @see [[render]] with explicit header for more information.
     * @return a pipe to converter [[Record]]s into [[scala.Char]]s
     */
-  def render: Pipe[F, Record, Char] = (in: Stream[F, Record]) =>
+  def render: Pipe[F, Record, Char] = renderS.andThen(text.string2char)
+
+  /** Transforms stream of records into stream of strings representing CSV data.
+    * This function is intended to be used with [[fs2.Stream.through]].
+    *
+    * If you would like to work with spata's [[io.Writer]], use one of the [[render]] methods,
+    * which produce a stream of characters rather than a stream of strings.
+    * This method is better suited to work with methods from [[fs2.io.file.Files]],
+    * which operates on strings (or bytes when converted by [[fs2.text.encode]]).
+    *
+    * @example
+    * ```
+    * val input: Stream[IO, Record] = ???
+    * val renderer: CVSRenderer[IO] = CSVRenderer.config.escapeSpaces.renderer[IO]
+    * val header: Header = Header("date", "location", "temperature")
+    * val output: Stream[IO, String] = input.through(renderer.renderS(header))
+    * val eff: Stream[IO, Unit] = output.through(Files[IO].writeUtf8(Path("output.csv")))
+    * ```
+    * @see [[render]] for more information.
+    * @param header header to be potentially written into target stream and used to select required data from records
+    * @return a pipe to converter [[Record]]s into [[String]]s
+    */
+  def renderS(header: Header): Pipe[F, Record, String] = (in: Stream[F, Record]) =>
+    val hs = if config.hasHeader then Stream.emit(renderHeader(header)) else Stream.empty
+    val cs = in.map(renderRow(_, header))
+    val stream = hs ++ cs
+    stream.rethrow.intersperse(srd) // get rid of Either, letting the stream throw errors; add record separators
+
+  /** Transforms stream of records into stream of strings representing CSV data.
+    * Determines header from first record in stream.
+    * This function is intended to be used with [[fs2.Stream.through]].
+    *
+    * @see [[renderS]] with explicit header for more information.
+    * @return a pipe to converter [[Record]]s into [[String]]s
+    */
+  def renderS: Pipe[F, Record, String] = (in: Stream[F, Record]) =>
     def loop(in: Stream[F, Record], header: Header): Pull[F, Either[HeaderError, String], Unit] =
       in.pull.uncons.flatMap:
         case Some((rc, t)) => Pull.output(rc.map(renderRow(_, header))) >> loop(t, header)
@@ -96,7 +128,7 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
         val firstRow = Pull.output1(renderRow(r, r.header))
         headerRow >> firstRow >> loop(t, r.header)
       case None => Pull.done
-    pull.stream.through(toChars)
+    pull.stream.rethrow.intersperse(srd) // get rid of Either, letting the stream throw errors; add record separators
 
   /** Transforms stream of records into stream of CSV rows.
     *
@@ -117,14 +149,6 @@ final class CSVRenderer[F[_]: RaiseThrowable](config: CSVConfig):
     * @return a pipe to converter [[Record]]s into `String`s
     */
   def rows: Pipe[F, Record, String] = (in: Stream[F, Record]) => in.map(_.values.map(escape).mkString(sfd))
-
-  /* Converts stream of strings (or errors) into stream of characters.
-   * The resulting stream may "throw" an error, which has to be handled with `handleErrorWith`.
-   */
-  private def toChars: Pipe[F, EHE[String], Char] = (in: Stream[F, EHE[String]]) =>
-    in.rethrow
-      .intersperse(srd)
-      .through(text.string2char)
 
   /* Renders single record into CSV string. */
   private def renderRow(record: Record, header: Header): EHE[String] =

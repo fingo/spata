@@ -178,6 +178,18 @@ See Java's
 [Char.isWhitespace](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Character.html#isWhitespace(char))
 for details.  
 
+If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode` or `io.file.Files.readUtf8`),
+we may used string-oriented parse method:
+```scala
+val input: Stream[IO, String] = ???
+val output: Stream[IO, Record] = input.through(CSVParser[IO].parseS)
+```
+Alternatively, it is always possible to convert a stream of strings into a stream of characters:
+```scala
+val ss: Stream[IO, String] = ???
+val sc: Stream[IO, Char] = ss.through(text.string2char)
+```
+
 In addition to the `parse`, `CSVParser` provides other methods to read `CSV` data:
 *   `get`, to load data into `List[Record]`, which may be handy for small data sets,
 *   `process`, to deal with data record by record through a callback function, synchronously,
@@ -192,13 +204,6 @@ val list: List[Record] = parser.get(stream).unsafeRunSync()
 ```
 Alternatively, instead of calling an unsafe function,
 the whole processing may run through [IOApp](https://typelevel.org/cats-effect/api/3.x/cats/effect/IOApp.html).
-
-If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode`),
-we may convert it to a stream of characters:
-```scala
-val ss: Stream[IO, String] = ???
-val sc: Stream[IO, Char] = ss.through(text.string2char)
-```
 
 See [Reading and writing data](#reading-and-writing-data) for helper methods
 to get a stream of characters from various sources.
@@ -228,6 +233,20 @@ The provided header is used to select fields and does not cause adding header ro
 This is controlled by `CSVConfig.hasHeader` parameter and may be induced even for `render` method without header argument.
 
 If no explicit header is passed to `render`, it is extracted from the first record in the input stream.
+
+If we have to create a stream of `String`s (e.g. to pass to FS2 `text.utf8.encode` or `io.file.Files.writeUtf8`),
+we may used string-oriented render method:
+```scala
+val input: Stream[IO, Record] = ???
+val output: Stream[IO, String] = input.through(CSVRenderer[IO].renderS)
+```
+Alternatively, it is always possible to convert a stream of characters into a stream of strings:
+```scala
+val sc: Stream[IO, Char] = ???
+val ss: Stream[IO, String] = sc.through(text.char2string)
+```
+Please note that using `renderS` directly is more efficient than converting to characters,
+because rendering uses stream of strings as an intermediary format anyway.
 
 The main advantage of using `CSVRenderer` over `makeString` and `intersperse` methods
 is its ability to properly escape special characters (delimiters and quotation marks) in source data.
@@ -395,6 +414,12 @@ val stream: Stream[IO, Char] = Stream
   .bracket(IO(Source.fromFile("data.csv")))(source => IO(source.close()))
   .through(Reader.shifting[IO].by)
 ```
+
+The parsing and rendering may be also backed up by [FS2 I/O](https://fs2.io/#/io?id=files),
+with possible support from FS2 text decoding and encoding.
+Because those methods operate on a stream of strings instead of a stream of characters,
+special, string-oriented methods for parsing (`parseS`) and rendering ('renderS') should be used.
+See [parsing](#parsing) and [rendering](#rendring) respectively.
 
 ### Getting actual data
 

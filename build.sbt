@@ -5,11 +5,12 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  scalaVersion := "2.13.12"
+  scalaVersion := "2.13.13"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
 addCommandAlias("mima", "; mimaReportBinaryIssues")
+addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mima; doc; Perf/test")
 
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")
@@ -29,10 +30,10 @@ lazy val root = (project in file("."))
       "co.fs2" %% "fs2-core" % "2.5.11",
       "co.fs2" %% "fs2-io" % "2.5.11",
       "com.chuusai" %% "shapeless" % "2.3.10",
-      "org.slf4j" % "slf4j-api" % "2.0.9",
-      "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+      "org.slf4j" % "slf4j-api" % "2.0.12",
+      "org.scalatest" %% "scalatest" % "3.2.18" % Test,
       "com.storm-enroute" %% "scalameter" % "0.21" % Test,
-      "org.slf4j" % "slf4j-simple" % "2.0.9" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.12" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),

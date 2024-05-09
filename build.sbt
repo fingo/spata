@@ -9,8 +9,8 @@ lazy val basicSettings = Seq(
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
-addCommandAlias("mima", "; mimaReportBinaryIssues")
-addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mima; doc; Perf/test")
+addCommandAlias("audit", "; mimaReportBinaryIssues ; licenseCheck")
+addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mimaReportBinaryIssues; licenseCheck; doc; Perf/test")
 
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")
@@ -20,9 +20,9 @@ lazy val root = (project in file("."))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(basicSettings*)
   .settings(publishSettings*)
+  .settings(licenseSettings*)
   .configs(PerformanceTest)
   .settings(
-    licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
     versionScheme := Some("semver-spec"),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
@@ -50,6 +50,20 @@ lazy val root = (project in file("."))
     mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.2.0"),
     semanticdbEnabled := false,
     autoAPIMappings := true
+  )
+
+lazy val licenseSettings = Seq(
+    licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
+    licenseCheckAllow := Seq(
+      LicenseCategory.Apache,
+      LicenseCategory.BouncyCastle,
+      LicenseCategory.BSD,
+      LicenseCategory.CC0,
+      LicenseCategory.MIT,
+      LicenseCategory.PublicDomain,
+      LicenseCategory.JSON,
+      LicenseCategory.Unicode
+    )
   )
 
 import xerial.sbt.Sonatype.GitHubHosting

@@ -1,5 +1,6 @@
 addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "0.12.0")
 addSbtPlugin("com.github.sbt" % "sbt-dynver" % "5.0.1")
+addSbtPlugin("com.github.sbt" % "sbt-license-report" % "1.6.1")
 addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.2.1")
 addSbtPlugin("com.thoughtworks.sbt-api-mappings" % "sbt-api-mappings" % "3.0.2")
 addSbtPlugin("com.typesafe" % "sbt-mima-plugin" % "1.1.3")

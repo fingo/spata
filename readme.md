@@ -1078,6 +1078,7 @@ Credits
 *   [sbt-api-mappings](https://github.com/ThoughtWorksInc/sbt-api-mappings) licensed under [Apache-2.0](https://github.com/ThoughtWorksInc/sbt-api-mappings/blob/3.0.x/LICENSE) /D
 *   [sbt-dynver](https://github.com/dwijnand/sbt-dynver) licensed under [Apache-2.0](https://github.com/dwijnand/sbt-dynver/blob/master/LICENSE) /D
 *   [sbt-header](https://github.com/sbt/sbt-header) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
+*   [sbt-license-report](https://github.com/sbt/sbt-license-report) licensed under [Apache-2.0](https://github.com/sbt/sbt-header/blob/master/LICENSE) /D
 *   [sbt-pgp](https://github.com/sbt/sbt-pgp) licensed under [BSD-3-Clause](https://github.com/sbt/sbt-pgp/blob/master/LICENSE) /D
 *   [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) licensed under [Apache-2.0](https://github.com/scoverage/sbt-scoverage#license) /D
 *   [sbt-sonatype](https://github.com/xerial/sbt-sonatype) licensed under [Apache-2.0](https://github.com/xerial/sbt-sonatype/blob/master/LICENSE.txt) /D
@@ -1096,3 +1097,6 @@ Credits
 **/S** means source code derivative and
 **/D** means development tool.
 Only direct dependencies are presented in the above list.
+
+Run `sbt dumpLicenseReport` to get a complete list of compile and runtime dependencies, including transitive ones.
+**spata** build verifies whether all its dependencies are permissive so it can be deployed confidently in most usage scenarios.

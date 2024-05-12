@@ -9,8 +9,8 @@ lazy val basicSettings = Seq(
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")
-addCommandAlias("mima", "; mimaReportBinaryIssues")
-addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mima; doc; Perf/test")
+addCommandAlias("audit", "; mimaReportBinaryIssues ; licenseCheck")
+addCommandAlias("validate", "; compile; Test/compile; scalafmtCheck; scalafix --check; test; mimaReportBinaryIssues; licenseCheck; doc; Perf/test")
 
 lazy val PerformanceTest = config("perf").extend(Test)
 def perfFilter(name: String): Boolean = name.endsWith("PTS")
@@ -20,21 +20,21 @@ lazy val root = (project in file("."))
   .enablePlugins(AutomateHeaderPlugin)
   .settings(basicSettings*)
   .settings(publishSettings*)
+  .settings(licenseSettings*)
   .configs(PerformanceTest)
   .settings(
-    licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
     versionScheme := Some("semver-spec"),
     headerLicenseStyle := HeaderLicenseStyle.SpdxSyntax,
     headerEmptyLine := false,
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.5.3",
-      "co.fs2" %% "fs2-core" % "3.9.4",
-      "co.fs2" %% "fs2-io" % "3.9.4",
-      "org.slf4j" % "slf4j-api" % "2.0.12",
+      "org.typelevel" %% "cats-effect" % "3.5.4",
+      "co.fs2" %% "fs2-core" % "3.10.2",
+      "co.fs2" %% "fs2-io" % "3.10.2",
+      "org.slf4j" % "slf4j-api" % "2.0.13",
       "org.scalatest" %% "scalatest" % "3.2.18" % Test,
       ("com.storm-enroute" %% "scalameter" % "0.21").cross(CrossVersion.for3Use2_13) % Test
         exclude("org.scala-lang.modules", "scala-xml_2.13"),
-      "org.slf4j" % "slf4j-simple" % "2.0.12" % Test
+      "org.slf4j" % "slf4j-simple" % "2.0.13" % Test
     ),
     testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     inConfig(PerformanceTest)(Defaults.testTasks),
@@ -50,6 +50,20 @@ lazy val root = (project in file("."))
     mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.2.0"),
     semanticdbEnabled := false,
     autoAPIMappings := true
+  )
+
+lazy val licenseSettings = Seq(
+    licenses += ("Apache-2.0", new URI("https://www.apache.org/licenses/LICENSE-2.0.txt").toURL),
+    licenseCheckAllow := Seq(
+      LicenseCategory.Apache,
+      LicenseCategory.BouncyCastle,
+      LicenseCategory.BSD,
+      LicenseCategory.CC0,
+      LicenseCategory.MIT,
+      LicenseCategory.PublicDomain,
+      LicenseCategory.JSON,
+      LicenseCategory.Unicode
+    )
   )
 
 import xerial.sbt.Sonatype.GitHubHosting

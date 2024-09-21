@@ -46,7 +46,7 @@ lazy val root = (project in file("."))
     PerformanceTest / testOptions := Seq(Tests.Filter(perfFilter)),
     PerformanceTest / logBuffered := false,
     PerformanceTest / parallelExecution := false,
-    javaOptions += "-Dfile.encoding=UTF-8 -Dsource=11",
+    javaOptions += "-Dfile.encoding=UTF-8",
     scalacOptions ++= scalacSettings,
     Compile / console / scalacOptions --= Seq("-Xfatal-warnings"),
     Test / scalacOptions --= Seq("-Wnonunit-statement"),

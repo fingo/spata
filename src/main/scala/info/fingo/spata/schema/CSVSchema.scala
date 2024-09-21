@@ -132,7 +132,7 @@ final class CSVSchema[T <: Tuple] private (columns: T):
   /* Add logging information to validation pipe. */
   private def loggingPipe[F[_]: Logger]: Pipe[F, Record, Record] = in =>
     if Logger[F].isDebug
-      // interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
+    // interleave is used to insert validation log entry after entries from CSVParser, >> inserts it at the beginning
     then in.interleaveAll(Stream.exec(Logger[F].debug(s"Validating CSV with $this")).covaryOutput[Record])
     else in
 

@@ -2,7 +2,7 @@ spata
 =====
 
 [![Build Status](https://app.travis-ci.com/fingo/spata.svg?branch=master)](https://app.travis-ci.com/fingo/spata)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://www.codacy.com/gh/fingo/spata/dashboard)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://app.codacy.com/gh/fingo/spata/dashboard)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
 [![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_3.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_3%22)
 [![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_3/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/index.html)
@@ -19,7 +19,7 @@ with easy conversion between records and case classes, completed with precise in
 and their location in source data for parsing while maintaining good performance.
 Providing the location of the cause of a parsing error has been the main motivation to develop the library.
 It is typically not that hard to parse a well-formatted `CSV` file,
-but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file. 
+but it could be a nightmare to locate the source of a problem in case of any distortions in a large data file.
 
 The source (while parsing) and destination (while rendering) data format is assumed to conform basically to
 [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt), but allows some variations - see `CSVConfig` for details.
@@ -38,10 +38,10 @@ spata 3 is available for Scala 3.x and requires at least Java 11.
 To use spata you have to add this single dependency to your `build.sbt`:
 ```sbt
 libraryDependencies += "info.fingo" %% "spata" % "<version>"
-``` 
+```
 The latest version may be found on the badge above.
 
-Link to the current API version is available through the badge as well. 
+Link to the current API version is available through the badge as well.
 
 Basic usage
 -----------
@@ -60,7 +60,7 @@ val records = Stream
   // get stream of CSV records while ensuring source cleanup
   .bracket(IO(Source.fromFile("input.csv")))(source => IO(source.close()))
   .through(Reader.plain[IO].by) // produce stream of chars from source
-  .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records 
+  .through(CSVParser[IO].parse)  // parse CSV file with default configuration and get CSV records
   .filter(_.get[Double]("value").exists(_ > 1000))  // do some operations using Record and Stream API
   .map(_.to[Data]) // convert records to case class
   .handleErrorWith(ex => Stream.emit(Left(ex))) // convert global (I/O, CSV structure) errors to Either
@@ -95,7 +95,7 @@ object Converter extends IOApp.Simple:
 
   def run: IO[Unit] = converter.compile.drain
 ```
-Modified versions of this sample may be found in [error handling](#error-handling) 
+Modified versions of this sample may be found in [error handling](#error-handling)
 and [schema validation](#schema-validation) parts of the tutorial.
 
 More examples of how to use the library may be found in `src/test/scala/info/fingo/sample/spata`.
@@ -134,20 +134,20 @@ Please note, however, that Cats Effect [IO](https://typelevel.org/cats-effect/ap
 is the only effect implementation used for testing and documentation purposes.
 
 Type class dependencies are defined in terms of the
-[Cats Effect](https://typelevel.org/cats-effect/docs/typeclasses) class hierarchy. 
+[Cats Effect](https://typelevel.org/cats-effect/docs/typeclasses) class hierarchy.
 To support effect suspension, spata requires in general `cats.effect.Sync` type class implementation for its effect type.
 Some methods need enhanced type classes to support asynchronous or concurrent computation.
 Some are satisfied with more general effects.
 
 Like in the case of any other FS2 processing, spata consumes only as much of the source stream as required,
-give or take a chunk size. 
+give or take a chunk size.
 
 Field and record delimiters are required to be single characters.
 There are however no other assumptions about them - particularly the record delimiter does not have to be a line break
 and spata does not assume line break presence in the source data - it does not read the data by lines.
 
 If newline (`LF`, `\n`, `0x0A`) is used as the record delimiter,
-carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not escaped, to support `CRLF` line breaks.     
+carriage return character (`CR`, `\r`, `0x0D`) is automatically skipped if not escaped, to support `CRLF` line breaks.
 
 Fields containing delimiters (field or record) or quotes have to be wrapped in quotation marks.
 As defined in [RFC 4180](https://www.ietf.org/rfc/rfc4180.txt),
@@ -165,7 +165,7 @@ xxx, yyy ,zzz
 without trimming the content of `Y` field will be `" yyy "` for both records.
 With trimming on, we get `" yyy "` for the first record and `"yyy"` for the second.
 
-Please also note, that the following content: 
+Please also note, that the following content:
 ```csv
 X,Y,Z
 xxx, " yyy " ,zzz
@@ -176,7 +176,7 @@ as spaces are considered regular characters in this case and quote has to be put
 Not all invisible characters (notably non-breaking space, `'\u00A0'`) are whitespaces.
 See Java's
 [Char.isWhitespace](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Character.html#isWhitespace(char))
-for details.  
+for details.
 
 If we have to work with a stream of `String`s (e.g. from FS2 `text.utf8.decode` or `io.file.Files.readUtf8`),
 we may used string-oriented parse method:
@@ -259,7 +259,7 @@ If this is required, the `rows` method has to be used:
 val input: Stream[IO, Record] = ???
 val output: Stream[IO, String] = input.through(CSVRenderer[IO].rows).intersperse("\r\n")
 ```
-The above stream of strings may be converted to a stream of characters as presented in the [rendering](#rendering) part. 
+The above stream of strings may be converted to a stream of characters as presented in the [rendering](#rendering) part.
 
 Unlike `render`, the `rows` method outputs all fields from each record and never outputs the header row.
 
@@ -325,7 +325,7 @@ A record can, however, grow uncontrollably in case of incorrect configuration (e
 or malformed structure (e.g. unclosed quotation).
 To prevent `OutOfMemoryError` in such situations,
 spata can be configured to limit the maximum size of a single field using `fieldSizeLimit`.
-If this limit is exceeded during parsing, the processing stops with an error. 
+If this limit is exceeded during parsing, the processing stops with an error.
 By default, no limit is specified.
 
 ### Reading and writing data
@@ -676,7 +676,7 @@ val num: ParseResult[Double] = StringParser.parse[Double]("123.45")
 ```
 where `ParseResult[A]` is just an alias for `Either[ParseError, A]`.
 
-When a specific format has to be provided, an overloaded version of the above method is available: 
+When a specific format has to be provided, an overloaded version of the above method is available:
 ```scala
 val df = new DecimalFormat("#,###")
 val num: ParseResult[Double] = StringParser.parse[Double]("123,45", df)
@@ -712,7 +712,7 @@ val date = StringParser.parse[Date]("02.02.2020", df)
 Please note that this sample implementation accepts partial string parsing,
 e.g. `"02.02.2020xyz"` will successfully parse to `2020-02-02`.
 This is different from the built-in parsing behavior for `LocalDate`,
-where the entire string has to conform to the format. 
+where the entire string has to conform to the format.
 
 Parsing implementations are expected to throw specific runtime exceptions when parsing fails.
 This is converted to `ParseError` in `StringParser` object's `parse` method
@@ -726,13 +726,13 @@ leaving all exception handling in a single place, i.e. the `StringParser.parse` 
 
 #### Rendering text
 
-Rendering is symmetrical with parsing. 
+Rendering is symmetrical with parsing.
 `StringRenderer` object provides methods for rendering strings with default or implicitly provided format:
 ```scala
 val str: String = StringRenderer.render(123.45)
 ```
 
-When a specific format has to be provided, an overloaded version of the above method is available: 
+When a specific format has to be provided, an overloaded version of the above method is available:
 ```scala
 val df = new DecimalFormat("#,###")
 val str: String = StringRenderer.render(123.45, df)
@@ -768,7 +768,7 @@ val str = StringRenderer.render(date, df)
 
 ### Schema validation
 
-Successful `CSV` parsing means that the underlying source has the correct format (taking into account parser configuration). 
+Successful `CSV` parsing means that the underlying source has the correct format (taking into account parser configuration).
 Nonetheless, the obtained records may have any content - being a collection of strings they are very permissive.
 We often require strict data content and format to be able to use it in accordance with our business logic.
 Therefore spata supports basic fields' format definition and validation.
@@ -818,7 +818,7 @@ If we try to access a non-existing field (not defined by schema) or assign it to
 we will get a compilation error:
 ```scala
 val typedRecord = ???
-val price: BigDecimal = typedRecord("prce") // does not compile 
+val price: BigDecimal = typedRecord("prce") // does not compile
 ```
 
 The key (field name) used to access the record value is a [literal type](https://docs.scala-lang.org/sips/42.type.html).
@@ -852,7 +852,7 @@ val schema = CSVSchema()
 ```
 Please note, that this still requires the field (column) to be present, only permits it to contain empty values.
 
-While processing a validated stream, we have access to invalid data as well: 
+While processing a validated stream, we have access to invalid data as well:
 ```scala
 val validatedStream = ???
 validatedStream.map: validated =>
@@ -887,7 +887,7 @@ It is possible to provide multiple validators for each field.
 The validation process for a field is stopped on the first failing validator.
 The order of running validators is not specified.
 Nevertheless, the validation is run independently for each field defined by the schema.
-The returned `InvalidRecord` contains error information from all incorrect fields.   
+The returned `InvalidRecord` contains error information from all incorrect fields.
 
 The validators are defined in terms of typed (already correctly parsed) values.
 A bunch of typical ones is available as part of `info.fingo.spata.schema.validator` package.
@@ -947,7 +947,7 @@ There are three types of errors that may arise while parsing `CSV`:
     Alternatively, when schema validation is in use,
     this type of error results in `InvalidRecord` with `SchemaError`s (one per each field) being yielded.
     More precisely, `ContentError` is wrapped in `TypeError`,
-    while any custom validation problem is reported as `ValidationError`. 
+    while any custom validation problem is reported as `ValidationError`.
 
 The two first error categories are unrecoverable and stop stream processing.
 For the `StructureException` errors, we can precisely identify the place that caused the problem.

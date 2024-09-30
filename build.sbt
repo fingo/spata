@@ -5,7 +5,7 @@ lazy val basicSettings = Seq(
   startYear := Some(2020),
   name := "spata",
   description := "Functional, stream based CSV processor for Scala",
-  scalaVersion := "3.3.3"
+  scalaVersion := "3.3.4"
 )
 
 addCommandAlias("check", "; scalafmtCheck ; scalafix --check")

@@ -141,7 +141,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             val stream = input.through(parser.parse)
             val eh: StreamErrorHandler =
               ex => assertError(ex, errorCode, line, col, row, field)(Stream.emit(()))
-            stream.handleErrorWith(eh).compile.drain.unsafeRunSync()
+            stream.handleErrorWith[IO, Any](eh).compile.drain.unsafeRunSync()
           }
       }
     }
@@ -483,8 +483,8 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
            |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "crlf" =>
         s""""1"${s}Funky Koval${s}01.01.2001$s\r
-          |"2"${s}Eva Solo${s}31.12.2012${s}"123.45"\r
-          |"3"$s""${s}09.09.1999$s""""".stripMargin
+           |"2"${s}Eva Solo${s}31.12.2012${s}"123.45"\r
+           |"3"$s""${s}09.09.1999$s""""".stripMargin
       case "double quotes" =>
         s""""1"$s"^Funky^ Koval"$s"01.01.2001"$s"^100.00^"
            |"2"$s"Solo, Eva"$s"31.12.2012"$s"123.45"

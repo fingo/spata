@@ -139,7 +139,7 @@ class CSVParserTS extends AnyFunSuite with TableDrivenPropertyChecks {
             val stream = input.through(parser.parse)
             val eh: StreamErrorHandler =
               ex => assertError(ex, errorCode, line, col, row, field)(Stream.emit(()))
-            stream.handleErrorWith(eh).compile.drain.unsafeRunSync()
+            stream.handleErrorWith[IO, Any](eh).compile.drain.unsafeRunSync()
           }
       }
     }

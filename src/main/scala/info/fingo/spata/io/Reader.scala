@@ -242,8 +242,9 @@ object Reader:
     /** @inheritdoc */
     def read(path: Path)(using codec: Codec): Stream[F, Char] =
       Stream
-        .bracket(Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay:
-          Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
+        .bracket(
+          Logger[F].debug(s"Path $path provided as input") *> Sync[F].delay:
+            Source.fromInputStream(Files.newInputStream(path, StandardOpenOption.READ))
         )(source => Sync[F].delay(source.close()))
         .flatMap(read)
 

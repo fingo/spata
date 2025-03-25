@@ -150,8 +150,7 @@ object Writer:
       (in: Stream[F, Char]) =>
         Stream
           .bracket(Logger[F].debug(s"Path $path provided as output") *> Sync[F].delay:
-            Files.newOutputStream(path, openOptions*)
-          )(os => Sync[F].delay(os.close()))
+            Files.newOutputStream(path, openOptions*))(os => Sync[F].delay(os.close()))
           .flatMap(os => in.through(write(os)))
 
     protected def char2byte(using codec: Codec): Pipe[F, Char, Chunk[Byte]] =

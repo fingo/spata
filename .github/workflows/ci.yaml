@@ -1,0 +1,66 @@
+name: Continuous integration
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Compile and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 11
+          distribution: temurin
+          cache: sbt
+
+      - name: Compile, check formatting and style
+        run: sbt clean compile Test/compile check
+
+      - name: Check compatibility and licenses
+        run: sbt audit
+
+      - name: Test
+        run: sbt coverage test coverageReport
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          directory: target
+
+      - name: Run performance tests
+        run: sbt Perf/test
+
+      - name: Generate API documentation
+        run: sbt doc
+
+  publish:
+    name: Publish artifacts
+    needs: [build]
+    if: github.event_name != 'pull_request' && (startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 11
+          distribution: temurin
+          cache: sbt
+
+      - name: Release
+        run: sbt ci-release
+        env:
+          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
+          PGP_SECRET: ${{ secrets.PGP_SECRET }}
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}

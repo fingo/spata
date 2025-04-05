@@ -4,6 +4,7 @@
 !.scalafix.conf
 !.travis.yml
 !.codacy.yml
+!.github/
 target/
 project/target/
 project/project/

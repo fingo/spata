@@ -1,8 +1,8 @@
 Publishing
 ==========
 
-spata is published from Travis CI,
-with help of [sbt-sonatype](https://github.com/xerial/sbt-sonatype) plugin.
+spata is published from Github Actions,
+with help of [sbt-ci-release](https://github.com/sbt/sbt-ci-release) plugin.
 A lot of useful information about publishing process may be found in the
 Scala's [Library Author Guide](https://docs.scala-lang.org/overviews/contributors/index.html#publish-a-release)
 and [sbt documentation](https://www.scala-sbt.org/release/docs/Using-Sonatype.html).
@@ -34,42 +34,20 @@ Preparations
 *   Publish the key: `gpg --keyserver hkps://keys.openpgp.org --send-keys <key-id>`
     (it may take a while until the keys are publicly available).
 
-### Configure [Travis CI](https://travis-ci.com/github/fingo/spata)
+### Configure Github Actions
 
-*   Install [Travis client](https://github.com/travis-ci/travis.rb#installation) if required.
+*   Add Sonatype token (`SONATYPE_USERNAME` and `SONATYPE_PASSWORD`) to
+    [Github repository secrets](https://github.com/fingo/spata/settings/secrets/actions)
 
-*   Set the repository name in environment: `REPO=fingo/spata`.
+*   Retrieve the PGP key: `gpg --armor --export-secret-keys <key-id> | base64 | pbcopy`
+    (this is MacOS specific command, for other platforms see
+    [Library Author Guide](https://docs.scala-lang.org/overviews/contributors/index.html#export-your-pgp-key-pair))
 
-*   [Create GitHub OAuth token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token)
-    for Travis CI (with `repo`, `user:email` and `read:org` scopes).
+*   Add PGP key (`PGP_SECRET`) to
+    [Github repository secrets](https://github.com/fingo/spata/settings/secrets/actions)
 
-*   Log in to Travis CI: `travis login --github-token <token> --com`.
-
-*   Export public key for CI: `gpg -a --export <key-id> > ci/public-key.asc`.
-
-*   Export private key: `gpg --export-secret-keys --armor <key-id> > target/secret-key.asc`.
-
-*   Encrypt private key and send to Travis: `travis encrypt-file target/secret-key.asc --com -r $REPO`
-
-*   Adjust `.travis.yml`: replace `$encrypted_<id>_key` and `$encrypted_<id>_iv` with values returned by above command
-    (`openssl` call in `publish` stage).
-
-*   Move encrypted key to `ci` folder: `mv secret-key.asc.enc ci`.
-
-*   Remove exported private key: `rm target/secret-key.asc`.
-
-*   Encrypt credentials:
-
-    *   Execute `travis encrypt PGP_PASSPHRASE=<spata_bot_pgp_pass>`
-        and replace secure environment variable for `PGP_PASSPHRASE` in `.travis.yml` with returned value.
-
-    *   Execute `travis encrypt SONATYPE_USERNAME=<user_token_name>`
-        and replace secure environment variable for `PGP_PASSPHRASE` in `.travis.yml` with returned value.
-
-    *   Execute `travis encrypt SONATYPE_PASSWORD=<user_token_pass>`
-        and replace secure environment variable for `PGP_PASSPHRASE` in `.travis.yml` with returned value.
-
-*   Logout from Travis: `travis logout --com`.
+*   Add PGP key passphrase (`PGP_PASSPHRASE`) to
+    [Github repository secrets](https://github.com/fingo/spata/settings/secrets/actions)
 
 Cutting a release
 -----------------

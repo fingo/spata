@@ -1,8 +1,7 @@
 spata
 =====
 
-[![Build Status](https://app.travis-ci.com/fingo/spata.svg?branch=master)](https://app.travis-ci.com/fingo/spata)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/21674eb21b7645edb9b149dfcbcb628d)](https://app.codacy.com/gh/fingo/spata/dashboard)
+[![Build Status](https://github.com/fingo/spata/actions/workflows/ci.yaml/badge.svg)](https://github.com/fingo/spata/actions/workflows/ci.yaml)
 [![Code Coverage](https://codecov.io/gh/fingo/spata/branch/master/graph/badge.svg)](https://codecov.io/gh/fingo/spata)
 [![Maven Central](https://img.shields.io/maven-central/v/info.fingo/spata_3.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22info.fingo%22%20AND%20a:%22spata_3%22)
 [![Scala Doc](https://javadoc.io/badge2/info.fingo/spata_3/javadoc.svg)](https://javadoc.io/doc/info.fingo/spata_3/latest/info/fingo/spata/index.html)

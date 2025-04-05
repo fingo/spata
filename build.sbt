@@ -71,11 +71,9 @@ lazy val licenseSettings = Seq(
 
 import xerial.sbt.Sonatype.GitHubHosting
 lazy val publishSettings = Seq(
+  ThisBuild / sonatypeCredentialHost := "oss.sonatype.org",
+  sonatypeRepository := "https://oss.sonatype.org/service/local",
   sonatypeProjectHosting := Some(GitHubHosting("fingo", "spata", "robert.marek@fingo.info")),
-  publishMavenStyle := true,
-  publishTo := sonatypePublishToBundle.value,
-  pgpPublicRing := file("ci/public-key.asc"),
-  pgpSecretRing := file("ci/secret-key.asc"),
   developers := List(Developer("susuro", "Robert Marek", "robert.marek@fingo.info", url("https://github.com/susuro")))
 )
 

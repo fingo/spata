@@ -17,6 +17,9 @@ jobs:
           distribution: temurin
           cache: sbt
 
+      - name: setup sbt
+        uses: sbt/setup-sbt@v1
+
       - name: Compile, check formatting and style
         run: sbt clean compile Test/compile check
 

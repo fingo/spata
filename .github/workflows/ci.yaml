@@ -17,7 +17,7 @@ jobs:
           distribution: temurin
           cache: sbt
 
-      - name: setup sbt
+      - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
       - name: Compile, check formatting and style
@@ -34,6 +34,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           directory: target
+          fail_ci_if_error: true
 
       - name: Run performance tests
         run: sbt Perf/test

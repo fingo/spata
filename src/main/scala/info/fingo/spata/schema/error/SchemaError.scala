@@ -5,7 +5,10 @@
  */
 package info.fingo.spata.schema.error
 
-import info.fingo.spata.error.{ContentError, DataError, HeaderError, IndexError}
+import info.fingo.spata.error.ContentError
+import info.fingo.spata.error.DataError
+import info.fingo.spata.error.HeaderError
+import info.fingo.spata.error.IndexError
 
 /** Error for schema validation. */
 sealed trait SchemaError:

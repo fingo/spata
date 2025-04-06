@@ -5,9 +5,12 @@
  */
 package info.fingo.spata.parser
 
-import scala.annotation.tailrec
-import fs2.{Chunk, Pipe}
+import fs2.Chunk
+import fs2.Pipe
 import info.fingo.spata.error.ParsingErrorCode.*
+
+import scala.annotation.tailrec
+
 import FieldParser.*
 
 /* Carrier for counters, partial field content and information about finished parsing. */

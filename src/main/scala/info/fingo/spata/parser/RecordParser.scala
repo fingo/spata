@@ -5,9 +5,12 @@
  */
 package info.fingo.spata.parser
 
-import scala.collection.immutable.VectorBuilder
+import fs2.Chunk
+import fs2.Pipe
+
 import scala.annotation.tailrec
-import fs2.{Chunk, Pipe}
+import scala.collection.immutable.VectorBuilder
+
 import RecordParser.*
 import FieldParser.*
 

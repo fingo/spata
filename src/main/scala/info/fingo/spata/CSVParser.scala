@@ -5,14 +5,23 @@
  */
 package info.fingo.spata
 
-import scala.util.Try
-import cats.effect.{Async => CEAsync, Sync}
-import fs2.{text, Pipe, Pull, Stream}
-import info.fingo.spata.parser.{CharParser, FieldParser, RecordParser}
-import info.fingo.spata.parser.RecordParser.RecordResult
+import cats.effect.Async as CEAsync
+import cats.effect.Sync
+import fs2.Pipe
+import fs2.Pull
+import fs2.Stream
+import fs2.text
 import info.fingo.spata.CSVParser.Callback
-import info.fingo.spata.error.{CSVException, ParsingErrorCode, StructureException}
+import info.fingo.spata.error.CSVException
+import info.fingo.spata.error.ParsingErrorCode
+import info.fingo.spata.error.StructureException
+import info.fingo.spata.parser.CharParser
+import info.fingo.spata.parser.FieldParser
+import info.fingo.spata.parser.RecordParser
+import info.fingo.spata.parser.RecordParser.RecordResult
 import info.fingo.spata.util.Logger
+
+import scala.util.Try
 
 /** A utility for parsing comma-separated values (CSV) sources.
   * The source is assumed to be [[https://tools.ietf.org/html/rfc4180 RFC 4180]] conform,

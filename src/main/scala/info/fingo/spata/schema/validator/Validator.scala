@@ -5,11 +5,13 @@
  */
 package info.fingo.spata.schema.validator
 
-import scala.util.matching.Regex
 import cats.data.Validated
-import cats.data.Validated.{Invalid, Valid}
+import cats.data.Validated.Invalid
+import cats.data.Validated.Valid
 import info.fingo.spata.schema.error.ValidationError
 import info.fingo.spata.util.classLabel
+
+import scala.util.matching.Regex
 
 /** Validator for typed CVS field value.
   *
@@ -47,7 +49,7 @@ trait Validator[A]:
     * @param value the validated value
     * @return error message parametrized with value
     */
-  def errorMessage(value: A) = s"Invalid value [$value] reported by $name"
+  def errorMessage(value: A): String = s"Invalid value [$value] reported by $name"
 
   /* Main validation method, used by schema validation. Must not alter the value. */
   final private[schema] def apply(value: A): Validated[ValidationError, A] =
@@ -244,4 +246,4 @@ object FiniteValidator:
     */
   def apply(): Validator[Double] = new Validator[Double]:
     def isValid(value: Double): Boolean = value.isFinite
-    override def errorMessage(value: Double) = s"Number [$value] is not finite"
+    override def errorMessage(value: Double): String = s"Number [$value] is not finite"

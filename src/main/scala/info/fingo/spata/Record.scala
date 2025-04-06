@@ -5,10 +5,17 @@
  */
 package info.fingo.spata
 
-import java.util.NoSuchElementException
-import info.fingo.spata.converter.{FromProduct, FromTuple, ToProduct, ToTuple}
+import info.fingo.spata.converter.FromProduct
+import info.fingo.spata.converter.FromTuple
+import info.fingo.spata.converter.ToProduct
+import info.fingo.spata.converter.ToTuple
 import info.fingo.spata.error.*
-import info.fingo.spata.text.{FormattedStringParser, ParseResult, StringParser, StringRenderer}
+import info.fingo.spata.text.FormattedStringParser
+import info.fingo.spata.text.ParseResult
+import info.fingo.spata.text.StringParser
+import info.fingo.spata.text.StringRenderer
+
+import java.util.NoSuchElementException
 
 /** CSV record representation.
   * A record is basically a map from string to string.

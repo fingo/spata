@@ -5,10 +5,12 @@
  */
 package info.fingo.spata.error
 
-import java.util.NoSuchElementException
-import ParsingErrorCode.ErrorCode
 import info.fingo.spata.Position
 import info.fingo.spata.text.StringParser
+
+import java.util.NoSuchElementException
+
+import ParsingErrorCode.ErrorCode
 
 /** Base exception reported by CSV handling methods.
   * May be thrown, raised through [[fs2.Stream#raiseError]] or returned as `Left`, depending on context.

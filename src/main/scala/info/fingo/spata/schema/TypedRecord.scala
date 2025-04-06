@@ -5,11 +5,12 @@
  */
 package info.fingo.spata.schema
 
-import scala.deriving.Mirror
-import scala.annotation.unused
-import scala.compiletime.{constValue, erasedValue}
 import info.fingo.spata.converter.ToProduct
 import info.fingo.spata.schema.TypedRecord.*
+
+import scala.annotation.unused
+import scala.compiletime.constValue
+import scala.deriving.Mirror
 
 /** CSV record representation with type-safe access to its values.
   * Typed records are created as result of schema validation.

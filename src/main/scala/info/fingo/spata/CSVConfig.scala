@@ -7,6 +7,7 @@ package info.fingo.spata
 
 import cats.effect.Sync
 import info.fingo.spata.util.Logger
+
 import scala.annotation.targetName
 
 /** CSV configuration used to create [[CSVParser]] or [[CSVRenderer]].

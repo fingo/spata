@@ -5,9 +5,15 @@
  */
 package info.fingo.spata.text
 
-import java.text.{DecimalFormat, NumberFormat, ParseException, ParsePosition}
-import java.time.format.{DateTimeFormatter, DateTimeParseException}
-import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.text.DecimalFormat
+import java.text.NumberFormat
+import java.text.ParseException
+import java.text.ParsePosition
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import scala.util.control.NonFatal
 
 /** Parser from `String` to desired type.
@@ -144,7 +150,7 @@ object StringParser:
     * @return parser which accepts empty input
     */
   given optionParser[A](using parser: StringParser[A]): StringParser[Option[A]] with
-    def apply(str: String) = if str == null || str.isBlank then None else Some(parser(str))
+    def apply(str: String): Option[A] = if str == null || str.isBlank then None else Some(parser(str))
 
   /** Parser for optional values with support for different formats.
     * Allows conversion of any simple parser to return `Option[A]` instead of `A`, avoiding error for empty string.

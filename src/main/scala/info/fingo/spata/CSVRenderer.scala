@@ -5,8 +5,14 @@
  */
 package info.fingo.spata
 
-import fs2.{text, Chunk, Pipe, Pull, RaiseThrowable, Stream}
-import info.fingo.spata.error.{FieldInfo, HeaderError}
+import fs2.Chunk
+import fs2.Pipe
+import fs2.Pull
+import fs2.RaiseThrowable
+import fs2.Stream
+import fs2.text
+import info.fingo.spata.error.FieldInfo
+import info.fingo.spata.error.HeaderError
 
 /** A utility for rendering data to CSV representation.
   *

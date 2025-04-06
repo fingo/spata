@@ -7,8 +7,8 @@ package info.fingo.spata.util
 
 import cats.effect.Sync
 import fs2.Stream
+import org.slf4j.Logger as JLogger
 import org.slf4j.helpers.NOPLogger
-import org.slf4j.{Logger => JLogger}
 
 /** Logger delegating spata logging operations to provided SLF4J logger.
   * It defaults to no-op logger and may be activated by creating a given instance with regular SLF4J logger.

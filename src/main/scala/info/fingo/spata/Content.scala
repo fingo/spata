@@ -7,7 +7,8 @@ package info.fingo.spata
 
 import cats.effect.Sync
 import fs2.Stream
-import info.fingo.spata.error.{FieldInfo, StructureException}
+import info.fingo.spata.error.FieldInfo
+import info.fingo.spata.error.StructureException
 import info.fingo.spata.parser.RecordParser.*
 import info.fingo.spata.util.Logger
 

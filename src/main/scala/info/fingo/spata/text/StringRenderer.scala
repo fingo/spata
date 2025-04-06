@@ -5,7 +5,8 @@
  */
 package info.fingo.spata.text
 
-import java.text.{DecimalFormat, NumberFormat}
+import java.text.DecimalFormat
+import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.time.temporal.Temporal
 
@@ -107,7 +108,7 @@ object StringRenderer:
     * @return renderer which accepts optional values
     */
   given optionRenderer[A](using renderer: StringRenderer[A]): StringRenderer[Option[A]] with
-    def apply(value: Option[A]) = value.map(renderer.apply).getOrElse("")
+    def apply(value: Option[A]): String = value.map(renderer.apply).getOrElse("")
 
   /** Renderer for optional values with support for different formats.
     * Allows conversion of any simple renderer to accept `Option[A]` instead of `A`,
@@ -125,7 +126,7 @@ object StringRenderer:
 
   /** Renderer for string. Return the original string or empty one for null. */
   given stringRenderer: StringRenderer[String] with
-    def apply(value: String) = Option(value).getOrElse("")
+    def apply(value: String): String = Option(value).getOrElse("")
 
   /** Renderer for integer values. */
   given intRenderer: StringRenderer[Int] with

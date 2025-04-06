@@ -5,15 +5,26 @@
  */
 package info.fingo.spata.io
 
-import java.io.InputStream
-import java.nio.file.{Files, Path, StandardOpenOption}
-import scala.io.{BufferedSource, Codec, Source}
-import cats.effect.{Async, Sync}
+import cats.effect.Async
+import cats.effect.Sync
 import cats.syntax.all.*
-import fs2.io.file.{Files => FFiles, Flags, Path => FPath}
-import fs2.{io, text, Pipe, Stream}
-import info.fingo.spata.util.Logger
+import fs2.Pipe
 import fs2.RaiseThrowable
+import fs2.Stream
+import fs2.io
+import fs2.io.file.Files as FFiles
+import fs2.io.file.Flags
+import fs2.io.file.Path as FPath
+import fs2.text
+import info.fingo.spata.util.Logger
+
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
+import scala.io.BufferedSource
+import scala.io.Codec
+import scala.io.Source
 
 /** Reader interface with reading operations from various sources.
   * The I/O operations are wrapped in effect `F` (e.g. [[cats.effect.IO]]), allowing deferred computation.

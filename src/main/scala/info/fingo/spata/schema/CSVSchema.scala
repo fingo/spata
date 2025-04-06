@@ -5,16 +5,21 @@
  */
 package info.fingo.spata.schema
 
-import scala.annotation.unused
-import scala.reflect.{classTag, ClassTag}
-import cats.data.{NonEmptyList, Validated}
-import cats.data.Validated.{Invalid, Valid}
-import fs2.{Pipe, Stream}
+import cats.data.NonEmptyList
+import cats.data.Validated
+import cats.data.Validated.Invalid
+import cats.data.Validated.Valid
+import fs2.Pipe
+import fs2.Stream
 import info.fingo.spata.Record
 import info.fingo.spata.schema.error.TypeError
 import info.fingo.spata.schema.validator.Validator
 import info.fingo.spata.text.StringParser
 import info.fingo.spata.util.Logger
+
+import scala.annotation.unused
+import scala.reflect.ClassTag
+import scala.reflect.classTag
 
 /** CSV schema definition and validation utility.
   *

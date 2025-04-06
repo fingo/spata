@@ -5,11 +5,14 @@
  */
 package info.fingo.spata.converter
 
-import scala.deriving.Mirror
-import scala.compiletime.{constValue, erasedValue, summonInline}
 import info.fingo.spata.Decoded
 import info.fingo.spata.Record
 import info.fingo.spata.text.StringParser
+
+import scala.compiletime.constValue
+import scala.compiletime.erasedValue
+import scala.compiletime.summonInline
+import scala.deriving.Mirror
 
 /** Converter from a record to a tuple.
   *

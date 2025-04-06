@@ -51,7 +51,7 @@ lazy val root = (project in file("."))
     Compile / console / scalacOptions --= Seq("-Xfatal-warnings"),
     Test / scalacOptions --= Seq("-Wnonunit-statement"),
     mimaPreviousArtifacts := Set("info.fingo" %% "spata" % "3.2.0"),
-    semanticdbEnabled := false,
+    semanticdbEnabled := true,
     autoAPIMappings := true
   )
 

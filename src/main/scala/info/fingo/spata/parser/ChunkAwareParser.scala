@@ -5,7 +5,10 @@
  */
 package info.fingo.spata.parser
 
-import fs2.{Chunk, Pipe, Pull, Stream}
+import fs2.Chunk
+import fs2.Pipe
+import fs2.Pull
+import fs2.Stream
 
 /* Trait for state carriers which shows if processing has been finished */
 private[spata] trait State:

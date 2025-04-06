@@ -5,7 +5,9 @@
  */
 package info.fingo.spata
 
-import info.fingo.spata.error.{FieldInfo, ParsingErrorCode, StructureException}
+import info.fingo.spata.error.FieldInfo
+import info.fingo.spata.error.ParsingErrorCode
+import info.fingo.spata.error.StructureException
 
 /** CSV header with names of each field.
   *

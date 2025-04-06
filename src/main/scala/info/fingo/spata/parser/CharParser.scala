@@ -5,7 +5,10 @@
  */
 package info.fingo.spata.parser
 
-import fs2.{Chunk, Pipe, Pull, Stream}
+import fs2.Chunk
+import fs2.Pipe
+import fs2.Pull
+import fs2.Stream
 import info.fingo.spata.error.ParsingErrorCode.*
 
 /* A finite-state transducer to converter plain source characters into context-dependent symbols,

@@ -5,8 +5,10 @@
  */
 package info.fingo.spata.converter
 
+import info.fingo.spata.Header
+import info.fingo.spata.Record
 import info.fingo.spata.text.StringRenderer
-import info.fingo.spata.{Header, Record}
+
 import scala.deriving.Mirror
 
 /** Converter from a tuple to a record.
